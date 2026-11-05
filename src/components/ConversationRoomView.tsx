@@ -998,16 +998,16 @@ export const ConversationRoomView: React.FC = () => {
           <div className="flex items-center gap-2">
             {/* Primary Voice Mic Button */}
             <button
-              onClick={isRecording ? stopListeningAndSend : startListening}
+              onClick={isRecording ? stopListeningAndSend : liveTranscript.trim() ? () => sendMessage(liveTranscript.trim()) : startListening}
               disabled={isAiResponding}
               className={`min-w-[54px] h-[54px] rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0 active:scale-95 ${
                 isRecording
                   ? 'bg-rose-600 text-white ring-4 ring-rose-500/20 animate-pulse'
                   : 'bg-teal-600 hover:bg-teal-500 text-white'
               }`}
-              title={isRecording ? 'Tap to finish speaking & send' : 'Tap to speak English'}
+              title={isRecording ? 'Finish speaking and send' : liveTranscript.trim() ? 'Send recognized speech' : 'Start English speech recognition'}
             >
-              {isRecording ? <Square className="w-5 h-5 fill-white" /> : <Mic className="w-6 h-6" />}
+              {isRecording ? <Square className="w-5 h-5 fill-white" /> : liveTranscript.trim() ? <Send className="w-5 h-5" /> : <Mic className="w-6 h-6" />}
             </button>
 
             {/* Text Input Fallback */}
