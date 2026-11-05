@@ -200,7 +200,7 @@ export class SpeechRecognitionSession {
           }
         }
 
-        this.finalTranscript = finalParts.join(' ').replace(/\\s+([,.;!?])/g, '$1').trim();
+        this.finalTranscript = finalParts.join(' ').replace(/\s+([,.;!?])/g, '$1').trim();
         this.interimTranscript = interimParts.join(' ').trim();
         const transcript = [this.finalTranscript, this.interimTranscript].filter(Boolean).join(' ').trim();
 
