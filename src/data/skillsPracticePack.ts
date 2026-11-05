@@ -67,7 +67,7 @@ const buildLesson = (seed: LessonSeed): ListeningLesson => {
       options: item.options,
       correctAnswer: item.answer,
       explanationEn: item.why,
-      explanationVi: item.why,
+      explanationVi: 'Đáp án được nêu trực tiếp trong bài nghe: ' + item.answer + '.',
     })),
     dictationTargetSentence: sentences[Math.min(2, sentences.length - 1)].textEn,
     dictationSentences: sentences.map((sentence) => sentence.textEn),
