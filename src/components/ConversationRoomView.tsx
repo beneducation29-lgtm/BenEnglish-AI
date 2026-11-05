@@ -497,45 +497,19 @@ export const ConversationRoomView: React.FC = () => {
     } catch (e: any) {
       console.warn('Summary generation error, using fallback report', e);
       const fallbackSummary: ConversationSummaryReport = {
-        summary: `Productive spoken English session with ${activePersona.name} focusing on ${selectedModeId} communication. The conversation maintained natural turn-taking over ${durationMins} minutes.`,
-        newVocabulary: [
-          {
-            word: 'initiative',
-            ipa: '/ɪˈnɪʃ.ə.tɪv/',
-            definition: 'The ability to assess and initiate things independently; an important new act or strategy.',
-            meaningVi: 'sáng kiến, sự chủ động',
-          },
-          {
-            word: 'perspective',
-            ipa: '/pəˈspek.tɪv/',
-            definition: 'A particular attitude toward or way of regarding something; a point of view.',
-            meaningVi: 'góc nhìn, quan điểm',
-          },
-        ],
-        grammarMistakes: [
-          {
-            userSaid: 'They is very important for me',
-            correction: 'They are very important to me',
-            rule: 'Subject-verb agreement: plural pronoun "they" requires "are", and "important" collocates with preposition "to".',
-            vietnameseExplanation: 'Người Việt hay nhầm "for me" và "to me". Hãy dùng "important to me".',
-          },
-        ],
-        pronunciationObservations: [
-          'Good overall sentence stress on key lexical content words.',
-          'Watch out for ending consonant clusters like /sts/ and /ks/ (e.g. tests, complex).',
-        ],
-        strongPoints: [
-          'High willingness to communicate without hesitation.',
-          'Immediate conversational responsiveness to the AI tutor’s open-ended questions.',
-        ],
+        summary: 'The conversation was saved, but the AI diagnostic report could not be generated. No vocabulary, grammar, fluency, or pronunciation findings have been invented.',
+        newVocabulary: [],
+        grammarMistakes: [],
+        pronunciationObservations: [],
+        strongPoints: [],
         improvementSuggestions: [
-          'Practice incorporating cohesive discourse markers like "Furthermore", "In my perspective", and "Consequently".',
-          'Elongate stressed syllables slightly for more authentic English cadence.',
+          'Try generating the session report again when the AI service is available.',
+          'This room stores speech-to-text transcripts only; pronunciation and accent cannot be assessed from transcript text.',
         ],
         recommendedPractice: {
           lab: 'speaking',
-          title: 'Read Aloud: Cross-Border Resilience',
-          targetFocus: 'Ending consonant clusters & 120 WPM cadence',
+          title: 'Continue a short English conversation',
+          targetFocus: 'Build another transcript sample; no diagnostic score is available for this session.',
         },
       };
 
