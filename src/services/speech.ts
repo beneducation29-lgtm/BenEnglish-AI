@@ -279,6 +279,8 @@ export class SpeechRecognitionSession {
       // before handing the complete transcript back to the caller.
       this.recognition.stop();
     } catch {
+      this.isListening = false;
+      this.onStateChange?.(false);
       const callback = this.stopCallback;
       this.stopCallback = null;
       callback?.(this.transcript);
