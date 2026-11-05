@@ -89,6 +89,7 @@ export interface ListeningProgressRecord {
   continueSentenceIndex?: number;
   dailyListeningGoalMinutes: number;
   dailyListeningSecondsToday: number;
+  dailyListeningDate?: string;
   dictationAccuracyAvg: number;
   comprehensionAccuracyAvg: number;
   dictationAttemptCount?: number;
@@ -114,6 +115,7 @@ export interface UserProfile {
   totalXp: number;
   dailyGoalMinutes: number;
   dailyMinutesSpent: number;
+  dailyActivityDate?: string;
   completedLessonIds: string[];
   bookmarkedVocabIds: string[];
   recentSpeakingScores: number[];
