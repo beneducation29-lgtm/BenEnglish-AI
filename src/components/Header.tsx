@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import {
-  Headphones, Mic, BookOpen, PenLine, ChevronDown, Flame, Award,
+  Headphones, Mic, BookOpen, ChevronDown, Flame, Award,
   LayoutDashboard, MessageCircle, Users, AudioLines, Library, BookMarked,
-  GraduationCap, BarChart3, X,
+  GraduationCap, BarChart3,
 } from 'lucide-react';
 
 const coreLinks = [
@@ -91,7 +91,7 @@ export const Header: React.FC = () => {
           <div className="hidden items-center gap-1.5 text-xs font-semibold text-amber-600 xl:flex">
             <Flame className="h-4 w-4 fill-amber-500" /> {user.streakDays}d
           </div>
-          <div className="relative hidden sm:block">
+          <div className="relative">
             <button onClick={() => setShowTrackDropdown((value) => !value)} className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               <span className="hidden lg:inline">{user.track === 'high_school' ? 'High School' : 'Professional'}</span>
