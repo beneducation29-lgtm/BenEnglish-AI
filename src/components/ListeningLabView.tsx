@@ -446,12 +446,14 @@ export const ListeningLabView: React.FC = () => {
   });
 
   const progress = user.listeningProgress || {
-    totalListeningSeconds: 1420,
+    totalListeningSeconds: 0,
     dailyListeningGoalMinutes: 15,
-    dailyListeningSecondsToday: 480,
-    dictationAccuracyAvg: 84,
-    comprehensionAccuracyAvg: 88,
-    completedListeningCount: 2,
+    dailyListeningSecondsToday: 0,
+    dictationAccuracyAvg: 0,
+    comprehensionAccuracyAvg: 0,
+    dictationAttemptCount: 0,
+    comprehensionAttemptCount: 0,
+    completedListeningCount: 0,
     recentlyPlayedLessonIds: [],
     misunderstoodVocab: [],
   };
@@ -549,12 +551,12 @@ export const ListeningLabView: React.FC = () => {
               </div>
               <div className="my-2">
                 <div className="text-2xl font-extrabold text-slate-900 tabular-nums">
-                  {progress.dictationAccuracyAvg}%
+                  {(progress.dictationAttemptCount || 0) > 0 ? `${progress.dictationAccuracyAvg}%` : '—'}
                 </div>
                 <span className="text-xs text-slate-500">Acoustic word-match average</span>
               </div>
               <span className="text-[11px] text-blue-700 font-semibold">
-                Measured across spelling & linking
+                {progress.dictationAttemptCount || 0} recorded dictation attempt(s)
               </span>
             </div>
 
@@ -566,12 +568,12 @@ export const ListeningLabView: React.FC = () => {
               </div>
               <div className="my-2">
                 <div className="text-2xl font-extrabold text-slate-900 tabular-nums">
-                  {progress.comprehensionAccuracyAvg}%
+                  {(progress.comprehensionAttemptCount || 0) > 0 ? `${progress.comprehensionAccuracyAvg}%` : '—'}
                 </div>
                 <span className="text-xs text-slate-500">MCQ & Detail questions</span>
               </div>
               <span className="text-[11px] text-purple-700 font-semibold">
-                Validated CEFR understanding
+                {progress.comprehensionAttemptCount || 0} saved quiz attempt(s)
               </span>
             </div>
 
