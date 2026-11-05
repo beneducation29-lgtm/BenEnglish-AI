@@ -83,6 +83,7 @@ export const ListeningLabView: React.FC = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [activeSentenceIndex, setActiveSentenceIndex] = useState<number>(0);
+  const [activeWordCharIndex, setActiveWordCharIndex] = useState<number>(0);
   const [volume, setVolume] = useState<number>(1.0);
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [repeatMode, setRepeatMode] = useState<'none' | 'sentence' | 'paragraph'>('none');
@@ -169,6 +170,7 @@ export const ListeningLabView: React.FC = () => {
       setIsPlaying(false);
       setIsPaused(false);
       setActiveSentenceIndex(0);
+      setActiveWordCharIndex(0);
       setCurrentTimeSec(0);
       return;
     }
@@ -177,6 +179,7 @@ export const ListeningLabView: React.FC = () => {
     setIsPlaying(true);
     setIsPaused(false);
     setActiveSentenceIndex(index);
+    setActiveWordCharIndex(0);
     setCurrentTimeSec(index * 4);
 
     const s = selectedLesson.sentences[index];
@@ -185,6 +188,7 @@ export const ListeningLabView: React.FC = () => {
     audioEngine.speak(s.textEn, {
       rate: playbackSpeed,
       volume: isMuted ? 0 : volume,
+      onBoundary: (charIndex) => setActiveWordCharIndex(charIndex),
       onEnd: () => {
         if (repeatMode === 'sentence') {
           playFromSentence(index);
@@ -1096,7 +1100,13 @@ export const ListeningLabView: React.FC = () => {
                 <div className="space-y-3">
                   {selectedLesson.sentences.map((sent, sIdx) => {
                     const isActive = activeSentenceIndex === sIdx;
-                    const words = sent.textEn.split(' ');
+                    const words = sent.textEn.match(/\\S+/g) || [];
+                    let wordCursor = 0;
+                    const wordRanges = words.map((word) => {
+                      const start = sent.textEn.indexOf(word, wordCursor);
+                      wordCursor = start + word.length;
+                      return { word, start, end: wordCursor };
+                    });
 
                     return (
                       <div
@@ -1116,7 +1126,7 @@ export const ListeningLabView: React.FC = () => {
 
                             {/* Clickable Words */}
                             <div className="flex flex-wrap gap-x-1.5 gap-y-1 font-semibold text-slate-900 text-sm leading-relaxed">
-                              {words.map((word, wIdx) => {
+                              {wordRanges.map(({ word, start, end }, wIdx) => {
                                 const clean = word.replace(/[^a-zA-Z]/g, '');
                                 const isKeyPhrase = sent.keyPhrases?.some((kp) =>
                                   kp.toLowerCase().includes(clean.toLowerCase())
@@ -1129,7 +1139,11 @@ export const ListeningLabView: React.FC = () => {
                                       e.stopPropagation();
                                       handleWordClick(word, sent.textEn);
                                     }}
-                                    className={`cursor-pointer rounded px-0.5 hover:bg-amber-200 hover:text-amber-950 transition-colors ${
+                                    className={`cursor-pointer rounded px-0.5 transition-colors ${
+                                      isActive && activeWordCharIndex >= start && activeWordCharIndex < end
+                                        ? 'bg-amber-300 text-amber-950 ring-1 ring-amber-400'
+                                        : 'hover:bg-amber-200 hover:text-amber-950'
+                                    } ${
                                       isKeyPhrase ? 'underline decoration-emerald-400 decoration-2 underline-offset-2' : ''
                                     }`}
                                   >
