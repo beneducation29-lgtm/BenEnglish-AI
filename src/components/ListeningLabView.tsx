@@ -1744,11 +1744,14 @@ export const ListeningLabView: React.FC = () => {
                 {shadowScore !== null && (
                   <div className="pt-1">
                     <span className="text-[11px] text-slate-400 uppercase tracking-wider block">
-                      Shadowing Accuracy
+                      Transcript Match Estimate
                     </span>
                     <div className="text-3xl font-extrabold text-emerald-400 mt-0.5">
                       {shadowScore}%
                     </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Based on recognized word overlap only; it does not measure pronunciation, accent, or acoustic accuracy.
+                    </p>
                   </div>
                 )}
               </div>
