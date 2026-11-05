@@ -180,6 +180,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const todayKey = getLocalDateKey();
           const legacyListening = parsed.listeningProgress || {};
           const legacySpeaking = parsed.speakingProgress || {};
+          const seededPronunciationMisses: Record<string, number> = { 'pm-01': 4, 'pm-02': 5, 'pm-03': 3, 'pm-04': 2, 'pm-05': 1 };
+          const pronunciationMemory = (legacySpeaking.pronunciationMemory || []).map((item: any) => ({
+            ...item,
+            missCount: Math.max(0, item.missCount - (seededPronunciationMisses[item.id] || 0)),
+          })).filter((item: any) => item.missCount > 0);
           const legacyConversation = parsed.conversationProgress || {};
           const legacyRoleplay = parsed.roleplayProgress || {};
           const listeningHadOnlyDemo = (legacyListening.recentlyPlayedLessonIds || []).every((id: string) => ['hs-env-01', 'pro-meet-01'].includes(id));
@@ -219,7 +224,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               shadowingCompletedCount: Math.max(0, (legacySpeaking.shadowingCompletedCount || 0) - 6),
               freeSpeakingCompletedCount: Math.max(0, (legacySpeaking.freeSpeakingCompletedCount || 0) - 3),
               history: speakingHistory,
-              pronunciationMemory: legacySpeaking.pronunciationMemory || [],
+              pronunciationMemory,
               pronunciationAccuracyAvg: speakingHistory.length ? Math.round(speakingHistory.reduce((sum: number, item: any) => sum + item.score, 0) / speakingHistory.length) : 0,
               fluencyScoreAvg: 0,
             },
@@ -235,7 +240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...defaultRoleplayProgress,
               ...legacyRoleplay,
               totalRoleplayMinutes: Math.max(0, (legacyRoleplay.totalRoleplayMinutes || 0) - 18),
-              completedScenariosCount: roleplayHistory.length,
+              completedScenariosCount: Math.max(0, (legacyRoleplay.completedScenariosCount || 0) - 2),
               averageScore: roleplayHistory.length
                 ? Math.round(roleplayHistory.reduce((sum: number, item: any) => sum + item.assessment.overallScore, 0) / roleplayHistory.length)
                 : 0,
