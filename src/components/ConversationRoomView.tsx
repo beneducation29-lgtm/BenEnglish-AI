@@ -208,7 +208,6 @@ export const ConversationRoomView: React.FC = () => {
   const [micError, setMicError] = useState<string | null>(null);
   const [finalTranscript, setFinalTranscript] = useState('');
   const [inputText, setInputText] = useState('');
-  const [micSession, setMicSession] = useState<SpeechRecognitionSession | null>(null);
 
   // Drawers & Modals
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
@@ -339,7 +338,6 @@ export const ConversationRoomView: React.FC = () => {
       (active) => setIsRecording(active)
     );
     micSessionRef.current = session;
-    setMicSession(session);
     session.start();
   };
 
@@ -353,7 +351,6 @@ export const ConversationRoomView: React.FC = () => {
 
     session.stop((recognizedText) => {
       micSessionRef.current = null;
-      setMicSession(null);
       setIsRecording(false);
       const messageText = recognizedText.trim() || liveTranscriptRef.current.trim() || inputText.trim();
       if (messageText) {
@@ -384,7 +381,6 @@ export const ConversationRoomView: React.FC = () => {
 
     if (micSessionRef.current?.active) micSessionRef.current.stop();
     micSessionRef.current = null;
-    setMicSession(null);
     setTurns((prev) => [...prev, userTurn]);
     setInputText('');
     setLiveTranscript('');
