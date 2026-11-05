@@ -205,6 +205,8 @@ export const ConversationRoomView: React.FC = () => {
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [micError, setMicError] = useState<string | null>(null);
+  const [finalTranscript, setFinalTranscript] = useState('');
   const [inputText, setInputText] = useState('');
   const [micSession, setMicSession] = useState<SpeechRecognitionSession | null>(null);
 
@@ -221,6 +223,8 @@ export const ConversationRoomView: React.FC = () => {
   const [viewingPastSession, setViewingPastSession] = useState<ConversationSessionRecord | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const liveTranscriptRef = useRef('');
+  const micSessionRef = useRef<SpeechRecognitionSession | null>(null);
 
   // Timer effect
   useEffect(() => {
@@ -325,33 +329,61 @@ export const ConversationRoomView: React.FC = () => {
   // SPEECH RECOGNITION (LISTENING)
   // -------------------------------------------------------------
   const startListening = () => {
-    if (isAiResponding || isAiSpeaking) {
+    if (!hasMicSupport) {
+      setMicError('Speech recognition is not supported in this browser. You can type your response instead.');
+      return;
+    }
+    if (isAiResponding) return;
+    if (isAiSpeaking) {
       audioEngine.stop();
       setIsAiSpeaking(false);
     }
+    if (micSessionRef.current?.active) return;
 
+    setMicError(null);
     setLiveTranscript('');
+    liveTranscriptRef.current = '';
+    setFinalTranscript('');
     const session = new SpeechRecognitionSession(
       (state) => {
+        liveTranscriptRef.current = state.transcript;
         setLiveTranscript(state.transcript);
+        setFinalTranscript(state.finalTranscript);
       },
-      (err) => console.warn('Speech error:', err),
+      (err) => {
+        setMicError(err);
+        setIsRecording(false);
+      },
       (active) => setIsRecording(active)
     );
+    micSessionRef.current = session;
     setMicSession(session);
     session.start();
   };
 
   const stopListeningAndSend = () => {
-    if (micSession) micSession.stop();
-    setIsRecording(false);
-
-    const messageText = liveTranscript.trim() || inputText.trim();
-    if (messageText) {
-      sendMessage(messageText);
+    const session = micSessionRef.current;
+    if (!session) {
+      const fallbackText = inputText.trim();
+      if (fallbackText) sendMessage(fallbackText);
+      return;
     }
-    setLiveTranscript('');
-    setInputText('');
+
+    session.stop((recognizedText) => {
+      micSessionRef.current = null;
+      setMicSession(null);
+      setIsRecording(false);
+      const messageText = recognizedText.trim() || liveTranscriptRef.current.trim() || inputText.trim();
+      if (messageText) {
+        sendMessage(messageText);
+      } else {
+        setMicError('I did not catch a complete phrase. Please try again or type your message.');
+      }
+      liveTranscriptRef.current = '';
+      setLiveTranscript('');
+      setFinalTranscript('');
+      setInputText('');
+    });
   };
 
   // -------------------------------------------------------------
@@ -368,9 +400,15 @@ export const ConversationRoomView: React.FC = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
+    if (micSessionRef.current?.active) micSessionRef.current.stop();
+    micSessionRef.current = null;
+    setMicSession(null);
     setTurns((prev) => [...prev, userTurn]);
     setInputText('');
     setLiveTranscript('');
+    liveTranscriptRef.current = '';
+    setFinalTranscript('');
+    setMicError(null);
     setConversationError(null);
     setIsAiResponding(true);
 
@@ -419,7 +457,9 @@ export const ConversationRoomView: React.FC = () => {
   // -------------------------------------------------------------
   const endCurrentSession = async () => {
     audioEngine.stop();
-    if (micSession) micSession.stop();
+    if (micSessionRef.current) micSessionRef.current.stop();
+    micSessionRef.current = null;
+    setMicSession(null);
     setIsRecording(false);
     setIsAiSpeaking(false);
     setIsSessionActive(false);
@@ -915,16 +955,26 @@ export const ConversationRoomView: React.FC = () => {
           })}
 
           {/* Live Recording Stream Preview */}
-          {isRecording && liveTranscript && (
-            <div className="flex gap-3 max-w-2xl ml-auto flex-row-reverse animate-pulse">
+          {(isRecording || liveTranscript) && (
+            <div className="flex gap-3 max-w-2xl ml-auto flex-row-reverse">
               <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">
                 You
               </div>
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs md:text-sm text-emerald-900 rounded-tr-none shadow-xs">
-                <span className="text-[10px] text-emerald-600 font-bold block uppercase mb-1">
-                  Listening in real-time...
-                </span>
-                <p>"{liveTranscript}"</p>
+              <div className="min-w-0 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs md:text-sm text-emerald-900 rounded-tr-none shadow-xs">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] text-emerald-700 font-bold uppercase">
+                    {isRecording ? 'Listening · live transcript' : 'Recognized speech'}
+                  </span>
+                  {finalTranscript && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-semibold text-emerald-800">Confirmed words</span>}
+                </div>
+                <p className="break-words">
+                  {finalTranscript && <span>{finalTranscript}</span>}
+                  {liveTranscript.replace(finalTranscript, '').trim() && (
+                    <span className="italic text-emerald-700/70"> {liveTranscript.replace(finalTranscript, '').trim()}</span>
+                  )}
+                  {!liveTranscript && <span className="text-emerald-700/70">Speak naturally. Your words will appear here.</span>}
+                </p>
+                <p className="mt-2 text-[10px] text-emerald-700/70">Speech-to-text transcript only · no pronunciation score is inferred.</p>
               </div>
             </div>
           )}
@@ -966,6 +1016,7 @@ export const ConversationRoomView: React.FC = () => {
 
         {/* --------------------------------------------------------- */}
         {conversationError && <div role="alert" className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{conversationError}</div>}
+        {micError && <div role="alert" className="mx-4 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">{micError}</div>}
 
         {/* 4. BOTTOM INTERACTION BAR: MIC & TEXT FALLBACK            */}
         {/* --------------------------------------------------------- */}
@@ -993,7 +1044,7 @@ export const ConversationRoomView: React.FC = () => {
               onKeyDown={(e) => e.key === 'Enter' && sendMessage(inputText)}
               placeholder={
                 isRecording
-                  ? 'Listening to your speech... (tap square to send)'
+                  ? 'Listening to your speech... (tap square to finish and send)'
                   : 'Speak through microphone or type your message here...'
               }
               className="flex-1 p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs md:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
