@@ -41,27 +41,23 @@ export const HomeView: React.FC = () => {
         track: user.track,
         gradeOrOccupation: user.track === 'high_school' ? user.grade || 'Grade 11' : user.occupation || 'Software & Tech',
         performanceStats: {
-          listeningScore: user.recentListeningScores[user.recentListeningScores.length - 1] || 82,
-          speakingScore: user.recentSpeakingScores[user.recentSpeakingScores.length - 1] || 75,
-          pronunciationScore: user.recentPronunciationScores[user.recentPronunciationScores.length - 1] || 78,
-          weakAreas: ['Dropping ending /s/ and /t/', 'Connected speech linking in fast dialogue', 'Hesitation in impromptu answers'],
+          listeningScore: user.recentListeningScores.length ? user.recentListeningScores[user.recentListeningScores.length - 1] : null,
+          speakingScore: user.recentSpeakingScores.length ? user.recentSpeakingScores[user.recentSpeakingScores.length - 1] : null,
+          pronunciationScore: user.recentPronunciationScores.length ? user.recentPronunciationScores[user.recentPronunciationScores.length - 1] : null,
+          weakAreas: (user.listeningProgress?.misunderstoodVocab || []).map((item) => `Listening: ${item.word} (${item.count} missed)`),
         },
       });
       setCoachPlan(data);
     } catch (err: any) {
       console.error(err);
-      setPlanError('AI Coach is operating in offline mode. Generating default adaptive plan.');
+      setPlanError('AI Coach is offline. Showing a general practice plan; no performance diagnosis is available.');
       // Fallback structured plan
       setCoachPlan({
         coachGreeting: `Good day ${user.name}! Ready to elevate your spoken English today?`,
         diagnosticSummary:
-          user.track === 'high_school'
-            ? 'Your listening accuracy is strong at 85%. Today our focus shifts to spoken fluency, past-tense endings (/t/, /d/), and IELTS topic coherence.'
-            : 'Your professional vocabulary is expansive. Today we calibrate your spoken conciseness, diplomatic meeting phrases, and word stress in technical presentations.',
+          'No verified assessment data is available yet. Complete listening or speaking activities to receive evidence-based recommendations.',
         dailyPriority:
-          user.track === 'high_school'
-            ? 'Shadowing Unit 2 & High School Environmental Debate'
-            : 'Agile Standup Roleplay & Ending Consonant Precision',
+          user.track === 'high_school' ? 'Build your first listening and speaking activity history' : 'Build your first workplace English activity history',
         targetMinutes: 25,
         learningCycleSteps: [
           {
@@ -74,14 +70,14 @@ export const HomeView: React.FC = () => {
           {
             phase: '2. PRONUNCIATION CLINIC',
             title: 'IPA Sound Mastery',
-            action: 'Drill ending consonants /s/, /ks/, and /t/ to eliminate flat Vietnamese syllable rhythm.',
+            action: 'Choose a pronunciation drill and save an evaluation before treating any sound as a personal weakness.',
             estimatedMinutes: 6,
             recommendedLab: 'pronunciation',
           },
           {
             phase: '3. SPEAK & RECEIVE FEEDBACK',
             title: 'Voice AI Conversation Room',
-            action: 'Engage in a 5-minute continuous voice exchange with Teacher Emma or Victoria Sloan.',
+            action: 'Complete a short conversation and review the saved feedback.',
             estimatedMinutes: 11,
             recommendedLab: 'conversation',
           },
