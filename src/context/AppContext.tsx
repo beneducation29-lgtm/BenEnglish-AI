@@ -26,6 +26,7 @@ import {
   SPEAKING_CHALLENGES,
   ROLEPLAY_SCENARIOS,
 } from '../data/curriculumData';
+import { ADDITIONAL_LISTENING_LESSONS } from '../data/skillsPracticePack';
 
 const getLocalDateKey = () => {
   const now = new Date();
@@ -304,6 +305,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     ...HIGH_SCHOOL_LISTENING_LESSONS,
     ...PROFESSIONAL_LISTENING_LESSONS,
     ...IELTS_LISTENING_LESSONS,
+    ...ADDITIONAL_LISTENING_LESSONS,
     ...customLessons,
   ];
 
