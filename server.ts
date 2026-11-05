@@ -150,19 +150,20 @@ app.post('/api/gemini/conversation-summary', async (req: Request, res: Response)
 
     const systemInstruction = `
 You are the Head Academic Director at BenEnglish AI.
-Analyze the following completed real-time spoken English conversation session between an English learner (${track}, CEFR ${userLevel}) and an AI tutor (${persona}, mode: ${mode}).
+Analyze this English conversation transcript for a learner (${track}, CEFR ${userLevel}) speaking with an AI tutor (${persona}, mode: ${mode}).
 
-Conversation Transcript:
+Transcript (the only learner evidence supplied):
 ${transcriptExcerpt}
 
-Provide a comprehensive, pedagogical diagnostic evaluation:
-1. Concise executive summary of what was discussed and conversational flow.
-2. 3-4 key vocabulary words/idioms used or recommended during the session, with IPA, clear definitions, and Vietnamese translations.
-3. Grammar mistakes detected from the learner's spoken input with corrections, grammar rule explanations, and Vietnamese hints.
-4. Pronunciation observations (stress, rhythm, final consonants, connected speech).
-5. Strong points demonstrated by the learner.
-6. Practical improvement suggestions.
-7. Recommended next practice in BenEnglish AI (choose 'listening', 'speaking', 'roleplay', or 'pronunciation' with a specific topic).
+Evidence and assessment rules:
+1. Summarize only topics and communication behaviors visible in this transcript.
+2. List vocabulary only when the words actually appear in the transcript. Return fewer than 3 items if the evidence contains fewer useful items; never invent words and claim the learner used them.
+3. Correct only clear grammar or word-choice errors in the learner's own turns. Do not label natural conversational variants as errors.
+4. This endpoint receives TEXT ONLY, not microphone audio. Return an empty pronunciationObservations array. Do not infer accent, sounds, stress, rhythm, fluency timing, or pronunciation quality from a transcript.
+5. List strengths only when supported by the learner's actual turns. If there is too little evidence, say so in the summary.
+6. Give practical next steps based on observed language, without inventing scores or achievements.
+7. Recommend one relevant next practice in BenEnglish AI (listening, speaking, roleplay, or pronunciation). If pronunciation is recommended, explain that a separate audio-based assessment is needed.
+Return strict JSON matching the schema.
 `;
 
     const response = await ai.models.generateContent({

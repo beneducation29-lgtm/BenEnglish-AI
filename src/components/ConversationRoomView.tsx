@@ -205,13 +205,9 @@ export const ConversationRoomView: React.FC = () => {
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [micError, setMicError] = useState<string | null>(null);
+  const [finalTranscript, setFinalTranscript] = useState('');
   const [inputText, setInputText] = useState('');
-  const [micSession, setMicSession] = useState<SpeechRecognitionSession | null>(null);
-
-  // Waveform heights state (16 bars)
-  const [waveformBars, setWaveformBars] = useState<number[]>(
-    new Array(18).fill(15)
-  );
 
   // Drawers & Modals
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
@@ -221,6 +217,8 @@ export const ConversationRoomView: React.FC = () => {
   const [viewingPastSession, setViewingPastSession] = useState<ConversationSessionRecord | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const liveTranscriptRef = useRef('');
+  const micSessionRef = useRef<SpeechRecognitionSession | null>(null);
 
   // Timer effect
   useEffect(() => {
@@ -235,35 +233,19 @@ export const ConversationRoomView: React.FC = () => {
     };
   }, [isSessionActive]);
 
-  // Waveform animation effect when recording or AI speaking
-  useEffect(() => {
-    let waveTimer: any = null;
-    if (isRecording || isAiSpeaking) {
-      waveTimer = setInterval(() => {
-        setWaveformBars(
-          new Array(18).fill(0).map(() => Math.floor(Math.random() * 55) + 12)
-        );
-      }, 90);
-    } else {
-      setWaveformBars(new Array(18).fill(10));
-    }
-    return () => {
-      if (waveTimer) clearInterval(waveTimer);
-    };
-  }, [isRecording, isAiSpeaking]);
-
   // Scroll to bottom on new turn
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns, isAiResponding, liveTranscript]);
 
-  // Stop audio on unmount
+  // Stop audio and microphone on unmount without tying cleanup to every session state update.
   useEffect(() => {
     return () => {
       audioEngine.stop();
-      if (micSession) micSession.stop();
+      micSessionRef.current?.stop();
+      micSessionRef.current = null;
     };
-  }, [micSession]);
+  }, []);
 
   // -------------------------------------------------------------
   // AI SPEECH SYNTHESIS ENGINE
@@ -271,6 +253,9 @@ export const ConversationRoomView: React.FC = () => {
   const speakAiReply = (text: string, onFinish?: () => void) => {
     if (isMuted) {
       onFinish?.();
+      if (isHandsFreeMode && isSessionActive) {
+        setTimeout(() => startListening(), 450);
+      }
       return;
     }
 
@@ -325,33 +310,59 @@ export const ConversationRoomView: React.FC = () => {
   // SPEECH RECOGNITION (LISTENING)
   // -------------------------------------------------------------
   const startListening = () => {
-    if (isAiResponding || isAiSpeaking) {
+    if (!hasMicSupport) {
+      setMicError('Speech recognition is not supported in this browser. You can type your response instead.');
+      return;
+    }
+    if (isAiResponding) return;
+    if (isAiSpeaking) {
       audioEngine.stop();
       setIsAiSpeaking(false);
     }
+    if (micSessionRef.current?.active) return;
 
+    setMicError(null);
     setLiveTranscript('');
+    liveTranscriptRef.current = '';
+    setFinalTranscript('');
     const session = new SpeechRecognitionSession(
       (state) => {
+        liveTranscriptRef.current = state.transcript;
         setLiveTranscript(state.transcript);
+        setFinalTranscript(state.finalTranscript);
       },
-      (err) => console.warn('Speech error:', err),
+      (err) => {
+        setMicError(err);
+        setIsRecording(false);
+      },
       (active) => setIsRecording(active)
     );
-    setMicSession(session);
+    micSessionRef.current = session;
     session.start();
   };
 
   const stopListeningAndSend = () => {
-    if (micSession) micSession.stop();
-    setIsRecording(false);
-
-    const messageText = liveTranscript.trim() || inputText.trim();
-    if (messageText) {
-      sendMessage(messageText);
+    const session = micSessionRef.current;
+    if (!session) {
+      const fallbackText = inputText.trim();
+      if (fallbackText) sendMessage(fallbackText);
+      return;
     }
-    setLiveTranscript('');
-    setInputText('');
+
+    session.stop((recognizedText) => {
+      micSessionRef.current = null;
+      setIsRecording(false);
+      const messageText = recognizedText.trim() || liveTranscriptRef.current.trim() || inputText.trim();
+      if (messageText) {
+        sendMessage(messageText);
+      } else {
+        setMicError('I did not catch a complete phrase. Please try again or type your message.');
+      }
+      liveTranscriptRef.current = '';
+      setLiveTranscript('');
+      setFinalTranscript('');
+      setInputText('');
+    });
   };
 
   // -------------------------------------------------------------
@@ -368,9 +379,14 @@ export const ConversationRoomView: React.FC = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
+    if (micSessionRef.current?.active) micSessionRef.current.stop();
+    micSessionRef.current = null;
     setTurns((prev) => [...prev, userTurn]);
     setInputText('');
     setLiveTranscript('');
+    liveTranscriptRef.current = '';
+    setFinalTranscript('');
+    setMicError(null);
     setConversationError(null);
     setIsAiResponding(true);
 
@@ -419,7 +435,8 @@ export const ConversationRoomView: React.FC = () => {
   // -------------------------------------------------------------
   const endCurrentSession = async () => {
     audioEngine.stop();
-    if (micSession) micSession.stop();
+    if (micSessionRef.current) micSessionRef.current.stop();
+    micSessionRef.current = null;
     setIsRecording(false);
     setIsAiSpeaking(false);
     setIsSessionActive(false);
@@ -457,45 +474,19 @@ export const ConversationRoomView: React.FC = () => {
     } catch (e: any) {
       console.warn('Summary generation error, using fallback report', e);
       const fallbackSummary: ConversationSummaryReport = {
-        summary: `Productive spoken English session with ${activePersona.name} focusing on ${selectedModeId} communication. The conversation maintained natural turn-taking over ${durationMins} minutes.`,
-        newVocabulary: [
-          {
-            word: 'initiative',
-            ipa: '/ɪˈnɪʃ.ə.tɪv/',
-            definition: 'The ability to assess and initiate things independently; an important new act or strategy.',
-            meaningVi: 'sáng kiến, sự chủ động',
-          },
-          {
-            word: 'perspective',
-            ipa: '/pəˈspek.tɪv/',
-            definition: 'A particular attitude toward or way of regarding something; a point of view.',
-            meaningVi: 'góc nhìn, quan điểm',
-          },
-        ],
-        grammarMistakes: [
-          {
-            userSaid: 'They is very important for me',
-            correction: 'They are very important to me',
-            rule: 'Subject-verb agreement: plural pronoun "they" requires "are", and "important" collocates with preposition "to".',
-            vietnameseExplanation: 'Người Việt hay nhầm "for me" và "to me". Hãy dùng "important to me".',
-          },
-        ],
-        pronunciationObservations: [
-          'Good overall sentence stress on key lexical content words.',
-          'Watch out for ending consonant clusters like /sts/ and /ks/ (e.g. tests, complex).',
-        ],
-        strongPoints: [
-          'High willingness to communicate without hesitation.',
-          'Immediate conversational responsiveness to the AI tutor’s open-ended questions.',
-        ],
+        summary: 'The conversation was saved, but the AI diagnostic report could not be generated. No vocabulary, grammar, fluency, or pronunciation findings have been invented.',
+        newVocabulary: [],
+        grammarMistakes: [],
+        pronunciationObservations: [],
+        strongPoints: [],
         improvementSuggestions: [
-          'Practice incorporating cohesive discourse markers like "Furthermore", "In my perspective", and "Consequently".',
-          'Elongate stressed syllables slightly for more authentic English cadence.',
+          'Try generating the session report again when the AI service is available.',
+          'This room stores speech-to-text transcripts only; pronunciation and accent cannot be assessed from transcript text.',
         ],
         recommendedPractice: {
           lab: 'speaking',
-          title: 'Read Aloud: Cross-Border Resilience',
-          targetFocus: 'Ending consonant clusters & 120 WPM cadence',
+          title: 'Continue a short English conversation',
+          targetFocus: 'Build another transcript sample; no diagnostic score is available for this session.',
         },
       };
 
@@ -782,20 +773,20 @@ export const ConversationRoomView: React.FC = () => {
             </div>
           </div>
 
-          {/* Dynamic Audio Waveform Visualizer */}
+          {/* Voice activity indicator: animated status only, not measured microphone amplitude. */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 h-12 px-4 py-2 rounded-2xl bg-slate-800/80 border border-slate-700/80">
-              {waveformBars.map((height, idx) => (
+            <div aria-label={isRecording ? 'Microphone is active' : isAiSpeaking ? 'AI voice is playing' : 'Voice activity idle'} className="flex items-center gap-1.5 h-12 px-4 py-2 rounded-2xl bg-slate-800/80 border border-slate-700/80">
+              {Array.from({ length: 18 }, (_, idx) => idx).map((idx) => (
                 <div
                   key={idx}
-                  className={`w-1 rounded-full transition-all duration-75 ${
+                  className={`w-1 rounded-full ${
                     isAiSpeaking
-                      ? 'bg-teal-400'
+                      ? 'bg-teal-400 animate-pulse'
                       : isRecording
-                      ? 'bg-emerald-400'
+                      ? 'bg-emerald-400 animate-pulse'
                       : 'bg-slate-600'
                   }`}
-                  style={{ height: `${height}px` }}
+                  style={{ height: `${10 + (idx % 5) * 5}px`, animationDelay: `${idx * 35}ms` }}
                 />
               ))}
             </div>
@@ -915,16 +906,26 @@ export const ConversationRoomView: React.FC = () => {
           })}
 
           {/* Live Recording Stream Preview */}
-          {isRecording && liveTranscript && (
-            <div className="flex gap-3 max-w-2xl ml-auto flex-row-reverse animate-pulse">
+          {(isRecording || liveTranscript) && (
+            <div className="flex gap-3 max-w-2xl ml-auto flex-row-reverse">
               <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">
                 You
               </div>
-              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs md:text-sm text-emerald-900 rounded-tr-none shadow-xs">
-                <span className="text-[10px] text-emerald-600 font-bold block uppercase mb-1">
-                  Listening in real-time...
-                </span>
-                <p>"{liveTranscript}"</p>
+              <div className="min-w-0 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs md:text-sm text-emerald-900 rounded-tr-none shadow-xs">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] text-emerald-700 font-bold uppercase">
+                    {isRecording ? 'Listening · live transcript' : 'Recognized speech'}
+                  </span>
+                  {finalTranscript && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-semibold text-emerald-800">Confirmed words</span>}
+                </div>
+                <p aria-live="polite" aria-atomic="true" className="break-words">
+                  {finalTranscript && <span>{finalTranscript}</span>}
+                  {liveTranscript.replace(finalTranscript, '').trim() && (
+                    <span className="italic text-emerald-700/70"> {liveTranscript.replace(finalTranscript, '').trim()}</span>
+                  )}
+                  {!liveTranscript && <span className="text-emerald-700/70">Speak naturally. Your words will appear here.</span>}
+                </p>
+                <p className="mt-2 text-[10px] text-emerald-700/70">Speech-to-text transcript only · no pronunciation score is inferred.</p>
               </div>
             </div>
           )}
@@ -966,6 +967,7 @@ export const ConversationRoomView: React.FC = () => {
 
         {/* --------------------------------------------------------- */}
         {conversationError && <div role="alert" className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{conversationError}</div>}
+        {micError && <div role="alert" className="mx-4 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">{micError}</div>}
 
         {/* 4. BOTTOM INTERACTION BAR: MIC & TEXT FALLBACK            */}
         {/* --------------------------------------------------------- */}
@@ -973,16 +975,16 @@ export const ConversationRoomView: React.FC = () => {
           <div className="flex items-center gap-2">
             {/* Primary Voice Mic Button */}
             <button
-              onClick={isRecording ? stopListeningAndSend : startListening}
+              onClick={isRecording ? stopListeningAndSend : liveTranscript.trim() ? () => sendMessage(liveTranscript.trim()) : startListening}
               disabled={isAiResponding}
               className={`min-w-[54px] h-[54px] rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0 active:scale-95 ${
                 isRecording
                   ? 'bg-rose-600 text-white ring-4 ring-rose-500/20 animate-pulse'
                   : 'bg-teal-600 hover:bg-teal-500 text-white'
               }`}
-              title={isRecording ? 'Tap to finish speaking & send' : 'Tap to speak English'}
+              title={isRecording ? 'Finish speaking and send' : liveTranscript.trim() ? 'Send recognized speech' : 'Start English speech recognition'}
             >
-              {isRecording ? <Square className="w-5 h-5 fill-white" /> : <Mic className="w-6 h-6" />}
+              {isRecording ? <Square className="w-5 h-5 fill-white" /> : liveTranscript.trim() ? <Send className="w-5 h-5" /> : <Mic className="w-6 h-6" />}
             </button>
 
             {/* Text Input Fallback */}
@@ -993,7 +995,7 @@ export const ConversationRoomView: React.FC = () => {
               onKeyDown={(e) => e.key === 'Enter' && sendMessage(inputText)}
               placeholder={
                 isRecording
-                  ? 'Listening to your speech... (tap square to send)'
+                  ? 'Listening to your speech... (tap square to finish and send)'
                   : 'Speak through microphone or type your message here...'
               }
               className="flex-1 p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs md:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
