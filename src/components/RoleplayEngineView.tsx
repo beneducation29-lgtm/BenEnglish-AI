@@ -1103,7 +1103,7 @@ export const RoleplayEngineView: React.FC = () => {
                   Average Score
                 </span>
                 <span className="text-xl font-black text-emerald-950">
-                  {user.roleplayProgress?.averageScore || 86}%
+                  {(user.roleplayProgress?.history?.length || 0) > 0 ? `${user.roleplayProgress?.averageScore || 0}%` : '—'}
                 </span>
               </div>
               <div className="p-3 bg-teal-50 rounded-2xl border border-teal-200/80">
@@ -1111,7 +1111,7 @@ export const RoleplayEngineView: React.FC = () => {
                   Simulations Done
                 </span>
                 <span className="text-xl font-black text-teal-950">
-                  {user.roleplayProgress?.completedScenariosCount || 2}
+                  {user.roleplayProgress?.completedScenariosCount || 0}
                 </span>
               </div>
             </div>
