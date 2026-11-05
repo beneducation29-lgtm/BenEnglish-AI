@@ -337,7 +337,7 @@ export const ListeningLabView: React.FC = () => {
           received: userW.includes(w) ? w : '(missed)',
           type: userW.includes(w) ? 'correct' : 'missing',
         })),
-        listeningAcousticNotes: ['Notice reduced linking sounds and unstressed grammatical words.'],
+        listeningAcousticNotes: ['AI evaluation is unavailable. This is a local word-match estimate only; it does not assess accent, connected speech, or acoustic detail.'],
       });
       recordDictationAttempt(selectedLesson.id, score, []);
     } finally {
@@ -394,9 +394,19 @@ export const ListeningLabView: React.FC = () => {
       setShortAnswerEvaluations((prev) => ({ ...prev, [qIdx]: evalRes }));
     } catch (e) {
       console.error(e);
+      const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/).filter(Boolean);
+      const expectedTokens = normalize(expectedAnswer);
+      const responseTokens = new Set(normalize(userAns));
+      const matched = expectedTokens.filter((token) => responseTokens.has(token)).length;
+      const localScore = Math.round((matched / Math.max(expectedTokens.length, 1)) * 100);
       setShortAnswerEvaluations((prev) => ({
         ...prev,
-        [qIdx]: { isCorrect: true, score: 85, feedback: 'Good response capturing main idea.', feedbackVi: 'Câu trả lời nắm đúng ý chính.' },
+        [qIdx]: {
+          isCorrect: localScore >= 70,
+          score: localScore,
+          feedback: 'AI grading is unavailable. This is a local keyword-overlap estimate, not an AI assessment.',
+          feedbackVi: 'AI đang tạm thời không phản hồi. Đây chỉ là ước lượng dựa trên từ khóa trùng khớp, không phải đánh giá AI.',
+        },
       }));
     } finally {
       setIsEvaluatingShortAnswer(null);
