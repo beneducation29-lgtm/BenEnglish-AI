@@ -63,7 +63,7 @@ const buildLesson = (seed: LessonSeed): ListeningLesson => {
     })),
     comprehensionQuiz: seed.questions.map((item) => ({
       question: item.question,
-      type: 'mcq',
+      type: 'mcq' as const,
       options: item.options,
       correctAnswer: item.answer,
       explanationEn: item.why,
