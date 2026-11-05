@@ -143,6 +143,7 @@ export const SpeakingLabView: React.FC = () => {
   );
   const [isRecordingFree, setIsRecordingFree] = useState(false);
   const [freeTranscript, setFreeTranscript] = useState('');
+  const [useAiTranscription, setUseAiTranscription] = useState(false);
   const [freeSession, setFreeSession] = useState<SpeechRecognitionSession | null>(null);
   const [freeDuration, setFreeDuration] = useState(0);
   const [freeTimerId, setFreeTimerId] = useState<any>(null);
@@ -460,56 +461,68 @@ export const SpeakingLabView: React.FC = () => {
         setFreeTranscript(state.transcript);
       },
       (err) => setMicError(err),
-      (active) => setIsRecordingFree(active)
+      (active) => setIsRecordingFree(active),
+      undefined,
+      { cloudTranscription: useAiTranscription }
     );
     setFreeSession(session);
     session.start();
   };
 
-  const stopFreeSpeaking = async () => {
+  const stopFreeSpeaking = () => {
     if (freeTimerId) clearInterval(freeTimerId);
-    if (freeSession) freeSession.stop();
-    setIsRecordingFree(false);
 
-    if (!freeTranscript.trim()) return;
-    setIsEvaluatingFree(true);
-
-    try {
-      const data = await evaluateSpeaking({
-        topic: `${selectedTopic.title}: ${selectedTopic.prompt}`,
-        userTranscript: freeTranscript.trim(),
-        durationSeconds: Math.max(freeDuration, 10),
-        track: user.track,
-        level: selectedTopic.level,
-      });
-
-      setFreeEvalResult(data);
-      audioFeedbackSound();
-
-      if (data.overallBandEstimate >= 6.5) {
-        confetti({ particleCount: 40, spread: 60 });
+    const evaluateTranscript = async (recognizedText: string) => {
+      const transcript = recognizedText.trim();
+      setFreeTranscript(recognizedText);
+      setIsRecordingFree(false);
+      if (!transcript) {
+        setMicError('No complete speech transcript was captured. Try again or type your response.');
+        return;
       }
 
-      // Record result
-      const score = Math.round(data.overallBandEstimate * 10);
-      const record: SpeakingResultRecord = {
-        id: `spk-free-${Date.now()}`,
-        title: selectedTopic.title,
-        type: 'free_speaking',
-        date: 'Just now',
-        score,
-        cefrLevel: selectedTopic.level,
-        userTranscript: freeTranscript.trim(),
-        feedbackSummary: `Band ${data.overallBandEstimate} (${data.cefrEstimate}). Fluency: ${data.rubricScores.fluencyCoherence}/10. ${data.strengths[0] || ''}`,
-      };
-      recordSpeakingResult(record);
-      addSpeakingMinutes(Math.ceil(freeDuration / 60));
-    } catch (e: any) {
-      console.error('Free-speaking evaluation unavailable', e);
-      setFreeEvalResult(null);
-      setMicError('AI speaking evaluation is unavailable right now. No band score or feedback was invented; please retry when the service is available.');
-    } finally {
-      setIsEvaluatingFree(false);
+      setIsEvaluatingFree(true);
+      try {
+        const data = await evaluateSpeaking({
+          topic: selectedTopic.title + ': ' + selectedTopic.prompt,
+          userTranscript: transcript,
+          durationSeconds: Math.max(freeDuration, 10),
+          track: user.track,
+          level: selectedTopic.level,
+        });
+
+        setFreeEvalResult(data);
+        audioFeedbackSound();
+        if (data.overallBandEstimate >= 6.5) confetti({ particleCount: 40, spread: 60 });
+
+        const score = Math.round(data.overallBandEstimate * 10);
+        const record: SpeakingResultRecord = {
+          id: 'spk-free-' + Date.now(),
+          title: selectedTopic.title,
+          type: 'free_speaking',
+          date: 'Just now',
+          score,
+          cefrLevel: selectedTopic.level,
+          userTranscript: transcript,
+          feedbackSummary: 'Band ' + data.overallBandEstimate + ' (' + data.cefrEstimate + '). Fluency: ' + data.rubricScores.fluencyCoherence + '/10. ' + (data.strengths[0] || ''),
+        };
+        recordSpeakingResult(record);
+        addSpeakingMinutes(Math.ceil(freeDuration / 60));
+      } catch (e: any) {
+        console.error('Free-speaking evaluation unavailable', e);
+        setFreeEvalResult(null);
+        setMicError('AI speaking evaluation is unavailable right now. No band score or feedback was invented; please retry when the service is available.');
+      } finally {
+        setIsEvaluatingFree(false);
+      }
+    };
+
+    if (freeSession) {
+      freeSession.stop((recognizedText) => {
+        void evaluateTranscript(recognizedText || freeTranscript);
+      });
+    } else {
+      void evaluateTranscript(freeTranscript);
     }
   };
 
@@ -1799,6 +1812,19 @@ export const SpeakingLabView: React.FC = () => {
                 <Mic className="w-4 h-4 text-teal-600" />
                 Spoken Response Studio
               </h4>
+              <label className="flex items-start gap-2 rounded-xl bg-slate-50 border border-slate-200 p-3 text-[11px] text-slate-600 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={useAiTranscription}
+                  disabled={isRecordingFree}
+                  onChange={(event) => setUseAiTranscription(event.target.checked)}
+                  className="mt-0.5 accent-teal-600"
+                />
+                <span>
+                  <span className="block font-semibold text-slate-800">AI transcription</span>
+                  <span className="block">Optional second transcript using the recording. Audio is sent to Gemini only when enabled.</span>
+                </span>
+              </label>
 
               {/* Elapsed Timer Display */}
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center">
