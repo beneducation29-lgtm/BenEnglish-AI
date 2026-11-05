@@ -84,171 +84,49 @@ interface AppContextType {
 }
 
 const defaultListeningProgress: ListeningProgressRecord = {
-  totalListeningSeconds: 1420, // ~23 mins
-  recentlyPlayedLessonIds: ['hs-env-01', 'pro-meet-01'],
-  continueLearningLessonId: 'hs-env-01',
-  continueSentenceIndex: 2,
+  totalListeningSeconds: 0,
+  recentlyPlayedLessonIds: [],
+  continueLearningLessonId: undefined,
+  continueSentenceIndex: 0,
   dailyListeningGoalMinutes: 15,
-  dailyListeningSecondsToday: 480, // 8 mins
-  dictationAccuracyAvg: 84,
-  comprehensionAccuracyAvg: 88,
-  completedListeningCount: 2,
-  misunderstoodVocab: [
-    { word: 'deliverable', count: 2, meaningVi: 'sản phẩm bàn giao cam kết', ipa: '/dɪˈlɪv.ər.ə.bəl/' },
-    { word: 'single-use', count: 1, meaningVi: 'dùng một lần', ipa: '/ˌsɪŋ.ɡəlˈjuːs/' },
-  ],
+  dailyListeningSecondsToday: 0,
+  dictationAccuracyAvg: 0,
+  comprehensionAccuracyAvg: 0,
+  dictationAttemptCount: 0,
+  comprehensionAttemptCount: 0,
+  completedListeningCount: 0,
+  misunderstoodVocab: [],
 };
 
 const defaultSpeakingProgress: SpeakingProgressRecord = {
-  totalSpeakingMinutes: 24,
-  pronunciationAccuracyAvg: 83,
-  fluencyScoreAvg: 80,
-  readAloudCompletedCount: 4,
-  shadowingCompletedCount: 6,
-  freeSpeakingCompletedCount: 3,
-  pronunciationMemory: DEFAULT_PRONUNCIATION_MEMORY,
-  history: [
-    {
-      id: 'spk-hist-1',
-      title: 'Youth Climate Initiative & Clean Ocean Drive',
-      type: 'read_aloud',
-      date: 'Today, 10:15 AM',
-      score: 86,
-      cefrLevel: 'B1',
-      wpm: 122,
-      userTranscript: 'Last semester our high school launched a comprehensive youth climate initiative...',
-      targetText: 'Last semester, our high school launched a comprehensive youth climate initiative...',
-      feedbackSummary: 'Great cadence (122 WPM). Good attention to ending consonant clusters.',
-    },
-    {
-      id: 'spk-hist-2',
-      title: 'Agile Sprint Planning & Resource Allocation',
-      type: 'shadowing',
-      date: 'Yesterday, 4:30 PM',
-      score: 91,
-      cefrLevel: 'B2',
-      userTranscript: 'Today we need to lock down the scope for Sprint 24.',
-      targetText: 'Today we need to lock down the scope for Sprint 24.',
-      feedbackSummary: 'Near-perfect transcription match. High rhythmic fluency.',
-    },
-    {
-      id: 'spk-hist-3',
-      title: 'High School Smartphones Debate',
-      type: 'free_speaking',
-      date: '2 days ago',
-      score: 79,
-      cefrLevel: 'B1',
-      userTranscript: 'In my opinion, smartphones can be very useful for research, but notifications distract students.',
-      feedbackSummary: 'Clear thesis statement. Expand linking phrases like "Furthermore" and "On the other hand".',
-    },
-  ],
-  activeChallenges: SPEAKING_CHALLENGES,
+  totalSpeakingMinutes: 0,
+  pronunciationAccuracyAvg: 0,
+  fluencyScoreAvg: 0,
+  readAloudCompletedCount: 0,
+  shadowingCompletedCount: 0,
+  freeSpeakingCompletedCount: 0,
+  pronunciationMemory: [],
+  history: [],
+  activeChallenges: SPEAKING_CHALLENGES.map((challenge) => ({
+    ...challenge,
+    isCompleted: false,
+    progressPercent: 0,
+  })),
 };
 
 const defaultConversationProgress: ConversationProgressRecord = {
-  totalConversationMinutes: 32,
-  completedSessionsCount: 3,
-  totalTurnsCount: 22,
-  savedSessions: [
-    {
-      id: 'conv-init-1',
-      title: 'School Life & Marine Biology Discussion',
-      startedAt: 'Today, 2:15 PM',
-      durationMinutes: 6,
-      personaId: 'friendly_teacher',
-      modeId: 'school',
-      turns: [
-        {
-          id: 'turn-1',
-          role: 'assistant',
-          content: "Hello! I'm Teacher Emma. How has your school day been going so far? Tell me about your favorite class or what you did today!",
-          timestamp: '2:15 PM',
-          phoneticTip: "Notice the natural rhythm: 'How has your day been /going/ so far?'",
-        },
-        {
-          id: 'turn-2',
-          role: 'user',
-          content: 'I had an interesting biology class today. We studied marine ecosystems and coral reefs.',
-          timestamp: '2:16 PM',
-        },
-        {
-          id: 'turn-3',
-          role: 'assistant',
-          content: "Marine ecosystems are fascinating! Coral reefs support so much biodiversity. Did your teacher explain how rising ocean temperatures affect them?",
-          timestamp: '2:16 PM',
-          phoneticTip: "Stress on the third syllable: /bi-o-di-VER-si-ty/",
-        },
-      ],
-      summaryReport: {
-        summary: 'Engaging dialogue discussing high school biology, ocean temperatures, and environmental conservation.',
-        newVocabulary: [
-          { word: 'biodiversity', ipa: '/ˌbaɪ.əʊ.daɪˈvɜː.sə.ti/', definition: 'The variety of plant and animal life in a habitat.', meaningVi: 'sự đa dạng sinh học' },
-          { word: 'marine', ipa: '/məˈriːn/', definition: 'Related to or found in the sea.', meaningVi: 'thuộc về biển' },
-        ],
-        grammarMistakes: [],
-        pronunciationObservations: ['Clear phrasing', 'Good pacing on multi-syllable terms'],
-        strongPoints: ['Natural topical transitions', 'Good use of academic vocabulary'],
-        improvementSuggestions: ['Continue practicing relative clauses with "which" and "where"'],
-        recommendedPractice: {
-          lab: 'listening',
-          title: 'Youth Climate Initiative & Clean Ocean Drive',
-          targetFocus: 'Academic environmental vocabulary',
-        },
-      },
-    },
-  ],
+  totalConversationMinutes: 0,
+  completedSessionsCount: 0,
+  totalTurnsCount: 0,
+  savedSessions: [],
 };
 
 const defaultRoleplayProgress: RoleplayProgressRecord = {
-  totalRoleplayMinutes: 18,
-  completedScenariosCount: 2,
-  averageScore: 86,
+  totalRoleplayMinutes: 0,
+  completedScenariosCount: 0,
+  averageScore: 0,
   customScenarios: [],
-  history: [
-    {
-      id: 'rp-hist-1',
-      scenarioId: 'rp-hs-friends',
-      scenarioTitle: 'Making Friends: Joining the Campus Club',
-      track: 'high_school',
-      date: 'Yesterday, 3:20 PM',
-      assistanceMode: 'normal',
-      durationMinutes: 6,
-      turnsCount: 5,
-      assessment: {
-        overallScore: 88,
-        cefrEquivalent: 'B1+',
-        taskCompletionScore: 90,
-        communicationEffectiveness: 88,
-        fluencyScore: 84,
-        vocabularyScore: 86,
-        grammarScore: 88,
-        appropriatenessScore: 92,
-        completedObjectives: [
-          'Ask about the meeting schedule and membership fee',
-          'Explain your interest in technology or problem-solving',
-          'Exchange social handles or phone numbers to stay updated',
-        ],
-        missedObjectives: [],
-        keyStrengths: [
-          'Friendly and proactive interpersonal tone',
-          'Natural follow-up questioning technique',
-        ],
-        criticalAreasForImprovement: [
-          'Use richer transitions when shifting subjects',
-        ],
-        grammarAndVocabularyHighlights: [
-          {
-            original: 'I am study here since two years',
-            correction: "I've been studying here for two years",
-            explanation: 'Present perfect continuous for ongoing duration',
-            vietnameseNote: 'Dùng thì hiện tại hoàn thành tiếp diễn cho hành động kéo dài từ quá khứ đến hiện tại.',
-          },
-        ],
-        modelDialogueExcerpt: "I'd love to have you join us! Our robotics team meets every Wednesday at 4 PM in the science wing.",
-        actionableNextStep: 'Try Normal or Challenge mode on high-stakes negotiations next.',
-      },
-    },
-  ],
+  history: [],
 };
 
 const defaultUser: UserProfile = {
@@ -259,15 +137,15 @@ const defaultUser: UserProfile = {
   occupation: 'Software & Tech',
   cefrLevel: 'B1',
   targetGoal: 'IELTS Speaking 7.0 & Academic Fluency',
-  streakDays: 6,
-  totalXp: 1850,
+  streakDays: 0,
+  totalXp: 0,
   dailyGoalMinutes: 25,
-  dailyMinutesSpent: 16,
-  completedLessonIds: ['hs-env-01'],
-  bookmarkedVocabIds: ['v-b1-01', 'v-hs-1'],
-  recentSpeakingScores: [72, 78, 81],
-  recentListeningScores: [80, 85, 90],
-  recentPronunciationScores: [75, 82, 84],
+  dailyMinutesSpent: 0,
+  completedLessonIds: [],
+  bookmarkedVocabIds: [],
+  recentSpeakingScores: [],
+  recentListeningScores: [],
+  recentPronunciationScores: [],
   listeningProgress: defaultListeningProgress,
   speakingProgress: defaultSpeakingProgress,
   conversationProgress: defaultConversationProgress,
@@ -283,26 +161,77 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
+          // Remove only the known demo records shipped in the original starter profile.
+          // Learner-created records and custom content are retained.
+          const oldSpeakingHistory = parsed.speakingProgress?.history || [];
+          const speakingHistory = oldSpeakingHistory.filter((item: any) => !String(item.id).startsWith('spk-hist-'));
+          const conversationSessions = (parsed.conversationProgress?.savedSessions || []).filter((item: any) => item.id !== 'conv-init-1');
+          const roleplayHistory = (parsed.roleplayProgress?.history || []).filter((item: any) => item.id !== 'rp-hist-1');
+          const legacySeedScores = (values: number[], seed: number[]) =>
+            Array.isArray(values) && seed.every((value, index) => values[index] === value)
+              ? values.slice(seed.length)
+              : (Array.isArray(values) ? values : []);
+          const legacyListening = parsed.listeningProgress || {};
+          const legacySpeaking = parsed.speakingProgress || {};
+          const legacyConversation = parsed.conversationProgress || {};
+          const legacyRoleplay = parsed.roleplayProgress || {};
+          const listeningHadOnlyDemo = (legacyListening.recentlyPlayedLessonIds || []).every((id: string) => ['hs-env-01', 'pro-meet-01'].includes(id));
           return {
             ...defaultUser,
             ...parsed,
+            streakDays: Math.max(0, (parsed.streakDays || 0) - 6),
+            totalXp: Math.max(0, (parsed.totalXp || 0) - 1850),
+            dailyMinutesSpent: Math.max(0, (parsed.dailyMinutesSpent || 0) - 16),
+            completedLessonIds: (parsed.completedLessonIds || []).filter((id: string) => id !== 'hs-env-01'),
+            bookmarkedVocabIds: (parsed.bookmarkedVocabIds || []).filter((id: string) => !['v-b1-01', 'v-hs-1'].includes(id)),
+            recentSpeakingScores: legacySeedScores(parsed.recentSpeakingScores, [72, 78, 81]),
+            recentListeningScores: legacySeedScores(parsed.recentListeningScores, [80, 85, 90]),
+            recentPronunciationScores: legacySeedScores(parsed.recentPronunciationScores, [75, 82, 84]),
             listeningProgress: {
               ...defaultListeningProgress,
-              ...(parsed.listeningProgress || {}),
+              ...legacyListening,
+              totalListeningSeconds: Math.max(0, (legacyListening.totalListeningSeconds || 0) - 1420),
+              dailyListeningSecondsToday: Math.max(0, (legacyListening.dailyListeningSecondsToday || 0) - 480),
+              completedListeningCount: Math.max(0, (legacyListening.completedListeningCount || 0) - 2),
+              recentlyPlayedLessonIds: listeningHadOnlyDemo
+                ? []
+                : (legacyListening.recentlyPlayedLessonIds || []).filter((id: string) => !['hs-env-01', 'pro-meet-01'].includes(id)),
+              misunderstoodVocab: (legacyListening.misunderstoodVocab || []).filter((item: any) => !['deliverable', 'single-use'].includes(item.word)),
+              dictationAccuracyAvg: 0,
+              comprehensionAccuracyAvg: 0,
+              dictationAttemptCount: 0,
+              comprehensionAttemptCount: 0,
             },
             speakingProgress: {
               ...defaultSpeakingProgress,
-              ...(parsed.speakingProgress || {}),
+              ...legacySpeaking,
+              totalSpeakingMinutes: Math.max(0, (legacySpeaking.totalSpeakingMinutes || 0) - 24),
+              readAloudCompletedCount: Math.max(0, (legacySpeaking.readAloudCompletedCount || 0) - 4),
+              shadowingCompletedCount: Math.max(0, (legacySpeaking.shadowingCompletedCount || 0) - 6),
+              freeSpeakingCompletedCount: Math.max(0, (legacySpeaking.freeSpeakingCompletedCount || 0) - 3),
+              history: speakingHistory,
+              pronunciationMemory: legacySpeaking.pronunciationMemory || [],
+              pronunciationAccuracyAvg: speakingHistory.length ? Math.round(speakingHistory.reduce((sum: number, item: any) => sum + item.score, 0) / speakingHistory.length) : 0,
+              fluencyScoreAvg: 0,
             },
             conversationProgress: {
               ...defaultConversationProgress,
-              ...(parsed.conversationProgress || {}),
+              ...legacyConversation,
+              totalConversationMinutes: Math.max(0, (legacyConversation.totalConversationMinutes || 0) - 32),
+              completedSessionsCount: Math.max(0, (legacyConversation.completedSessionsCount || 0) - 3),
+              totalTurnsCount: Math.max(0, (legacyConversation.totalTurnsCount || 0) - 22),
+              savedSessions: conversationSessions,
             },
             roleplayProgress: {
               ...defaultRoleplayProgress,
-              ...(parsed.roleplayProgress || {}),
-              customScenarios: parsed.roleplayProgress?.customScenarios || [],
-              history: parsed.roleplayProgress?.history || defaultRoleplayProgress.history,
+              ...legacyRoleplay,
+              totalRoleplayMinutes: Math.max(0, (legacyRoleplay.totalRoleplayMinutes || 0) - 18),
+              completedScenariosCount: roleplayHistory.length,
+              averageScore: roleplayHistory.length
+                ? Math.round(roleplayHistory.reduce((sum: number, item: any) => sum + item.assessment.overallScore, 0) / roleplayHistory.length)
+                : 0,
+              customScenarios: legacyRoleplay.customScenarios || [],
+              history: roleplayHistory,
             },
           };
         } catch (e) {
@@ -321,13 +250,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const saved = localStorage.getItem('benenglish_vocab');
       if (saved) {
         try {
-          return JSON.parse(saved);
+          return (JSON.parse(saved) as VocabItem[]).map((item) => item.reviewCount === undefined ? { ...item, masteryLevel: 0, lastReviewed: undefined, nextReviewAt: undefined, reviewCount: 0, successfulReviewCount: 0 } : item);
         } catch (e) {
           // ignore
         }
       }
     }
-    return INITIAL_VOCABULARY_BANK;
+    return INITIAL_VOCABULARY_BANK.map((item) => ({ ...item, masteryLevel: 0, lastReviewed: undefined, nextReviewAt: undefined, reviewCount: 0, successfulReviewCount: 0 }));
   });
 
   const [customLessons, setCustomLessons] = useState<ListeningLesson[]>(() => {
@@ -386,11 +315,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addListeningSeconds = (seconds: number) => {
+    if (!Number.isFinite(seconds) || seconds <= 0) return;
     setUser((prev) => {
       const current = prev.listeningProgress || defaultListeningProgress;
       return {
         ...prev,
-        dailyMinutesSpent: prev.dailyMinutesSpent + Math.floor(seconds / 60),
+        dailyMinutesSpent: prev.dailyMinutesSpent + seconds / 60,
         listeningProgress: {
           ...current,
           totalListeningSeconds: current.totalListeningSeconds + seconds,
@@ -403,7 +333,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const recordDictationAttempt = (lessonId: string, score: number, missedWords: string[] = []) => {
     setUser((prev) => {
       const current = prev.listeningProgress || defaultListeningProgress;
-      const newAvg = Math.round((current.dictationAccuracyAvg * 3 + score) / 4);
+      const attempts = current.dictationAttemptCount || 0;
+      const newAvg = Math.round((current.dictationAccuracyAvg * attempts + score) / (attempts + 1));
 
       let newMisunderstood = [...current.misunderstoodVocab];
       missedWords.forEach((word) => {
@@ -421,6 +352,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         listeningProgress: {
           ...current,
           dictationAccuracyAvg: newAvg,
+          dictationAttemptCount: attempts + 1,
           misunderstoodVocab: newMisunderstood.slice(0, 10),
         },
       };
@@ -430,13 +362,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const recordComprehensionAttempt = (lessonId: string, score: number) => {
     setUser((prev) => {
       const current = prev.listeningProgress || defaultListeningProgress;
-      const newAvg = Math.round((current.comprehensionAccuracyAvg * 3 + score) / 4);
+      const attempts = current.comprehensionAttemptCount || 0;
+      const newAvg = Math.round((current.comprehensionAccuracyAvg * attempts + score) / (attempts + 1));
       return {
         ...prev,
         totalXp: prev.totalXp + 40,
         listeningProgress: {
           ...current,
           comprehensionAccuracyAvg: newAvg,
+          comprehensionAttemptCount: attempts + 1,
         },
       };
     });
@@ -474,34 +408,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const completeLesson = (lessonId: string, type: 'listening' | 'speaking' | 'roleplay', score?: number) => {
     setUser((prev) => {
-      const newCompleted = prev.completedLessonIds.includes(lessonId)
-        ? prev.completedLessonIds
-        : [...prev.completedLessonIds, lessonId];
-      const newRecent = score
-        ? type === 'listening'
-          ? [...prev.recentListeningScores.slice(-4), score]
-          : type === 'speaking'
-          ? [...prev.recentSpeakingScores.slice(-4), score]
-          : [...prev.recentPronunciationScores.slice(-4), score]
-        : prev.recentSpeakingScores;
-
+      const alreadyCompleted = prev.completedLessonIds.includes(lessonId);
+      if (alreadyCompleted) return prev;
       const currentListen = prev.listeningProgress || defaultListeningProgress;
-      const newCompletedCount =
-        type === 'listening' && !prev.completedLessonIds.includes(lessonId)
-          ? currentListen.completedListeningCount + 1
-          : currentListen.completedListeningCount;
-
+      const nextScores = typeof score === 'number' && Number.isFinite(score)
+        ? [...(type === 'listening' ? prev.recentListeningScores : type === 'speaking' ? prev.recentSpeakingScores : prev.recentPronunciationScores).slice(-19), Math.max(0, Math.min(100, score))]
+        : null;
       return {
         ...prev,
-        completedLessonIds: newCompleted,
+        completedLessonIds: [...prev.completedLessonIds, lessonId],
         totalXp: prev.totalXp + 50,
-        dailyMinutesSpent: prev.dailyMinutesSpent + 6,
-        ...(type === 'listening' ? { recentListeningScores: newRecent } : {}),
-        ...(type === 'speaking' ? { recentSpeakingScores: newRecent } : {}),
-        ...(type === 'roleplay' ? { recentPronunciationScores: newRecent } : {}),
+        ...(type === 'listening' && nextScores ? { recentListeningScores: nextScores } : {}),
+        ...(type === 'speaking' && nextScores ? { recentSpeakingScores: nextScores } : {}),
+        ...(type === 'roleplay' && nextScores ? { recentPronunciationScores: nextScores } : {}),
         listeningProgress: {
           ...currentListen,
-          completedListeningCount: newCompletedCount,
+          completedListeningCount: type === 'listening' ? currentListen.completedListeningCount + 1 : currentListen.completedListeningCount,
         },
       };
     });
@@ -595,19 +517,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         xpEarned = 60;
       }
 
-      const newPronuncAvg = Math.round((spk.pronunciationAccuracyAvg * 3 + result.score) / 4);
-      const newFluencyAvg = Math.round(
-        (spk.fluencyScoreAvg * 3 + (result.score > 70 ? result.score : 70)) / 4
-      );
+      const priorSpeakingScores = spk.history.map((item) => item.score).filter(Number.isFinite);
+      const newSpeakingAvg = Math.round((priorSpeakingScores.reduce((sum, value) => sum + value, 0) + result.score) / (priorSpeakingScores.length + 1));
+      const newPronuncAvg = result.type === 'pronunciation' ? Math.round((spk.pronunciationAccuracyAvg * Math.max(0, priorSpeakingScores.length) + result.score) / (Math.max(0, priorSpeakingScores.length) + 1)) : spk.pronunciationAccuracyAvg;
+      const newFluencyAvg = result.type === 'free_speaking' ? newSpeakingAvg : spk.fluencyScoreAvg;
 
       return {
         ...prev,
         totalXp: prev.totalXp + xpEarned,
-        dailyMinutesSpent: prev.dailyMinutesSpent + 5,
+
         recentSpeakingScores: [...prev.recentSpeakingScores.slice(-4), result.score],
         speakingProgress: {
           ...spk,
-          totalSpeakingMinutes: spk.totalSpeakingMinutes + 3,
+          totalSpeakingMinutes: spk.totalSpeakingMinutes,
           readAloudCompletedCount: newReadAloudCount,
           shadowingCompletedCount: newShadowingCount,
           freeSpeakingCompletedCount: newFreeSpeakingCount,
@@ -777,10 +699,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser((prev) => {
       const rp = prev.roleplayProgress || defaultRoleplayProgress;
       const newHistory = [session, ...rp.history.filter((s) => s.id !== session.id)].slice(0, 20);
-      const newCount = rp.completedScenariosCount + 1;
-      const newAvgScore = Math.round(
-        (rp.averageScore * rp.completedScenariosCount + session.assessment.overallScore) / newCount
-      );
+      const previousScores = rp.history.map((item) => item.assessment.overallScore).filter(Number.isFinite);
+      const newCount = previousScores.length + 1;
+      const newAvgScore = Math.round((previousScores.reduce((sum, value) => sum + value, 0) + session.assessment.overallScore) / newCount);
 
       return {
         ...prev,
