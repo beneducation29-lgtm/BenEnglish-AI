@@ -1203,6 +1203,59 @@ Provide an open-ended 1-3 minute prompt, 3 guiding bullet points, and 4 high-ban
   }
 });
 
+// Optional second-pass audio transcription for learners who explicitly enable it.
+app.post('/api/gemini/transcribe-audio', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { audioBase64, mimeType = 'audio/webm' } = req.body || {};
+    if (typeof audioBase64 !== 'string' || !audioBase64.trim()) {
+      res.status(400).json({ success: false, error: 'Audio data is required.' });
+      return;
+    }
+    if (audioBase64.length > 7_000_000) {
+      res.status(413).json({ success: false, error: 'Recording is too large. Please record a shorter answer.' });
+      return;
+    }
+
+    const normalizedMimeType = String(mimeType).split(';')[0].toLowerCase();
+    const allowedMimeTypes = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav', 'audio/mpeg'];
+    if (!allowedMimeTypes.includes(normalizedMimeType)) {
+      res.status(415).json({ success: false, error: 'This audio format is not supported. Try Chrome or Edge with audio recording enabled.' });
+      return;
+    }
+
+    const audioBytes = Buffer.from(audioBase64, 'base64');
+    if (!audioBytes.length || audioBytes.length > 5 * 1024 * 1024) {
+      res.status(413).json({ success: false, error: 'Recording is empty or exceeds the 5 MB limit.' });
+      return;
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType: normalizedMimeType, data: audioBase64 } },
+          { text: 'Transcribe the spoken English audio verbatim. Preserve the learner’s actual words and natural repetitions. Add normal punctuation. Do not translate, summarize, rewrite, correct grammar, or guess missing words. If a short section cannot be understood, mark it as [unclear]. Return only the transcript in the required JSON field.' },
+        ],
+      }],
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: { transcript: { type: Type.STRING } },
+          required: ['transcript'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    res.json({ success: true, data: { transcript: String(parsed.transcript || '').trim() } });
+  } catch (error: any) {
+    console.error('Audio transcription error:', error?.message || error);
+    res.status(500).json({ success: false, error: 'AI transcription is temporarily unavailable. Your browser transcript is kept as a fallback.' });
+  }
+});
+
 // Vite middleware for development or static files for production
 async function startServer() {
   const isProduction = process.env.NODE_ENV === 'production';
