@@ -24,7 +24,6 @@ import {
   PROFESSIONAL_LISTENING_LESSONS,
   IELTS_LISTENING_LESSONS,
   SPEAKING_CHALLENGES,
-  DEFAULT_PRONUNCIATION_MEMORY,
   ROLEPLAY_SCENARIOS,
 } from '../data/curriculumData';
 
@@ -519,7 +518,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       const priorSpeakingScores = spk.history.map((item) => item.score).filter(Number.isFinite);
       const newSpeakingAvg = Math.round((priorSpeakingScores.reduce((sum, value) => sum + value, 0) + result.score) / (priorSpeakingScores.length + 1));
-      const newPronuncAvg = result.type === 'pronunciation' ? Math.round((spk.pronunciationAccuracyAvg * Math.max(0, priorSpeakingScores.length) + result.score) / (Math.max(0, priorSpeakingScores.length) + 1)) : spk.pronunciationAccuracyAvg;
+      const previousPronunciationScores = spk.history.filter((item) => item.type === 'pronunciation').map((item) => item.score).filter(Number.isFinite);
+      const newPronuncAvg = result.type === 'pronunciation' ? Math.round((previousPronunciationScores.reduce((sum, value) => sum + value, 0) + result.score) / (previousPronunciationScores.length + 1)) : spk.pronunciationAccuracyAvg;
       const newFluencyAvg = result.type === 'free_speaking' ? newSpeakingAvg : spk.fluencyScoreAvg;
 
       return {
