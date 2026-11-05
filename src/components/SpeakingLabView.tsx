@@ -67,8 +67,8 @@ export const SpeakingLabView: React.FC = () => {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<SpeakingTab>('dashboard');
-  const [selectedCefr, setSelectedCefr] = useState<string>('all');
-  const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>('all');
+  const [selectedCefr, setSelectedCefr] = useState<string>(user.cefrLevel);
+  const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>(user.track);
 
   // Mic permission status
   const [hasMicSupport] = useState<boolean>(isSpeechRecognitionSupported());
