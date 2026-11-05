@@ -19,10 +19,10 @@ type LibraryProgress = {
 const STORAGE_KEY = 'benenglish_library_progress_v1';
 const EMPTY_PROGRESS: LibraryProgress = { completedIds: [], recentIds: [], bookmarks: [] };
 
-function readProgress(): LibraryProgress {
+function readProgress(storageKey: string): LibraryProgress {
   if (typeof window === 'undefined') return EMPTY_PROGRESS;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw = window.localStorage.getItem(storageKey);
     if (!raw) return EMPTY_PROGRESS;
     const parsed = JSON.parse(raw) as Partial<LibraryProgress>;
     return {
@@ -65,7 +65,8 @@ export const LibraryView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLevel, setSelectedLevel] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [progress, setProgress] = useState<LibraryProgress>(readProgress);
+  const storageKey = `${STORAGE_KEY}:${user.email || 'guest'}`;
+  const [progress, setProgress] = useState<LibraryProgress>(() => readProgress(storageKey));
   const [videoUrl, setVideoUrl] = useState('');
   const [videoError, setVideoError] = useState('');
   const [videoEmbedUrl, setVideoEmbedUrl] = useState('');
@@ -88,11 +89,11 @@ export const LibraryView: React.FC = () => {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+      window.localStorage.setItem(storageKey, JSON.stringify(progress));
     } catch {
       // Browser storage can be unavailable in private or restricted contexts.
     }
-  }, [progress]);
+  }, [progress, storageKey]);
 
   useEffect(() => () => audioEngine.stop(), []);
 
