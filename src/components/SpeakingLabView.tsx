@@ -15,6 +15,7 @@ import {
   FREE_SPEAKING_TOPICS_CATALOG,
   SPEAKING_CHALLENGES,
 } from '../data/curriculumData';
+import { ADDITIONAL_FREE_SPEAKING_TOPICS, ADDITIONAL_READ_ALOUD_PASSAGES } from '../data/skillsPracticePack';
 import {
   Mic,
   Volume2,
@@ -88,7 +89,10 @@ export const SpeakingLabView: React.FC = () => {
   // -------------------------------------------------------------
   // 2. READ ALOUD STATE
   // -------------------------------------------------------------
-  const filteredPassages = READ_ALOUD_PASSAGES.filter((p) => {
+  const allReadAloudPassages = [...READ_ALOUD_PASSAGES, ...ADDITIONAL_READ_ALOUD_PASSAGES];
+  const allFreeSpeakingTopics = [...FREE_SPEAKING_TOPICS_CATALOG, ...ADDITIONAL_FREE_SPEAKING_TOPICS];
+
+  const filteredPassages = allReadAloudPassages.filter((p) => {
     const matchTrack =
       selectedTrackFilter === 'all' || p.track === selectedTrackFilter || p.track === 'both';
     const matchCefr = selectedCefr === 'all' || p.level === selectedCefr;
@@ -96,7 +100,7 @@ export const SpeakingLabView: React.FC = () => {
   });
 
   const [selectedPassage, setSelectedPassage] = useState<ReadAloudPassage>(
-    filteredPassages[0] || READ_ALOUD_PASSAGES[0]
+    filteredPassages[0] || allReadAloudPassages[0]
   );
   const [readAloudMode, setReadAloudMode] = useState<'full' | 'sentence'>('full');
   const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
@@ -127,7 +131,7 @@ export const SpeakingLabView: React.FC = () => {
   // -------------------------------------------------------------
   // 4. FREE SPEAKING STATE
   // -------------------------------------------------------------
-  const filteredTopics = FREE_SPEAKING_TOPICS_CATALOG.filter((t) => {
+  const filteredTopics = allFreeSpeakingTopics.filter((t) => {
     const matchTrack =
       selectedTrackFilter === 'all' || t.track === selectedTrackFilter || t.track === 'both';
     const matchCefr = selectedCefr === 'all' || t.level === selectedCefr;
@@ -135,7 +139,7 @@ export const SpeakingLabView: React.FC = () => {
   });
 
   const [selectedTopic, setSelectedTopic] = useState<FreeSpeakingTopic>(
-    filteredTopics[0] || FREE_SPEAKING_TOPICS_CATALOG[0]
+    filteredTopics[0] || allFreeSpeakingTopics[0]
   );
   const [isRecordingFree, setIsRecordingFree] = useState(false);
   const [freeTranscript, setFreeTranscript] = useState('');
