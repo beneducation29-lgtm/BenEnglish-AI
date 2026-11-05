@@ -39,6 +39,9 @@ export interface VocabItem {
   track: TrackType | 'both' | 'ielts';
   masteryLevel: number; // 0 - 5 (spaced repetition)
   lastReviewed?: string;
+  nextReviewAt?: string;
+  reviewCount?: number;
+  successfulReviewCount?: number;
   audioText?: string;
 }
 
