@@ -91,6 +91,8 @@ export interface ListeningProgressRecord {
   dailyListeningSecondsToday: number;
   dictationAccuracyAvg: number;
   comprehensionAccuracyAvg: number;
+  dictationAttemptCount?: number;
+  comprehensionAttemptCount?: number;
   completedListeningCount: number;
   misunderstoodVocab: {
     word: string;
