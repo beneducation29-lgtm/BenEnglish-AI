@@ -63,7 +63,8 @@ export const VocabularyGrammarView: React.FC = () => {
     recordVocabReview(currentWord.id, remembered);
     setIsFlipped(false);
     if (remembered) audioFeedbackSound();
-    setCurrentFlashcardIndex((prev) => prev + 1);
+    // The reviewed card leaves the due queue; restart at the first remaining due card.
+    setCurrentFlashcardIndex(0);
   };
 
   const filteredVocab = vocabBank.filter(
