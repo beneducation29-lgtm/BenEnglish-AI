@@ -202,6 +202,7 @@ export const ConversationRoomView: React.FC = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isAiResponding, setIsAiResponding] = useState(false);
+  const [conversationError, setConversationError] = useState<string | null>(null);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [inputText, setInputText] = useState('');
@@ -370,6 +371,7 @@ export const ConversationRoomView: React.FC = () => {
     setTurns((prev) => [...prev, userTurn]);
     setInputText('');
     setLiveTranscript('');
+    setConversationError(null);
     setIsAiResponding(true);
 
     try {
@@ -406,35 +408,9 @@ export const ConversationRoomView: React.FC = () => {
       // Play AI voice
       speakAiReply(response.replyText);
     } catch (e: any) {
-      console.warn('Conversation API error, using intelligent fallback', e);
+      console.error('Conversation API unavailable', e);
       setIsAiResponding(false);
-
-      // Fallback response tailored to active persona & mode
-      const fallbackReply =
-        selectedPersonaId === 'strict_teacher'
-          ? "Very well. Remember to articulate your ideas with clear subject-verb agreement. What specific evidence can you offer to support that statement?"
-          : selectedPersonaId === 'native_partner'
-          ? "Totally agree with you! That's super interesting. How did you first get into that?"
-          : selectedPersonaId === 'business_coach'
-          ? "Understood. From an executive perspective, how would you quantify the impact of that initiative on team productivity?"
-          : selectedPersonaId === 'ielts_coach'
-          ? "Thank you. Let's explore that in greater depth. Do you believe this trend will continue in the next decade?"
-          : "That's a wonderful point! I really like how you expressed that. Could you tell me a little more about what happened next?";
-
-      const fallbackTurn: ConversationTurnRecord = {
-        id: `turn-ai-${Date.now()}`,
-        role: 'assistant',
-        content: fallbackReply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        phoneticTip: "Keep your cadence steady between 110 and 130 words per minute.",
-        suggestedReplies: [
-          "I think it definitely made a significant difference.",
-          "From my personal experience, it depends on the circumstances.",
-        ],
-      };
-
-      setTurns((prev) => [...prev, fallbackTurn]);
-      speakAiReply(fallbackReply);
+      setConversationError('AI đang tạm thời không kết nối được. Tin nhắn của bạn vẫn được giữ lại; hãy thử gửi lại sau.');
     }
   };
 
@@ -989,6 +965,8 @@ export const ConversationRoomView: React.FC = () => {
           )}
 
         {/* --------------------------------------------------------- */}
+        {conversationError && <div role="alert" className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{conversationError}</div>}
+
         {/* 4. BOTTOM INTERACTION BAR: MIC & TEXT FALLBACK            */}
         {/* --------------------------------------------------------- */}
         <div className="p-4 bg-white border-t border-slate-200 rounded-b-3xl">
