@@ -27,6 +27,11 @@ import {
   ROLEPLAY_SCENARIOS,
 } from '../data/curriculumData';
 
+const getLocalDateKey = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
 export type ActiveTab =
   | 'home'
   | 'listening'
@@ -89,6 +94,7 @@ const defaultListeningProgress: ListeningProgressRecord = {
   continueSentenceIndex: 0,
   dailyListeningGoalMinutes: 15,
   dailyListeningSecondsToday: 0,
+  dailyListeningDate: getLocalDateKey(),
   dictationAccuracyAvg: 0,
   comprehensionAccuracyAvg: 0,
   dictationAttemptCount: 0,
@@ -140,6 +146,7 @@ const defaultUser: UserProfile = {
   totalXp: 0,
   dailyGoalMinutes: 25,
   dailyMinutesSpent: 0,
+  dailyActivityDate: getLocalDateKey(),
   completedLessonIds: [],
   bookmarkedVocabIds: [],
   recentSpeakingScores: [],
@@ -170,6 +177,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             Array.isArray(values) && seed.every((value, index) => values[index] === value)
               ? values.slice(seed.length)
               : (Array.isArray(values) ? values : []);
+          const todayKey = getLocalDateKey();
           const legacyListening = parsed.listeningProgress || {};
           const legacySpeaking = parsed.speakingProgress || {};
           const legacyConversation = parsed.conversationProgress || {};
@@ -180,7 +188,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             ...parsed,
             streakDays: Math.max(0, (parsed.streakDays || 0) - 6),
             totalXp: Math.max(0, (parsed.totalXp || 0) - 1850),
-            dailyMinutesSpent: Math.max(0, (parsed.dailyMinutesSpent || 0) - 16),
+            dailyMinutesSpent: parsed.dailyActivityDate === todayKey ? Math.max(0, (parsed.dailyMinutesSpent || 0) - 16) : 0,
+            dailyActivityDate: todayKey,
             completedLessonIds: (parsed.completedLessonIds || []).filter((id: string) => id !== 'hs-env-01'),
             bookmarkedVocabIds: (parsed.bookmarkedVocabIds || []).filter((id: string) => !['v-b1-01', 'v-hs-1'].includes(id)),
             recentSpeakingScores: legacySeedScores(parsed.recentSpeakingScores, [72, 78, 81]),
@@ -190,7 +199,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               ...defaultListeningProgress,
               ...legacyListening,
               totalListeningSeconds: Math.max(0, (legacyListening.totalListeningSeconds || 0) - 1420),
-              dailyListeningSecondsToday: Math.max(0, (legacyListening.dailyListeningSecondsToday || 0) - 480),
+              dailyListeningSecondsToday: legacyListening.dailyListeningDate === todayKey ? Math.max(0, (legacyListening.dailyListeningSecondsToday || 0) - 480) : 0,
+              dailyListeningDate: todayKey,
               completedListeningCount: Math.max(0, (legacyListening.completedListeningCount || 0) - 2),
               recentlyPlayedLessonIds: listeningHadOnlyDemo
                 ? []
@@ -317,13 +327,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!Number.isFinite(seconds) || seconds <= 0) return;
     setUser((prev) => {
       const current = prev.listeningProgress || defaultListeningProgress;
+      const todayKey = getLocalDateKey();
+      const dailySeconds = current.dailyListeningDate === todayKey ? current.dailyListeningSecondsToday : 0;
+      const dailyMinutes = prev.dailyActivityDate === todayKey ? prev.dailyMinutesSpent : 0;
       return {
         ...prev,
-        dailyMinutesSpent: prev.dailyMinutesSpent + seconds / 60,
+        dailyActivityDate: todayKey,
+        dailyMinutesSpent: dailyMinutes + seconds / 60,
         listeningProgress: {
           ...current,
           totalListeningSeconds: current.totalListeningSeconds + seconds,
-          dailyListeningSecondsToday: current.dailyListeningSecondsToday + seconds,
+          dailyListeningSecondsToday: dailySeconds + seconds,
+          dailyListeningDate: todayKey,
         },
       };
     });
@@ -419,7 +434,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         totalXp: prev.totalXp + 50,
         ...(type === 'listening' && nextScores ? { recentListeningScores: nextScores } : {}),
         ...(type === 'speaking' && nextScores ? { recentSpeakingScores: nextScores } : {}),
-        ...(type === 'roleplay' && nextScores ? { recentPronunciationScores: nextScores } : {}),
+
         listeningProgress: {
           ...currentListen,
           completedListeningCount: type === 'listening' ? currentListen.completedListeningCount + 1 : currentListen.completedListeningCount,
@@ -621,7 +636,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const spk = prev.speakingProgress || defaultSpeakingProgress;
       return {
         ...prev,
-        dailyMinutesSpent: prev.dailyMinutesSpent + minutes,
+        dailyActivityDate: getLocalDateKey(),
+        dailyMinutesSpent: (prev.dailyActivityDate === getLocalDateKey() ? prev.dailyMinutesSpent : 0) + minutes,
         speakingProgress: {
           ...spk,
           totalSpeakingMinutes: spk.totalSpeakingMinutes + minutes,
@@ -637,7 +653,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         ...prev,
         totalXp: prev.totalXp + 50,
-        dailyMinutesSpent: prev.dailyMinutesSpent + session.durationMinutes,
+        dailyActivityDate: getLocalDateKey(),
+        dailyMinutesSpent: (prev.dailyActivityDate === getLocalDateKey() ? prev.dailyMinutesSpent : 0) + session.durationMinutes,
         conversationProgress: {
           ...conv,
           totalConversationMinutes: conv.totalConversationMinutes + session.durationMinutes,
@@ -680,7 +697,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const conv = prev.conversationProgress || defaultConversationProgress;
       return {
         ...prev,
-        dailyMinutesSpent: prev.dailyMinutesSpent + minutes,
+        dailyActivityDate: getLocalDateKey(),
+        dailyMinutesSpent: (prev.dailyActivityDate === getLocalDateKey() ? prev.dailyMinutesSpent : 0) + minutes,
         conversationProgress: {
           ...conv,
           totalConversationMinutes: conv.totalConversationMinutes + minutes,
@@ -706,7 +724,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return {
         ...prev,
         totalXp: prev.totalXp + 80,
-        dailyMinutesSpent: prev.dailyMinutesSpent + session.durationMinutes,
+        dailyActivityDate: getLocalDateKey(),
+        dailyMinutesSpent: (prev.dailyActivityDate === getLocalDateKey() ? prev.dailyMinutesSpent : 0) + session.durationMinutes,
         roleplayProgress: {
           ...rp,
           totalRoleplayMinutes: rp.totalRoleplayMinutes + session.durationMinutes,
