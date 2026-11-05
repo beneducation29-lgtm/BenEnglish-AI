@@ -778,18 +778,20 @@ app.post('/api/gemini/coach-plan', async (req: Request, res: Response): Promise<
   try {
     const { track, gradeOrOccupation, performanceStats = {} } = req.body;
 
+    const hasScore = (value: unknown) => typeof value === 'number' && Number.isFinite(value);
+    const weakAreas = Array.isArray(performanceStats.weakAreas) ? performanceStats.weakAreas : [];
     const systemInstruction = `
 You are the Head AI English Coach at BenEnglish AI.
 Track: ${track} (${gradeOrOccupation || 'General'}).
 Philosophy: LEARN → LISTEN → UNDERSTAND → SPEAK → RECEIVE FEEDBACK → CORRECT → REPEAT → MASTER.
 
-Recent Learner Profile:
-- Listening Score Average: ${performanceStats.listeningScore || 72}/100
-- Speaking Fluency Average: ${performanceStats.speakingScore || 65}/100
-- Pronunciation Accuracy: ${performanceStats.pronunciationScore || 68}/100
-- Identified Weaknesses: ${JSON.stringify(performanceStats.weakAreas || ['Dropping final consonants', 'Hesitation in impromptu speaking', 'Connecting words in fast listening'])}
+Evidence from saved learner activity (never invent missing data):
+- Latest listening score: ${hasScore(performanceStats.listeningScore) ? performanceStats.listeningScore + '/100' : 'No recorded assessment yet'}
+- Latest speaking score: ${hasScore(performanceStats.speakingScore) ? performanceStats.speakingScore + '/100' : 'No recorded assessment yet'}
+- Latest pronunciation score: ${hasScore(performanceStats.pronunciationScore) ? performanceStats.pronunciationScore + '/100' : 'No recorded assessment yet'}
+- Verified weak areas: ${weakAreas.length ? JSON.stringify(weakAreas) : 'None identified from recorded results yet'}
 
-Generate an adaptive, inspiring, and concrete Daily Action Plan for today that targets their weak points.
+Generate an adaptive Daily Action Plan. If a skill has no evidence, recommend a baseline practice activity and explicitly state that there is not enough data to diagnose it. Never claim a score, weakness, achievement, or improvement that is not present in the supplied evidence.
 `;
 
     const response = await ai.models.generateContent({
