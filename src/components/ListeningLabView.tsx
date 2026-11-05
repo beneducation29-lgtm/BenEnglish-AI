@@ -394,7 +394,7 @@ export const ListeningLabView: React.FC = () => {
       setShortAnswerEvaluations((prev) => ({ ...prev, [qIdx]: evalRes }));
     } catch (e) {
       console.error(e);
-      const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9\\s]/g, ' ').split(/\\s+/).filter(Boolean);
+      const normalize = (value: string) => value.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(Boolean);
       const expectedTokens = normalize(expectedAnswer);
       const responseTokens = new Set(normalize(userAns));
       const matched = expectedTokens.filter((token) => responseTokens.has(token)).length;
