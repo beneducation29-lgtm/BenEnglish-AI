@@ -55,6 +55,7 @@ interface AppContextType {
   vocabBank: VocabItem[];
   addVocabWord: (word: VocabItem) => void;
   toggleVocabBookmark: (id: string) => void;
+  recordVocabReview: (id: string, remembered: boolean) => void;
   audioFeedbackSound: () => void;
   // Phase 2: Listening Lab State & Methods
   allListeningLessons: ListeningLesson[];
@@ -527,6 +528,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     });
   };
 
+  // Phase 7: persist an honest, lightweight spaced-repetition schedule per vocabulary item.
+  const recordVocabReview = (id: string, remembered: boolean) => {
+    const now = new Date();
+    setVocabBank((previous) => previous.map((item) => {
+      if (item.id !== id) return item;
+      const nextCount = (item.reviewCount || 0) + 1;
+      const masteryLevel = remembered
+        ? Math.min(5, item.masteryLevel + 1)
+        : Math.max(0, item.masteryLevel - 1);
+      const intervalsInDays = [1, 3, 7, 14, 30];
+      const nextReview = new Date(now.getTime() + (remembered
+        ? intervalsInDays[Math.max(0, Math.min(4, masteryLevel - 1))] * 24 * 60 * 60 * 1000
+        : 10 * 60 * 1000));
+      return {
+        ...item,
+        masteryLevel,
+        lastReviewed: now.toISOString(),
+        nextReviewAt: nextReview.toISOString(),
+        reviewCount: nextCount,
+        successfulReviewCount: (item.successfulReviewCount || 0) + (remembered ? 1 : 0),
+      };
+    }));
+    if (remembered) {
+      setUser((previous) => ({ ...previous, totalXp: previous.totalXp + 5 }));
+    }
+  };
+
   const audioFeedbackSound = () => {
     try {
       const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -830,6 +858,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         vocabBank,
         addVocabWord,
         toggleVocabBookmark,
+        recordVocabReview,
         audioFeedbackSound,
         allListeningLessons,
         addGeneratedLesson,
