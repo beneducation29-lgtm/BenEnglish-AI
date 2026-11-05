@@ -222,38 +222,9 @@ export const SpeakingLabView: React.FC = () => {
         );
       }
     } catch (e: any) {
-      console.warn('Pronunciation eval error, using local fallback', e);
-      // Fallback evaluation
-      const isMatch = coachTranscript.toLowerCase().includes(targetText.toLowerCase());
-      const score = isMatch ? 86 : 64;
-      setCoachEvalResult({
-        overallScore: score,
-        intelligibility: isMatch ? 'Clear & Accurate' : 'Substituted sound detected',
-        ipaTarget: selectedSound.ipaExample,
-        soundBreakdown: [
-          {
-            word: targetText,
-            ipa: selectedSound.ipaExample,
-            status: isMatch ? 'correct' : 'substituted',
-            feedback: isMatch
-              ? 'Clear enunciation and correct tongue placement.'
-              : selectedSound.vietnameseCommonError,
-          },
-        ],
-        vietnameseLearnerTips: [
-          selectedSound.vietnameseGuide,
-          selectedSound.vietnameseCommonError,
-        ],
-        minimalPairsDrill: [
-          {
-            wordA: selectedSound.minimalPair.wordA,
-            ipaA: selectedSound.minimalPair.ipaA,
-            wordB: selectedSound.minimalPair.wordB,
-            ipaB: selectedSound.minimalPair.ipaB,
-            difference: `${selectedSound.symbol} focus vs alternative sound`,
-          },
-        ],
-      });
+      console.error('Pronunciation evaluation unavailable', e);
+      setCoachEvalResult(null);
+      setMicError('AI pronunciation analysis is unavailable right now. No score was fabricated; please retry when the service is available.');
     } finally {
       setIsEvaluatingCoach(false);
     }
@@ -328,39 +299,9 @@ export const SpeakingLabView: React.FC = () => {
       recordSpeakingResult(record);
       addSpeakingMinutes(Math.ceil(readAloudDuration / 60));
     } catch (e: any) {
-      console.warn('Read aloud eval fallback', e);
-      const wordsCount = readAloudTranscript.trim().split(/\s+/).length;
-      const calcWpm = Math.round((wordsCount / Math.max(readAloudDuration, 5)) * 60);
-
-      const fallbackResult = {
-        accuracyScore: 82,
-        wpm: calcWpm || 120,
-        cadenceRating: calcWpm >= 110 && calcWpm <= 145 ? 'Natural & Fluent' : 'Slightly Hesitant',
-        wordErrors: [
-          {
-            expected: 'initiative',
-            received: 'initiate',
-            errorType: 'incorrect',
-            feedback: 'Pay attention to the 4-syllable noun ending /ɪ-ti-ə-tɪv/.',
-          },
-        ],
-        sentenceFeedback: [
-          {
-            sentenceIndex: 0,
-            feedback: 'Good stress on primary verbs; ending /st/ in "last" was clearly enunciated.',
-            pauseEvaluation: 'Natural pause after introductory clause.',
-          },
-        ],
-        rhythmAndPacingNotes: [
-          `Your speaking cadence of ${calcWpm} WPM falls well within the international comprehension zone (110-140 WPM).`,
-          'Try lengthening the stressed syllables while keeping unstressed prepositions brisk.',
-        ],
-        vietnameseTransferAdvice: [
-          'Học sinh Việt Nam thường quên bật âm đuôi /ks/ và /t/. Hãy chú ý âm đuôi trong các từ như "last", "plastics".',
-          'Ngắt nhịp tự nhiên sau các cụm giới từ thay vì dừng ngẫu nhiên giữa chừng.',
-        ],
-      };
-      setReadAloudResult(fallbackResult);
+      console.error('Read-aloud evaluation unavailable', e);
+      setReadAloudResult(null);
+      setMicError('AI read-aloud evaluation is unavailable right now. No score was generated; please retry when the service is available.');
     } finally {
       setIsEvaluatingReadAloud(false);
     }
@@ -560,44 +501,9 @@ export const SpeakingLabView: React.FC = () => {
       recordSpeakingResult(record);
       addSpeakingMinutes(Math.ceil(freeDuration / 60));
     } catch (e: any) {
-      console.warn('Free speaking evaluation error', e);
-      // Fallback evaluation
-      const fallback: SpeakingEvalData = {
-        overallBandEstimate: 6.5,
-        cefrEstimate: selectedTopic.level,
-        rubricScores: {
-          lexicalResource: 7,
-          grammaticalAccuracy: 6,
-          fluencyCoherence: 7,
-          relevanceContent: 8,
-        },
-        strengths: [
-          'Clear, coherent structure directly addressing the prompt.',
-          'Good use of topic-specific vocabulary and transitions.',
-        ],
-        areasToImprove: [
-          'Vary sentence structures with conditional and complex clauses.',
-          'Ensure ending consonants are enunciated clearly during spontaneous speech.',
-        ],
-        grammarCorrections: [
-          {
-            original: 'they is very helpful',
-            correction: 'they are very helpful',
-            explanation: 'Subject-verb agreement: "they" requires plural verb "are".',
-            vietnameseNote: 'Lỗi số ít/số nhiều phổ biến do tiếng Việt không chia động từ.',
-          },
-        ],
-        upgradedVocabulary: [
-          {
-            basicWord: 'very good',
-            advancedAlternative: 'exceptionally beneficial',
-            example: 'This initiative proved exceptionally beneficial for student engagement.',
-          },
-        ],
-        improvedSampleAnswer:
-          'In my perspective, modern educational technology serves as an indispensable catalyst for academic growth. When implemented with rigorous guidelines, digital platforms foster cross-disciplinary inquiry without causing counterproductive distraction.',
-      };
-      setFreeEvalResult(fallback);
+      console.error('Free-speaking evaluation unavailable', e);
+      setFreeEvalResult(null);
+      setMicError('AI speaking evaluation is unavailable right now. No band score or feedback was invented; please retry when the service is available.');
     } finally {
       setIsEvaluatingFree(false);
     }
