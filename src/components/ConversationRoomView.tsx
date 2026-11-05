@@ -437,7 +437,6 @@ export const ConversationRoomView: React.FC = () => {
     audioEngine.stop();
     if (micSessionRef.current) micSessionRef.current.stop();
     micSessionRef.current = null;
-    setMicSession(null);
     setIsRecording(false);
     setIsAiSpeaking(false);
     setIsSessionActive(false);
