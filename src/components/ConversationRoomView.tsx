@@ -558,7 +558,7 @@ export const ConversationRoomView: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 md:p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Persona & Mode Badge */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-2xl shadow-xs shrink-0">
               {activePersona.avatar}
             </div>
