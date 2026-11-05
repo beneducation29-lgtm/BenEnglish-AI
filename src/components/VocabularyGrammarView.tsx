@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { VocabItem } from '../types';
 import { audioEngine } from '../services/speech';
@@ -45,21 +45,26 @@ const GRAMMAR_CLINICS = [
 ];
 
 export const VocabularyGrammarView: React.FC = () => {
-  const { vocabBank, toggleVocabBookmark, user, audioFeedbackSound } = useApp();
+  const { vocabBank, toggleVocabBookmark, recordVocabReview, user, audioFeedbackSound } = useApp();
 
   const [activeSubTab, setActiveSubTab] = useState<'flashcards' | 'dictionary' | 'grammar'>('flashcards');
   const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const currentWord = vocabBank[currentFlashcardIndex] || vocabBank[0];
+  const dueVocabBank = useMemo(() => {
+    const now = Date.now();
+    return vocabBank.filter((word) => !word.nextReviewAt || new Date(word.nextReviewAt).getTime() <= now);
+  }, [vocabBank]);
+  const currentWord = dueVocabBank[currentFlashcardIndex] || dueVocabBank[0];
 
   const handleNextFlashcard = (remembered: boolean) => {
+    if (!currentWord) return;
+    recordVocabReview(currentWord.id, remembered);
     setIsFlipped(false);
-    if (remembered) {
-      audioFeedbackSound();
-    }
-    setCurrentFlashcardIndex((prev) => (prev + 1) % Math.max(1, vocabBank.length));
+    if (remembered) audioFeedbackSound();
+    // The reviewed card leaves the due queue; restart at the first remaining due card.
+    setCurrentFlashcardIndex(0);
   };
 
   const filteredVocab = vocabBank.filter(
@@ -123,7 +128,7 @@ export const VocabularyGrammarView: React.FC = () => {
       {activeSubTab === 'flashcards' && currentWord && (
         <div className="max-w-xl mx-auto space-y-6">
           <div className="text-center text-xs text-slate-500 font-medium">
-            CARD {currentFlashcardIndex + 1} OF {vocabBank.length} · MASTERY LEVEL {currentWord.masteryLevel}/5
+            CARD {currentFlashcardIndex + 1} OF {dueVocabBank.length} DUE · MASTERY LEVEL {currentWord.masteryLevel}/5
           </div>
 
           {/* Flashcard Body */}
@@ -215,9 +220,18 @@ export const VocabularyGrammarView: React.FC = () => {
               onClick={() => handleNextFlashcard(true)}
               className="p-3.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-xs transition-colors"
             >
-              Remembered Well (+1 Level)
+              Remembered Well (+1 Level · XP)
             </button>
           </div>
+        </div>
+      )}
+
+      {activeSubTab === 'flashcards' && !currentWord && (
+        <div className="mx-auto max-w-xl rounded-3xl border border-emerald-200 bg-emerald-50 p-8 text-center">
+          <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
+          <h2 className="mt-3 text-xl font-bold text-slate-900">You are all caught up</h2>
+          <p className="mt-2 text-sm text-slate-600">There are no vocabulary cards due right now. Come back when your next review is scheduled.</p>
+          <p className="mt-3 text-xs text-slate-500">{vocabBank.length} words in your bank · review history is saved on this device.</p>
         </div>
       )}
 
