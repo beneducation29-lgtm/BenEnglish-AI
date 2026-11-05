@@ -106,16 +106,16 @@ export const HomeView: React.FC = () => {
                 <Sparkles className="w-4 h-4 text-emerald-400" />
                 <span>BENENGLISH AI ACADEMY</span>
                 <span aria-hidden="true" className="text-slate-600">·</span>
-                <span className="text-slate-300">Listening & Speaking Specialization</span>
+                <span className="text-slate-300">Four-Skill English Learning</span>
               </div>
 
               <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-                Master Spoken English with Your <span className="text-emerald-400">Personal AI Tutor</span>
+                Build Confident English Across <span className="text-emerald-400">All Four Skills</span>
               </h1>
 
               <p className="mt-4 text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
                 Designed specifically for Vietnamese high school students and ambitious professionals.
-                Practice real conversations, conquer pronunciation hurdles, and prepare for exams with instantaneous acoustic feedback.
+                Listen, speak, read and write through focused practice, clear feedback and level-matched learning.
               </p>
             </div>
 
@@ -150,7 +150,7 @@ export const HomeView: React.FC = () => {
                 className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-all shadow-md hover:shadow-emerald-500/20 flex items-center gap-2 whitespace-nowrap shrink-0"
               >
                 <Mic className="w-4 h-4" />
-                <span>Start AI Voice Room</span>
+                <span>Start Speaking Practice</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
               <button
@@ -428,24 +428,24 @@ export const HomeView: React.FC = () => {
             </div>
           </div>
 
-          {/* 4. Real-Life Roleplay */}
+          {/* 4. Reading & Writing */}
           <div
-            onClick={() => setActiveTab('roleplay')}
+            onClick={() => setActiveTab('reading-writing')}
             className="group cursor-pointer rounded-2xl bg-white border border-slate-200 p-5 hover:border-emerald-400 hover:shadow-md transition-all flex flex-col justify-between"
           >
             <div>
               <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:scale-105 transition-transform">
-                <Users className="w-6 h-6" />
+                <BookOpen className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-slate-900 text-lg mb-1 group-hover:text-emerald-700 transition-colors">
-                Roleplay Engine
+                Reading & Writing
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Step into authentic situations: Job interviews, client negotiations, exchange student chats, and student council debates.
+                Read level-matched passages, explore words in context, then write and save your own response.
               </p>
             </div>
             <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-600">
-              <span>Goal Tracking</span>
+              <span>Read → Understand → Write</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
