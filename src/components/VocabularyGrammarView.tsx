@@ -67,6 +67,11 @@ export const VocabularyGrammarView: React.FC = () => {
     setCurrentFlashcardIndex(0);
   };
 
+  const reviewedWordsCount = vocabBank.filter((word) => (word.reviewCount || 0) > 0).length;
+  const totalReviewCount = vocabBank.reduce((sum, word) => sum + (word.reviewCount || 0), 0);
+  const successfulReviewCount = vocabBank.reduce((sum, word) => sum + (word.successfulReviewCount || 0), 0);
+  const selfReportedRetention = totalReviewCount ? Math.round((successfulReviewCount / totalReviewCount) * 100) : null;
+
   const filteredVocab = vocabBank.filter(
     (v) =>
       v.word.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -122,6 +127,12 @@ export const VocabularyGrammarView: React.FC = () => {
             Grammar Clinics
           </button>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-xs text-slate-500">Words due now</div><div className="mt-1 text-2xl font-bold text-slate-900">{dueVocabBank.length}</div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-xs text-slate-500">Words personally reviewed</div><div className="mt-1 text-2xl font-bold text-slate-900">{reviewedWordsCount}</div></div>
+        <div className="rounded-xl border border-slate-200 bg-white p-4"><div className="text-xs text-slate-500">Self-reported recall</div><div className="mt-1 text-2xl font-bold text-slate-900">{selfReportedRetention === null ? '—' : selfReportedRetention + '%'}</div><div className="text-[10px] text-slate-500">{totalReviewCount} review decisions · not an objective test score</div></div>
       </div>
 
       {/* Tab 1: Spaced Repetition Flashcard */}
