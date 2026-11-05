@@ -1100,7 +1100,7 @@ export const ListeningLabView: React.FC = () => {
                 <div className="space-y-3">
                   {selectedLesson.sentences.map((sent, sIdx) => {
                     const isActive = activeSentenceIndex === sIdx;
-                    const words = sent.textEn.match(/\\S+/g) || [];
+                    const words = sent.textEn.match(/\S+/g) || [];
                     let wordCursor = 0;
                     const wordRanges = words.map((word) => {
                       const start = sent.textEn.indexOf(word, wordCursor);
