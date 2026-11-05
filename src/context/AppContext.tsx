@@ -772,7 +772,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const rp = prev.roleplayProgress || defaultRoleplayProgress;
       return {
         ...prev,
-        dailyMinutesSpent: prev.dailyMinutesSpent + minutes,
+        dailyActivityDate: getLocalDateKey(),
+        dailyMinutesSpent: (prev.dailyActivityDate === getLocalDateKey() ? prev.dailyMinutesSpent : 0) + minutes,
         roleplayProgress: {
           ...rp,
           totalRoleplayMinutes: rp.totalRoleplayMinutes + minutes,
