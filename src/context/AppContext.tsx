@@ -36,6 +36,7 @@ export type ActiveTab =
   | 'home'
   | 'listening'
   | 'speaking'
+  | 'reading-writing'
   | 'conversation'
   | 'roleplay'
   | 'pronunciation'

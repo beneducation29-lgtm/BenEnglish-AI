@@ -9,6 +9,7 @@ import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
 import { ListeningLabView } from './components/ListeningLabView';
 import { SpeakingLabView } from './components/SpeakingLabView';
+import { ReadingWritingView } from './components/ReadingWritingView';
 import { ConversationRoomView } from './components/ConversationRoomView';
 import { RoleplayEngineView } from './components/RoleplayEngineView';
 import { PronunciationStudioView } from './components/PronunciationStudioView';
@@ -26,6 +27,7 @@ const MainContent: React.FC = () => {
       {activeTab === 'home' && <HomeView />}
       {activeTab === 'listening' && <ListeningLabView />}
       {activeTab === 'speaking' && <SpeakingLabView />}
+      {activeTab === 'reading-writing' && <ReadingWritingView />}
       {activeTab === 'conversation' && <ConversationRoomView />}
       {activeTab === 'roleplay' && <RoleplayEngineView />}
       {activeTab === 'pronunciation' && <PronunciationStudioView />}
