@@ -639,16 +639,18 @@ export const SpeakingLabView: React.FC = () => {
   // PROGRESS STATS
   // -------------------------------------------------------------
   const speakingStats = user.speakingProgress || {
-    totalSpeakingMinutes: 24,
-    pronunciationAccuracyAvg: 83,
-    fluencyScoreAvg: 80,
-    readAloudCompletedCount: 4,
-    shadowingCompletedCount: 6,
-    freeSpeakingCompletedCount: 3,
+    totalSpeakingMinutes: 0,
+    pronunciationAccuracyAvg: 0,
+    fluencyScoreAvg: 0,
+    readAloudCompletedCount: 0,
+    shadowingCompletedCount: 0,
+    freeSpeakingCompletedCount: 0,
     pronunciationMemory: [],
     history: [],
-    activeChallenges: SPEAKING_CHALLENGES,
+    activeChallenges: SPEAKING_CHALLENGES.map((challenge) => ({ ...challenge, isCompleted: false, progressPercent: 0 })),
   };
+  const pronunciationSampleCount = speakingStats.history.filter((item) => item.type === 'pronunciation').length;
+  const fluencySampleCount = speakingStats.history.filter((item) => item.type === 'free_speaking').length;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -785,7 +787,7 @@ export const SpeakingLabView: React.FC = () => {
                 <Target className="w-4 h-4 text-emerald-600" />
               </div>
               <div className="mt-2 text-2xl font-black text-slate-900">
-                {speakingStats.pronunciationAccuracyAvg}%
+                {pronunciationSampleCount ? `${speakingStats.pronunciationAccuracyAvg}%` : '—'}
               </div>
               <p className="text-[11px] text-emerald-600 mt-0.5">IPA phoneme accuracy</p>
             </div>
@@ -796,7 +798,7 @@ export const SpeakingLabView: React.FC = () => {
                 <TrendingUp className="w-4 h-4 text-blue-600" />
               </div>
               <div className="mt-2 text-2xl font-black text-slate-900">
-                {speakingStats.fluencyScoreAvg}/100
+                {fluencySampleCount ? `${speakingStats.fluencyScoreAvg}/100` : '—'}
               </div>
               <p className="text-[11px] text-blue-600 mt-0.5">110-140 WPM optimal</p>
             </div>
