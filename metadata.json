@@ -1,0 +1,11 @@
+{
+  "name": "BenEnglish AI",
+  "description": "Your Personal AI English Learning Academy specializing in listening and speaking mastery for High School and Professional tracks.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
