@@ -210,11 +210,6 @@ export const ConversationRoomView: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [micSession, setMicSession] = useState<SpeechRecognitionSession | null>(null);
 
-  // Waveform heights state (16 bars)
-  const [waveformBars, setWaveformBars] = useState<number[]>(
-    new Array(18).fill(15)
-  );
-
   // Drawers & Modals
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [showCorrectionsDrawer, setShowCorrectionsDrawer] = useState(false);
@@ -239,35 +234,19 @@ export const ConversationRoomView: React.FC = () => {
     };
   }, [isSessionActive]);
 
-  // Waveform animation effect when recording or AI speaking
-  useEffect(() => {
-    let waveTimer: any = null;
-    if (isRecording || isAiSpeaking) {
-      waveTimer = setInterval(() => {
-        setWaveformBars(
-          new Array(18).fill(0).map(() => Math.floor(Math.random() * 55) + 12)
-        );
-      }, 90);
-    } else {
-      setWaveformBars(new Array(18).fill(10));
-    }
-    return () => {
-      if (waveTimer) clearInterval(waveTimer);
-    };
-  }, [isRecording, isAiSpeaking]);
-
   // Scroll to bottom on new turn
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [turns, isAiResponding, liveTranscript]);
 
-  // Stop audio on unmount
+  // Stop audio and microphone on unmount without tying cleanup to every session state update.
   useEffect(() => {
     return () => {
       audioEngine.stop();
-      if (micSession) micSession.stop();
+      micSessionRef.current?.stop();
+      micSessionRef.current = null;
     };
-  }, [micSession]);
+  }, []);
 
   // -------------------------------------------------------------
   // AI SPEECH SYNTHESIS ENGINE
@@ -275,6 +254,9 @@ export const ConversationRoomView: React.FC = () => {
   const speakAiReply = (text: string, onFinish?: () => void) => {
     if (isMuted) {
       onFinish?.();
+      if (isHandsFreeMode && isSessionActive) {
+        setTimeout(() => startListening(), 450);
+      }
       return;
     }
 
@@ -796,20 +778,20 @@ export const ConversationRoomView: React.FC = () => {
             </div>
           </div>
 
-          {/* Dynamic Audio Waveform Visualizer */}
+          {/* Voice activity indicator: animated status only, not measured microphone amplitude. */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 h-12 px-4 py-2 rounded-2xl bg-slate-800/80 border border-slate-700/80">
-              {waveformBars.map((height, idx) => (
+            <div aria-label={isRecording ? 'Microphone is active' : isAiSpeaking ? 'AI voice is playing' : 'Voice activity idle'} className="flex items-center gap-1.5 h-12 px-4 py-2 rounded-2xl bg-slate-800/80 border border-slate-700/80">
+              {Array.from({ length: 18 }, (_, idx) => idx).map((idx) => (
                 <div
                   key={idx}
-                  className={`w-1 rounded-full transition-all duration-75 ${
+                  className={`w-1 rounded-full ${
                     isAiSpeaking
-                      ? 'bg-teal-400'
+                      ? 'bg-teal-400 animate-pulse'
                       : isRecording
-                      ? 'bg-emerald-400'
+                      ? 'bg-emerald-400 animate-pulse'
                       : 'bg-slate-600'
                   }`}
-                  style={{ height: `${height}px` }}
+                  style={{ height: `${10 + (idx % 5) * 5}px`, animationDelay: `${idx * 35}ms` }}
                 />
               ))}
             </div>
@@ -941,7 +923,7 @@ export const ConversationRoomView: React.FC = () => {
                   </span>
                   {finalTranscript && <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-semibold text-emerald-800">Confirmed words</span>}
                 </div>
-                <p className="break-words">
+                <p aria-live="polite" aria-atomic="true" className="break-words">
                   {finalTranscript && <span>{finalTranscript}</span>}
                   {liveTranscript.replace(finalTranscript, '').trim() && (
                     <span className="italic text-emerald-700/70"> {liveTranscript.replace(finalTranscript, '').trim()}</span>
