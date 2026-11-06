@@ -405,6 +405,15 @@ export class SpeechRecognitionSession {
       this.capturePromise.catch((error: any) => {
         console.warn('Microphone audio capture unavailable:', error);
         this.onError(error?.message || 'AI audio capture is unavailable; browser recognition may still work.');
+
+        // Without the browser SpeechRecognition API there is no onend event to
+        // finish the session. End it explicitly when microphone capture fails,
+        // otherwise the UI can remain stuck in a recording state forever.
+        if (!this.recognition) {
+          this.isListening = false;
+          this.onStateChange?.(false);
+          void this.finalizeRecording();
+        }
       });
     }
 
