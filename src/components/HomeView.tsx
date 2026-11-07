@@ -47,7 +47,14 @@ export const HomeView: React.FC = () => {
           listeningScore: user.recentListeningScores.length ? user.recentListeningScores[user.recentListeningScores.length - 1] : null,
           speakingScore: user.recentSpeakingScores.length ? user.recentSpeakingScores[user.recentSpeakingScores.length - 1] : null,
           pronunciationScore: user.recentPronunciationScores.length ? user.recentPronunciationScores[user.recentPronunciationScores.length - 1] : null,
-          weakAreas: (user.listeningProgress?.misunderstoodVocab || []).map((item) => `Listening: ${item.word} (${item.count} missed)`),
+          weakAreas: [
+            ...(user.placementAssessment?.priorities || []),
+            ...(user.listeningProgress?.misunderstoodVocab || []).map((item) => `Listening: ${item.word} (${item.count} missed)`),
+          ].slice(0, 10),
+          placementLevel: user.placementAssessment?.overallLevel || null,
+          skillLevels: user.placementAssessment?.skills
+            ? Object.fromEntries(Object.entries(user.placementAssessment.skills).map(([skill, result]) => [skill, result.level]))
+            : {},
         },
       });
       setCoachPlan(data);
