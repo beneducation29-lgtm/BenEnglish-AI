@@ -1,6 +1,12 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
-const MODEL = 'gemini-3.8-flash';
+const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
+const FALLBACK_MODEL = 'gemini-3.8-flash';
+
+function isTransientModelError(error: unknown): boolean {
+  const message = String((error as any)?.message || error || '').toLowerCase();
+  return /503|429|unavailable|resource_exhausted|high demand|overload|timed? ?out|timeout|aborterror/.test(message);
+}
 
 const personaDescriptions: Record<string, string> = {
   friendly_teacher: 'You are Teacher Emma, a warm, patient and encouraging English tutor. Speak clearly and help learners feel comfortable.',
@@ -81,9 +87,16 @@ Conversation requirements:
 `;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: MODEL,
+    const ai = new GoogleGenAI({
+      apiKey,
+      // Bound each attempt. The SDK's default exponential retries can otherwise
+      // keep a chat turn pending until the Vercel function itself times out.
+      httpOptions: {
+        timeout: 20000,
+        retryOptions: { attempts: 1 },
+      },
+    });
+    const generationRequest = {
       contents: [
         ...history,
         { role: 'user', parts: [{ text: message }] },
@@ -114,7 +127,22 @@ Conversation requirements:
           required: ['replyText', 'phoneticTip', 'suggestedUserReplies'],
         },
       },
-    });
+    };
+
+    let response;
+    try {
+      response = await ai.models.generateContent({
+        model: PRIMARY_MODEL,
+        ...generationRequest,
+      });
+    } catch (primaryError) {
+      if (!isTransientModelError(primaryError)) throw primaryError;
+      console.warn('Conversation primary model unavailable; trying fallback model.');
+      response = await ai.models.generateContent({
+        model: FALLBACK_MODEL,
+        ...generationRequest,
+      });
+    }
 
     const raw = response.text || '{}';
     const parsed = JSON.parse(raw);
@@ -131,10 +159,14 @@ Conversation requirements:
       },
     });
   } catch (error: any) {
+    const transient = isTransientModelError(error);
     console.error('BenEnglish conversation function failed:', error?.message || error);
-    return res.status(502).json({
+    return res.status(transient ? 503 : 502).json({
       success: false,
-      error: error?.message || 'The AI tutor could not respond right now. Please try again.',
+      error: transient
+        ? 'The AI tutor is temporarily busy. Please try sending your message again in a moment.'
+        : error?.message || 'The AI tutor could not respond right now. Please try again.',
+      retryable: transient,
     });
   }
 }
