@@ -17,6 +17,7 @@ import {
   RoleplaySessionRecord,
   RoleplayProgressRecord,
   RoleplayAssistanceMode,
+  PlacementAssessment,
 } from '../types';
 import {
   INITIAL_VOCABULARY_BANK,
@@ -60,6 +61,7 @@ interface AppContextType {
   updateGrade: (grade: HighSchoolGrade) => void;
   updateOccupation: (occ: ProfessionalOccupation) => void;
   updateCefrLevel: (level: CEFRLevel) => void;
+  savePlacementAssessment: (assessment: PlacementAssessment) => void;
   addXp: (xp: number) => void;
   completeLesson: (lessonId: string, type: 'listening' | 'speaking' | 'roleplay', score?: number) => void;
   vocabBank: VocabItem[];
@@ -433,6 +435,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateCefrLevel = (cefrLevel: CEFRLevel) => {
     setUser((prev) => ({ ...prev, cefrLevel }));
+  };
+
+  const savePlacementAssessment = (assessment: PlacementAssessment) => {
+    setUser((prev) => ({ ...prev, cefrLevel: assessment.overallLevel, placementAssessment: assessment }));
   };
 
   const addXp = (amount: number) => {
@@ -816,6 +822,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateGrade,
         updateOccupation,
         updateCefrLevel,
+        savePlacementAssessment,
         addXp,
         completeLesson,
         vocabBank,
