@@ -206,6 +206,7 @@ export const ConversationRoomView: React.FC = () => {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [micError, setMicError] = useState<string | null>(null);
+  const [useAiTranscription, setUseAiTranscription] = useState(false);
   const [finalTranscript, setFinalTranscript] = useState('');
   const [inputText, setInputText] = useState('');
 
@@ -310,8 +311,8 @@ export const ConversationRoomView: React.FC = () => {
   // SPEECH RECOGNITION (LISTENING)
   // -------------------------------------------------------------
   const startListening = () => {
-    if (!hasMicSupport) {
-      setMicError('Speech recognition is not supported in this browser. You can type your response instead.');
+    if (!hasMicSupport && !useAiTranscription) {
+      setMicError('Speech recognition is not supported in this browser. Enable AI transcription or type your response instead.');
       return;
     }
     if (isAiResponding) return;
@@ -335,7 +336,9 @@ export const ConversationRoomView: React.FC = () => {
         setMicError(err);
         setIsRecording(false);
       },
-      (active) => setIsRecording(active)
+      (active) => setIsRecording(active),
+      undefined,
+      { cloudTranscription: useAiTranscription }
     );
     micSessionRef.current = session;
     session.start();
@@ -555,7 +558,7 @@ export const ConversationRoomView: React.FC = () => {
       <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 md:p-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Persona & Mode Badge */}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-2xl shadow-xs shrink-0">
               {activePersona.avatar}
             </div>
@@ -790,6 +793,20 @@ export const ConversationRoomView: React.FC = () => {
                 />
               ))}
             </div>
+
+            <label className="flex items-start gap-2 max-w-[190px] text-[11px] leading-snug text-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useAiTranscription}
+                disabled={isRecording}
+                onChange={(event) => setUseAiTranscription(event.target.checked)}
+                className="mt-0.5 accent-teal-500"
+              />
+              <span>
+                <span className="block font-semibold text-slate-200">AI transcription</span>
+                <span className="block text-slate-400">Sends this recording to AI for a second transcript.</span>
+              </span>
+            </label>
 
             {/* Interruption Button when AI is speaking */}
             {isAiSpeaking && (

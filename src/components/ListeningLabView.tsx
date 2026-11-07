@@ -65,7 +65,11 @@ export const ListeningLabView: React.FC = () => {
   } = useApp();
 
   // Selected Lesson
-  const [selectedLesson, setSelectedLesson] = useState<ListeningLesson>(allListeningLessons[0]);
+  const [selectedLesson, setSelectedLesson] = useState<ListeningLesson>(() =>
+    allListeningLessons.find((lesson) => lesson.track === user.track && lesson.level === user.cefrLevel) ||
+    allListeningLessons.find((lesson) => lesson.track === user.track || lesson.track === 'both') ||
+    allListeningLessons[0]
+  );
 
   // Mode Selection: 'intensive' | 'extensive' | 'dictation' | 'comprehension' | 'shadowing'
   const [activeMode, setActiveMode] = useState<
@@ -73,9 +77,8 @@ export const ListeningLabView: React.FC = () => {
   >('intensive');
 
   // Filters
-  const [cefrFilter, setCefrFilter] = useState<string>('all');
-  const [tierFilter, setTierFilter] = useState<string>('all');
-  const [trackFilter, setTrackFilter] = useState<string>('all');
+  const [cefrFilter, setCefrFilter] = useState<string>(user.cefrLevel);
+  const [trackFilter, setTrackFilter] = useState<string>(user.track);
   const [topicSearch, setTopicSearch] = useState<string>('');
   const [viewMode, setViewMode] = useState<'dashboard' | 'lesson'>('dashboard');
 
@@ -447,7 +450,6 @@ export const ListeningLabView: React.FC = () => {
   // Filter lessons
   const filteredLessons = allListeningLessons.filter((l) => {
     if (cefrFilter !== 'all' && l.level !== cefrFilter) return false;
-    if (tierFilter !== 'all' && l.tier !== tierFilter) return false;
     if (trackFilter !== 'all' && l.track !== trackFilter && l.track !== 'both') return false;
     if (topicSearch.trim()) {
       const term = topicSearch.toLowerCase();
@@ -683,31 +685,6 @@ export const ListeningLabView: React.FC = () => {
                       }`}
                     >
                       {lvl === 'all' ? 'All Levels' : lvl}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tier Filter */}
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-slate-400 font-semibold w-24 shrink-0">Difficulty Tier:</span>
-                <div className="flex flex-wrap gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                  {[
-                    { id: 'all', label: 'All Tiers' },
-                    { id: 'beginner', label: 'Beginner (A1-A2)' },
-                    { id: 'intermediate', label: 'Intermediate (B1-B2)' },
-                    { id: 'advanced', label: 'Advanced (C1-C2)' },
-                  ].map((tier) => (
-                    <button
-                      key={tier.id}
-                      onClick={() => setTierFilter(tier.id)}
-                      className={`px-3 py-1 font-semibold rounded-lg transition-colors ${
-                        tierFilter === tier.id
-                          ? 'bg-white text-slate-900 shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900'
-                      }`}
-                    >
-                      {tier.label}
                     </button>
                   ))}
                 </div>
