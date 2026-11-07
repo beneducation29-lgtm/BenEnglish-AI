@@ -11,6 +11,7 @@ type WordLookup = { word: string; ipa?: string; pos?: string; meaningVi?: string
 
 export const ReadingWritingView: React.FC = () => {
   const { user } = useApp();
+  const readingLevel = user.placementAssessment?.skills.reading.level || user.cefrLevel;
   const [mode, setMode] = useState<Mode>('reading');
   const [selectedId, setSelectedId] = useState('');
   const [showTranslation, setShowTranslation] = useState(true);
@@ -100,7 +101,7 @@ export const ReadingWritingView: React.FC = () => {
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-300">Read level-matched passages, explore vocabulary in context, then turn what you understand into your own writing.</p>
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
-            <span className="block text-xs text-slate-400">Your level</span><strong className="text-lg">{user.cefrLevel}</strong>
+            <span className="block text-xs text-slate-400">Your level</span><strong className="text-lg">{readingLevel}</strong>
           </div>
         </div>
       </section>
