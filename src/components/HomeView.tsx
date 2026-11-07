@@ -125,14 +125,14 @@ export const HomeView: React.FC = () => {
             </div>
           </div>
           <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 p-6 sm:p-10">
-            <div className="absolute inset-0 opacity-25" style={{backgroundImage:'linear-gradient(rgba(255,255,255,.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.7) 1px, transparent 1px)',backgroundSize:'42px 42px'}} />
+            <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:28px_28px]" />
             <div className="relative flex w-full max-w-lg items-center justify-center gap-4 sm:gap-7">
               <div className="w-[46%] rotate-[-5deg] rounded-[1.8rem] border-[7px] border-slate-800 bg-white p-4 shadow-2xl">
                 <div className="mb-5 flex items-center justify-between text-[10px] font-bold text-slate-500"><span>LISTENING LAB</span><Headphones className="h-4 w-4 text-blue-600" /></div>
                 <div className="rounded-xl bg-blue-50 p-3">
                   <div className="mb-2 text-xs font-bold text-blue-800">Hear the difference</div>
                   <div className="flex h-12 items-center justify-center gap-1">
-                    {Array.from({length:19},(_,i)=><span key={i} className="w-1.5 rounded-full bg-blue-500" style={{height:`${12+Math.abs(Math.sin(i*1.7))*30}px`}} />)}
+                    {["h-4","h-7","h-10","h-6","h-9","h-5","h-11","h-7","h-4","h-8","h-10","h-6","h-9","h-5","h-11","h-7","h-4","h-8","h-6"].map((height,i)=><span key={i} className={`w-1.5 ${height} rounded-full bg-blue-500`} />)}
                   </div>
                   <div className="mt-2 h-1.5 rounded-full bg-blue-100"><div className="h-1.5 w-2/3 rounded-full bg-blue-500" /></div>
                 </div>
