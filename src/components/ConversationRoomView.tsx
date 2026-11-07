@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { GeminiLiveSpeakingSession } from '../services/geminiLive';
 import { useApp } from '../context/AppContext';
 import {
   sendConversationMessage,
@@ -231,7 +230,7 @@ export const ConversationRoomView: React.FC = () => {
   const isSessionActiveRef = useRef(isSessionActive);
   const isAiRespondingRef = useRef(isAiResponding);
   const sendLockRef = useRef(false);
-  const liveSessionRef = useRef<GeminiLiveSpeakingSession | null>(null);
+  const liveSessionRef = useRef<any>(null);
   const liveInputBufferRef = useRef('');
   const liveOutputBufferRef = useRef('');
 
@@ -298,6 +297,7 @@ export const ConversationRoomView: React.FC = () => {
     setLiveModeError(null);
     liveInputBufferRef.current = '';
     liveOutputBufferRef.current = '';
+    const { GeminiLiveSpeakingSession } = await import('../services/geminiLive');
     const live = new GeminiLiveSpeakingSession({
       onStatus: (status) => {
         if (status === 'connecting') setLiveModeStatus('connecting');
