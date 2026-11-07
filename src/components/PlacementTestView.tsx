@@ -24,10 +24,9 @@ const QUESTIONS: Question[] = [
 
 const levelForScore = (score: number): CEFRLevel => {
   if (score <= 25) return 'A1';
-  if (score <= 45) return 'A2';
-  if (score <= 65) return 'B1';
-  if (score <= 82) return 'B2';
-  return 'C1';
+  if (score <= 50) return 'A2';
+  if (score <= 75) return 'B1';
+  return 'B2';
 };
 
 interface Props {
