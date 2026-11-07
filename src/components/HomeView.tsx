@@ -102,7 +102,7 @@ export const HomeView: React.FC = () => {
 
   useEffect(() => {
     loadDailyPlan();
-  }, [user.track, user.grade, user.occupation]);
+  }, [user.track, user.grade, user.occupation, user.placementAssessment?.completedAt]);
 
   return (
     <div className="space-y-10 pb-16">
@@ -113,7 +113,6 @@ export const HomeView: React.FC = () => {
             savePlacementAssessment(assessment);
             setShowPlacementTest(false);
             setPlanError(null);
-            void loadDailyPlan();
           }}
         />
       )}
