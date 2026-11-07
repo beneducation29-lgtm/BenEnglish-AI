@@ -1469,6 +1469,64 @@ export const ListeningLabView: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Focused listening follow-up: target only words missed in this attempt */}
+                  {(() => {
+                    const focusWords = Array.from(new Set(
+                      dictationResult.diffWords
+                        .filter((word) => word.type !== 'correct')
+                        .map((word) => word.expected.trim())
+                        .filter((word) => word.length > 1 && !/^\\(missed\\)$/i.test(word))
+                    ));
+                    if (focusWords.length === 0) return null;
+                    return (
+                      <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:p-5 space-y-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <span className="flex items-center gap-2 text-sm font-extrabold text-amber-900">
+                              <Target className="h-4 w-4" /> Your focused listening drill
+                            </span>
+                            <p className="mt-1 text-xs leading-relaxed text-amber-800">
+                              Practice the words that were missing or different in this dictation attempt.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => audioEngine.speak(selectedLesson.dictationTargetSentence, { rate: Math.max(0.7, Math.min(playbackSpeed, 0.9)) })}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-700"
+                          >
+                            <Headphones className="h-4 w-4" /> Replay full sentence slowly
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {focusWords.map((word) => (
+                            <button
+                              key={word}
+                              onClick={() => audioEngine.speak(word, { rate: 0.78 })}
+                              title={`Listen to ${word}`}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                            >
+                              <Volume2 className="h-3.5 w-3.5" /> {word}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="flex flex-col gap-2 border-t border-amber-200 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                          <p className="text-[11px] text-amber-800">
+                            {focusWords.length} focus word{focusWords.length === 1 ? '' : 's'} · Listen, then try the dictation again.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setDictationInput('');
+                              setDictationResult(null);
+                              audioEngine.speak(selectedLesson.dictationTargetSentence, { rate: 0.85 });
+                            }}
+                            className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-300 bg-white px-3 py-2 text-xs font-bold text-amber-900 hover:bg-amber-100"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" /> Retry dictation
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Acoustic Notes */}
                   {dictationResult.listeningAcousticNotes.length > 0 && (
                     <div className="p-4 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 space-y-1">
