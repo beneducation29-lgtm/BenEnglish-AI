@@ -76,7 +76,7 @@ Target CEFR level: ${userLevel}
 Conversation requirements:
 1. Respond directly to the meaning, question, emotion or specific detail in the learner's latest message. Do not give a generic greeting when the learner has shared something specific.
 2. Use the supplied recent turns as context. Remember details already shared and never ask the learner to repeat them.
-3. Optimize for voice conversation: usually 1–3 short sentences and 15–45 words. Answer the learner's point first; add detail only when asked.
+3. Optimize for voice conversation: usually 2–4 natural sentences and 25–65 words. Answer the learner's point first; add a useful example or explanation when it helps. Keep replies shorter for A1–A2 learners and expand when the learner asks for detail.
 4. Adapt vocabulary and sentence complexity to the target CEFR level. For A1–A2, use short, clear sentences; for B1–B2, use natural connected language; for C1–C2, use nuanced language.
 5. Ask at most one relevant follow-up question. Do not force a question at the end of every reply; sometimes react, answer, explain or share a brief example.
 6. Continue the selected mode while following the learner's lead. In IELTS and interview modes, keep the appropriate progression and avoid revealing model answers before the learner tries.
@@ -105,7 +105,7 @@ Conversation requirements:
         systemInstruction,
         responseMimeType: 'application/json',
         temperature: 0.65,
-        maxOutputTokens: 480,
+        maxOutputTokens: 650,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -129,26 +129,35 @@ Conversation requirements:
       },
     };
 
-    let response;
-    try {
-      response = await ai.models.generateContent({
-        model: PRIMARY_MODEL,
-        ...generationRequest,
-      });
-    } catch (primaryError) {
-      if (!isTransientModelError(primaryError)) throw primaryError;
-      console.warn('Conversation primary model unavailable; trying fallback model.');
-      response = await ai.models.generateContent({
-        model: FALLBACK_MODEL,
-        ...generationRequest,
-      });
+    let parsed: any = null;
+    let lastError: unknown;
+    for (const [index, model] of [PRIMARY_MODEL, FALLBACK_MODEL].entries()) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          ...generationRequest,
+        });
+        const raw = response.text || '';
+        if (!raw.trim()) throw new Error('The AI returned an empty reply. Please try again.');
+        parsed = JSON.parse(raw);
+        if (typeof parsed.replyText !== 'string' || !parsed.replyText.trim()) {
+          throw new Error('The AI returned an empty reply. Please try again.');
+        }
+        break;
+      } catch (error) {
+        lastError = error;
+        const retryable = isTransientModelError(error) ||
+          /json|unexpected token|empty reply|unexpected end/i.test(String((error as any)?.message || error));
+        if (index === 0 && retryable) {
+          console.warn('Conversation primary model failed or returned an invalid response; trying fallback.');
+          continue;
+        }
+        throw error;
+      }
     }
 
-    const raw = response.text || '{}';
-    const parsed = JSON.parse(raw);
-    if (typeof parsed.replyText !== 'string' || !parsed.replyText.trim()) {
-      throw new Error('The AI returned an empty reply. Please try again.');
-    }
+    if (!parsed) throw lastError || new Error('The AI tutor could not generate a reply.');
+
     return res.status(200).json({
       success: true,
       data: {
