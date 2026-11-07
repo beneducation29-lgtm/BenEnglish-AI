@@ -205,6 +205,7 @@ export const ConversationRoomView: React.FC = () => {
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [aiCaption, setAiCaption] = useState('');
   const [micError, setMicError] = useState<string | null>(null);
   const [useAiTranscription, setUseAiTranscription] = useState(false);
   const [finalTranscript, setFinalTranscript] = useState('');
@@ -221,6 +222,15 @@ export const ConversationRoomView: React.FC = () => {
   const liveTranscriptRef = useRef('');
   const micSessionRef = useRef<SpeechRecognitionSession | null>(null);
   const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHandsFreeModeRef = useRef(isHandsFreeMode);
+  const isSessionActiveRef = useRef(isSessionActive);
+  const isAiRespondingRef = useRef(isAiResponding);
+  const sendLockRef = useRef(false);
+
+  // Keep async speech callbacks synchronized with the latest React state.
+  useEffect(() => { isHandsFreeModeRef.current = isHandsFreeMode; }, [isHandsFreeMode]);
+  useEffect(() => { isSessionActiveRef.current = isSessionActive; }, [isSessionActive]);
+  useEffect(() => { isAiRespondingRef.current = isAiResponding; }, [isAiResponding]);
 
   // Timer effect
   useEffect(() => {
@@ -256,12 +266,13 @@ export const ConversationRoomView: React.FC = () => {
   const speakAiReply = (text: string, onFinish?: () => void) => {
     if (isMuted) {
       onFinish?.();
-      if (isHandsFreeMode && isSessionActive) {
-        setTimeout(() => startListening(), 450);
+      if (isHandsFreeModeRef.current && isSessionActiveRef.current) {
+        window.setTimeout(() => startListening(), 350);
       }
       return;
     }
 
+    setAiCaption('');
     setIsAiSpeaking(true);
     audioEngine.stop();
 
@@ -285,19 +296,26 @@ export const ConversationRoomView: React.FC = () => {
       rate: activePersona.voiceRate * playbackSpeed,
       pitch: activePersona.voicePitch,
       voiceName: preferredVoiceName,
+      onBoundary: (charIndex) => {
+        const nextWordEnd = text.indexOf(' ', charIndex + 1);
+        setAiCaption(text.slice(0, nextWordEnd > -1 ? nextWordEnd : Math.min(text.length, charIndex + 36)));
+      },
       onEnd: () => {
         setIsAiSpeaking(false);
         onFinish?.();
         // Hands-Free loop: automatically start listening again
-        if (isHandsFreeMode && isSessionActive) {
-          setTimeout(() => {
-            startListening();
-          }, 450);
+        setAiCaption(text);
+        if (isHandsFreeModeRef.current && isSessionActiveRef.current) {
+          window.setTimeout(() => startListening(), 350);
         }
       },
       onError: () => {
         setIsAiSpeaking(false);
+        setAiCaption('');
         onFinish?.();
+        if (isHandsFreeModeRef.current && isSessionActiveRef.current) {
+          window.setTimeout(() => startListening(), 350);
+        }
       },
     });
   };
@@ -306,6 +324,7 @@ export const ConversationRoomView: React.FC = () => {
   const interruptAiSpeech = () => {
     audioEngine.stop();
     setIsAiSpeaking(false);
+    setAiCaption('');
     startListening();
   };
 
@@ -317,7 +336,7 @@ export const ConversationRoomView: React.FC = () => {
       setMicError('Speech recognition is not supported in this browser. Enable AI transcription or type your response instead.');
       return;
     }
-    if (isAiResponding) return;
+    if (isAiRespondingRef.current) return;
     if (isAiSpeaking) {
       audioEngine.stop();
       setIsAiSpeaking(false);
@@ -339,10 +358,10 @@ export const ConversationRoomView: React.FC = () => {
         // never trigger a send, so short thinking pauses are less likely to cut
         // the learner off.
         if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
-        if (isHandsFreeMode && state.finalTranscript.trim().length >= 2) {
+        if (isHandsFreeModeRef.current && state.finalTranscript.trim().length >= 2) {
           autoSendTimerRef.current = setTimeout(() => {
             if (micSessionRef.current?.active) stopListeningAndSend();
-          }, 1700);
+          }, 1250);
         }
       },
       (err) => {
@@ -389,7 +408,9 @@ export const ConversationRoomView: React.FC = () => {
   // SEND MESSAGE HANDLER
   // -------------------------------------------------------------
   const sendMessage = async (messageText: string) => {
-    if (!messageText.trim() || isAiResponding) return;
+    if (!messageText.trim() || sendLockRef.current || isAiRespondingRef.current) return;
+    sendLockRef.current = true;
+    isAiRespondingRef.current = true;
 
     // User Turn
     const userTurn: ConversationTurnRecord = {
@@ -446,12 +467,16 @@ export const ConversationRoomView: React.FC = () => {
 
       setTurns((prev) => [...prev, aiTurn]);
       setIsAiResponding(false);
+      isAiRespondingRef.current = false;
+      sendLockRef.current = false;
 
       // Play AI voice
       speakAiReply(response.replyText);
     } catch (e: any) {
       console.error('Conversation API unavailable', e);
       setIsAiResponding(false);
+      isAiRespondingRef.current = false;
+      sendLockRef.current = false;
       setConversationError('AI đang tạm thời không kết nối được. Tin nhắn của bạn vẫn được giữ lại; hãy thử gửi lại sau.');
     }
   };
@@ -466,6 +491,7 @@ export const ConversationRoomView: React.FC = () => {
     setIsRecording(false);
     setIsAiSpeaking(false);
     setIsSessionActive(false);
+    isSessionActiveRef.current = false;
     setIsGeneratingSummary(true);
 
     const durationMins = Math.max(1, Math.round(sessionElapsedSeconds / 60));
@@ -616,7 +642,15 @@ export const ConversationRoomView: React.FC = () => {
 
             {/* Hands-Free Voice Mode Toggle */}
             <button
-              onClick={() => setIsHandsFreeMode(!isHandsFreeMode)}
+              onClick={() => {
+                const next = !isHandsFreeMode;
+                isHandsFreeModeRef.current = next;
+                setIsHandsFreeMode(next);
+                if (!next && autoSendTimerRef.current) {
+                  clearTimeout(autoSendTimerRef.current);
+                  autoSendTimerRef.current = null;
+                }
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 isHandsFreeMode
                   ? 'bg-teal-600 text-white shadow-xs'
@@ -789,6 +823,9 @@ export const ConversationRoomView: React.FC = () => {
                 )}
               </div>
               <h3 className="text-lg font-extrabold mt-0.5">{activePersona.name}</h3>
+              {isAiSpeaking && aiCaption && (
+                <p aria-live="off" className="mt-1 max-w-xl text-[11px] leading-relaxed text-teal-100 line-clamp-2">{aiCaption}</p>
+              )}
               <p className="text-xs text-slate-400">
                 {isRecording
                   ? 'Speak naturally at standard cadence'
