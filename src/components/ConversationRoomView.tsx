@@ -232,6 +232,8 @@ export const ConversationRoomView: React.FC = () => {
   const sendLockRef = useRef(false);
   const liveSessionRef = useRef<any>(null);
   const liveInputBufferRef = useRef('');
+  const liveInputFinalRef = useRef(false);
+  const liveInputTurnCompleteRef = useRef(false);
   const liveOutputBufferRef = useRef('');
 
   // Keep async speech callbacks synchronized with the latest React state.
@@ -282,6 +284,8 @@ export const ConversationRoomView: React.FC = () => {
     setAiCaption('');
     setLiveTranscript('');
     liveInputBufferRef.current = '';
+    liveInputFinalRef.current = false;
+    liveInputTurnCompleteRef.current = false;
     liveOutputBufferRef.current = '';
   };
 
@@ -296,6 +300,8 @@ export const ConversationRoomView: React.FC = () => {
     }
     setLiveModeError(null);
     liveInputBufferRef.current = '';
+    liveInputFinalRef.current = false;
+    liveInputTurnCompleteRef.current = false;
     liveOutputBufferRef.current = '';
     const { GeminiLiveSpeakingSession } = await import('../services/geminiLive');
     const live = new GeminiLiveSpeakingSession({
@@ -319,27 +325,49 @@ export const ConversationRoomView: React.FC = () => {
         }
       },
       onInputTranscript: (text, isFinal) => {
-        if (text && isFinal) {
+        if (!text) return;
+        if (isFinal) {
           liveInputBufferRef.current = `${liveInputBufferRef.current} ${text}`.trim();
+          liveInputFinalRef.current = true;
           setLiveTranscript(liveInputBufferRef.current);
           setFinalTranscript(liveInputBufferRef.current);
-        } else if (text) {
+          if (liveInputTurnCompleteRef.current) {
+            const transcript = liveInputBufferRef.current.trim();
+            if (transcript) {
+              setTurns((prev) => [...prev, {
+                id: `live-user-${Date.now()}`,
+                role: 'user',
+                content: transcript,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }]);
+            }
+            liveInputBufferRef.current = '';
+            liveInputFinalRef.current = false;
+            liveInputTurnCompleteRef.current = false;
+            setLiveTranscript('');
+            setFinalTranscript('');
+          }
+        } else {
           setLiveTranscript(`${liveInputBufferRef.current} ${text}`.trim());
         }
-        if (isFinal && !text) {
-          const transcript = liveInputBufferRef.current.trim();
-          if (transcript) {
-            setTurns((prev) => [...prev, {
-              id: `live-user-${Date.now()}`,
-              role: 'user',
-              content: transcript,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            }]);
-          }
-          liveInputBufferRef.current = '';
-          setLiveTranscript('');
-          setFinalTranscript('');
+      },
+      onInputTurnComplete: () => {
+        liveInputTurnCompleteRef.current = true;
+        if (!liveInputFinalRef.current) return;
+        const transcript = liveInputBufferRef.current.trim();
+        if (transcript) {
+          setTurns((prev) => [...prev, {
+            id: `live-user-${Date.now()}`,
+            role: 'user',
+            content: transcript,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }]);
         }
+        liveInputBufferRef.current = '';
+        liveInputFinalRef.current = false;
+        liveInputTurnCompleteRef.current = false;
+        setLiveTranscript('');
+        setFinalTranscript('');
       },
       onOutputTranscript: (text, isFinal) => {
         if (text) {
