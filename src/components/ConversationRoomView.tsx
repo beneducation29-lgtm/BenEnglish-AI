@@ -309,6 +309,7 @@ export const ConversationRoomView: React.FC = () => {
         }
         if (status === 'speaking') {
           setLiveModeStatus('speaking');
+          setIsRecording(false);
           setIsAiSpeaking(true);
         }
         if (status === 'closed') {
@@ -318,12 +319,14 @@ export const ConversationRoomView: React.FC = () => {
         }
       },
       onInputTranscript: (text, isFinal) => {
-        if (text) {
+        if (text && isFinal) {
           liveInputBufferRef.current = `${liveInputBufferRef.current} ${text}`.trim();
           setLiveTranscript(liveInputBufferRef.current);
           setFinalTranscript(liveInputBufferRef.current);
+        } else if (text) {
+          setLiveTranscript(`${liveInputBufferRef.current} ${text}`.trim());
         }
-        if (isFinal) {
+        if (isFinal && !text) {
           const transcript = liveInputBufferRef.current.trim();
           if (transcript) {
             setTurns((prev) => [...prev, {
