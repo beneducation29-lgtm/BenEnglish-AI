@@ -1886,15 +1886,18 @@ export const SpeakingLabView: React.FC = () => {
           {/* Full Free Speaking Evaluation Report */}
           {freeEvalResult && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+              <div className="pb-4 border-b border-slate-100 space-y-3">
                 <div>
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                    Speaking Assessment Scorecard
+                    AI Practice Estimate · Transcript-based
                   </span>
                   <h3 className="text-xl font-extrabold text-slate-900 mt-1">
                     CEFR {freeEvalResult.cefrEstimate} • Overall Band {freeEvalResult.overallBandEstimate}
                   </h3>
                 </div>
+                <p className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[11px] leading-relaxed text-blue-900">
+                  This assessment uses the words captured by speech recognition. It can review vocabulary, grammar and how ideas are organized, but it cannot reliably assess pronunciation, accent, intonation, pauses or speaking speed without analyzing the audio itself.
+                </p>
 
                 {/* Rubric Breakdown Grid */}
                 <div className="grid grid-cols-4 gap-2 text-center text-xs">
@@ -2004,7 +2007,7 @@ export const SpeakingLabView: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-teal-900 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-teal-600" />
-                    Polished Band 7.5+ Model Answer:
+                    AI suggested answer · compare and improve
                   </span>
                   <button
                     onClick={() =>

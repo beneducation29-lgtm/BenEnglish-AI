@@ -403,20 +403,21 @@ app.post('/api/gemini/speaking-eval', async (req: Request, res: Response): Promi
     const { topic, userTranscript, durationSeconds = 45, track = 'high_school', level = 'B1' } = req.body;
 
     const systemInstruction = `
-You are the Senior Speaking Assessor at BenEnglish AI.
-Evaluate the user's speech transcript on the topic: "${topic}".
+You are the evidence-grounded English speaking practice assessor at BenEnglish AI.
+Assess only the learner transcript supplied in this request, for the topic "${topic}".
 Track: ${track === 'high_school' ? 'High School Student' : 'Working Professional'}.
-Target Level: ${level}.
-Duration: ~${durationSeconds} seconds.
+Target CEFR level: ${level}. Recording duration: approximately ${durationSeconds} seconds.
 
-Assess strictly against:
-1. Lexical Resource (Vocabulary diversity, collocations, idiomatic phrasing)
-2. Grammatical Range and Accuracy (Tense consistency, relative clauses, common Vietnamese transfer errors like singular/plural agreement)
-3. Fluency and Coherence (Logical flow, discourse markers, connectors)
-4. Relevance and Substance
-
-Clearly label any estimated IELTS band score as an AI Practice Estimate.
-Provide a high-band sample answer demonstrating how a native or Band 8.0 speaker would articulate the same ideas.
+EVIDENCE AND SCORING RULES:
+1. This endpoint receives a speech-to-text transcript, NOT the microphone audio.
+2. Assess lexical resource, grammar, relevance and organization/coherence only where the transcript provides evidence.
+3. Do NOT infer or score pronunciation, accent, individual sounds, stress, intonation, voice quality, hesitation, pause frequency or speaking speed. Duration alone is not enough to assess these.
+4. The fluencyCoherence rubric field must reflect transcript-based organization and linking only; do not treat it as an acoustic fluency score.
+5. Return a conservative AI practice estimate, not an official IELTS score or exam prediction. Keep scores internally consistent with the evidence and target level. If the transcript is very short or unclear, lower confidence and say so in areasToImprove.
+6. Every grammar correction must quote a phrase that appears verbatim in the learner transcript. Do not invent learner errors. If there are no clear errors, return an empty corrections array.
+7. Strengths and improvement areas must be tied to actual words, structures or ideas in the transcript. Do not fabricate vocabulary or ideas.
+8. Provide an improved sample answer that preserves the learner's original meaning and ideas. It is a model for comparison, not a guaranteed Band 7.5+ answer.
+9. Return strict JSON matching the schema.
 `;
 
     const response = await ai.models.generateContent({
@@ -466,7 +467,7 @@ Provide a high-band sample answer demonstrating how a native or Band 8.0 speaker
             },
             improvedSampleAnswer: {
               type: Type.STRING,
-              description: 'A polished, fluent Band 7.5+ / professional executive version of their speech.',
+              description: 'A clearer model version preserving the learner’s actual ideas; not an official band guarantee.',
             },
           },
           required: ['overallBandEstimate', 'cefrEstimate', 'rubricScores', 'strengths', 'areasToImprove', 'grammarCorrections', 'improvedSampleAnswer'],
