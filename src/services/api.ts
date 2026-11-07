@@ -126,6 +126,7 @@ export async function sendConversationMessage(payload: {
   track: string;
   userLevel: string;
   occupation?: string;
+  learnerMemory?: { placementLevel?: string; skillLevels?: Record<string,string>; priorities?: string[]; recentSessionNotes?: string[]; recurringErrors?: string[] };
 }): Promise<ConversationResponseData> {
   const res = await fetch('/api/gemini/conversation', {
     method: 'POST',
