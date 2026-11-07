@@ -583,6 +583,19 @@ export const ConversationRoomView: React.FC = () => {
 
     setSessionElapsedSeconds(0);
     setIsSessionActive(true);
+    isSessionActiveRef.current = true;
+    isAiRespondingRef.current = false;
+    sendLockRef.current = false;
+    setIsAiResponding(false);
+    setIsAiSpeaking(false);
+    setAiCaption('');
+    if (autoSendTimerRef.current) {
+      clearTimeout(autoSendTimerRef.current);
+      autoSendTimerRef.current = null;
+    }
+    micSessionRef.current?.stop();
+    micSessionRef.current = null;
+    setIsRecording(false);
     setSummaryReportModal(null);
     setViewingPastSession(null);
 
@@ -1225,7 +1238,6 @@ export const ConversationRoomView: React.FC = () => {
                   onClick={() => {
                     setSummaryReportModal(null);
                     startNewSession(selectedPersonaId, 'free');
-                    setSelectedModeId('free');
                   }}
                   className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold"
                 >
