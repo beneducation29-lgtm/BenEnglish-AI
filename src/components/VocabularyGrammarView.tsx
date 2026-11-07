@@ -76,9 +76,9 @@ export const VocabularyGrammarView: React.FC = () => {
     setCurrentFlashcardIndex(0);
   };
 
-  const reviewedWordsCount = vocabBank.filter((word) => (word.reviewCount || 0) > 0).length;
-  const totalReviewCount = vocabBank.reduce((sum, word) => sum + (word.reviewCount || 0), 0);
-  const successfulReviewCount = vocabBank.reduce((sum, word) => sum + (word.successfulReviewCount || 0), 0);
+  const reviewedWordsCount = trackVocab.filter((word) => (word.reviewCount || 0) > 0).length;
+  const totalReviewCount = trackVocab.reduce((sum, word) => sum + (word.reviewCount || 0), 0);
+  const successfulReviewCount = trackVocab.reduce((sum, word) => sum + (word.successfulReviewCount || 0), 0);
   const selfReportedRetention = totalReviewCount ? Math.round((successfulReviewCount / totalReviewCount) * 100) : null;
 
   const filteredVocab = trackVocab.filter(
