@@ -427,7 +427,7 @@ export const SpeakingLabView: React.FC = () => {
         id: `ai-top-${Date.now()}`,
         title: data.title,
         track: user.track,
-        level: selectedCefr,
+        level: selectedCefr as CEFRLevel,
         category: data.category,
         prompt: data.prompt,
         guidingQuestions: data.guidingQuestions || [],
