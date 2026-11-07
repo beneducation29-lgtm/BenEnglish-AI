@@ -87,9 +87,29 @@ export const HomeView: React.FC = () => {
     }
   };
 
+  const adaptiveEvidenceKey = JSON.stringify({
+    placement: user.placementAssessment?.completedAt,
+    listeningScores: user.recentListeningScores,
+    listeningAttempts: [user.listeningProgress?.dictationAttemptCount, user.listeningProgress?.comprehensionAttemptCount],
+    misunderstood: (user.listeningProgress?.misunderstoodVocab || []).map(item => [item.word, item.count]),
+    speakingScores: user.recentSpeakingScores,
+    speakingHistory: (user.speakingProgress?.history || []).slice(-5).map(item => item.id),
+    pronunciationScores: user.recentPronunciationScores,
+    conversations: (user.conversationProgress?.savedSessions || []).slice(-5).map(session => ({
+      id: session.id,
+      summary: session.summaryReport?.summary,
+      mistakes: session.summaryReport?.grammarMistakes,
+    })),
+    roleplays: (user.roleplayProgress?.history || []).slice(-5).map(session => ({
+      id: session.id,
+      score: session.assessment?.overallScore,
+      priorities: session.assessment?.criticalAreasForImprovement,
+    })),
+  });
+
   useEffect(() => {
     loadDailyPlan();
-  }, [user.track, user.grade, user.occupation, user.placementAssessment?.completedAt]);
+  }, [user.track, user.grade, user.occupation, adaptiveEvidenceKey]);
 
   return (
     <div className="space-y-10 pb-16">
