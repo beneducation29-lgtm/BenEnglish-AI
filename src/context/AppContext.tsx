@@ -27,6 +27,9 @@ import {
   ROLEPLAY_SCENARIOS,
 } from '../data/curriculumData';
 import { ADDITIONAL_LISTENING_LESSONS } from '../data/skillsPracticePack';
+import { useAuth } from './AuthContext';
+
+const accountStorageKey = (key: string, uid?: string) => uid ? `${key}:${uid}` : key;
 
 const getLocalDateKey = () => {
   const now = new Date();
@@ -163,9 +166,10 @@ const defaultUser: UserProfile = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { authUser } = useAuth();
   const [user, setUser] = useState<UserProfile>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('benenglish_user');
+      const saved = localStorage.getItem(accountStorageKey('benenglish_user', authUser?.uid));
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -193,6 +197,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           return {
             ...defaultUser,
             ...parsed,
+            name: authUser?.displayName || parsed.name,
+            email: authUser?.email || parsed.email,
             streakDays: Math.max(0, (parsed.streakDays || 0) - 6),
             totalXp: Math.max(0, (parsed.totalXp || 0) - 1850),
             dailyMinutesSpent: parsed.dailyActivityDate === todayKey ? Math.max(0, (parsed.dailyMinutesSpent || 0) - 16) : 0,
@@ -255,7 +261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
       }
     }
-    return defaultUser;
+    return { ...defaultUser, name: authUser?.displayName || defaultUser.name, email: authUser?.email || defaultUser.email };
   });
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -263,7 +269,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [vocabBank, setVocabBank] = useState<VocabItem[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('benenglish_vocab');
+      const saved = localStorage.getItem(accountStorageKey('benenglish_vocab', authUser?.uid));
       if (saved) {
         try {
           return (JSON.parse(saved) as VocabItem[]).map((item) => item.reviewCount === undefined ? { ...item, masteryLevel: 0, lastReviewed: undefined, nextReviewAt: undefined, reviewCount: 0, successfulReviewCount: 0 } : item);
@@ -277,7 +283,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [customLessons, setCustomLessons] = useState<ListeningLesson[]>(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('benenglish_custom_lessons');
+      const saved = localStorage.getItem(accountStorageKey('benenglish_custom_lessons', authUser?.uid));
       if (saved) {
         try {
           return JSON.parse(saved);
@@ -290,15 +296,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   useEffect(() => {
-    localStorage.setItem('benenglish_user', JSON.stringify(user));
+    localStorage.setItem(accountStorageKey('benenglish_user', authUser?.uid), JSON.stringify(user));
   }, [user]);
 
   useEffect(() => {
-    localStorage.setItem('benenglish_vocab', JSON.stringify(vocabBank));
+    localStorage.setItem(accountStorageKey('benenglish_vocab', authUser?.uid), JSON.stringify(vocabBank));
   }, [vocabBank]);
 
   useEffect(() => {
-    localStorage.setItem('benenglish_custom_lessons', JSON.stringify(customLessons));
+    localStorage.setItem(accountStorageKey('benenglish_custom_lessons', authUser?.uid), JSON.stringify(customLessons));
   }, [customLessons]);
 
   const allListeningLessons: ListeningLesson[] = [
