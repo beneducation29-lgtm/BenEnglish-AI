@@ -1,9 +1,48 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
-const MODEL = 'gemini-3.8-flash';
+const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
+const FALLBACK_MODEL = 'gemini-3.8-flash';
+const ALLOWED_LABS = new Set(['listening', 'speaking', 'conversation', 'roleplay', 'pronunciation']);
 
 function isFiniteScore(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
+}
+
+function isRetryableCoachError(error: unknown): boolean {
+  const message = String((error as any)?.message || error || '').toLowerCase();
+  return /503|429|unavailable|resource_exhausted|high demand|overload|timed? ?out|timeout|aborterror|invalid json|incomplete daily plan|does not add up/.test(message);
+}
+
+function parseCoachPlan(raw: string): any {
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error('The AI Coach returned invalid JSON. Please retry.');
+  }
+
+  const steps = parsed?.learningCycleSteps;
+  const targetMinutes = parsed?.targetMinutes;
+  if (!Array.isArray(steps) || steps.length !== 3) {
+    throw new Error('The AI Coach returned an incomplete daily plan. Please retry.');
+  }
+  if (!Number.isInteger(targetMinutes) || targetMinutes < 20 || targetMinutes > 30) {
+    throw new Error('The AI Coach returned an invalid session duration. Please retry.');
+  }
+
+  const totalMinutes = steps.reduce((sum: number, step: any) => {
+    const minutes = step?.estimatedMinutes;
+    if (!Number.isInteger(minutes) || minutes < 1 || !ALLOWED_LABS.has(step?.recommendedLab)) {
+      throw new Error('The AI Coach returned an invalid learning step. Please retry.');
+    }
+    return sum + minutes;
+  }, 0);
+
+  if (totalMinutes !== targetMinutes) {
+    throw new Error('The AI Coach step durations do not add up to the session target. Please retry.');
+  }
+
+  return parsed;
 }
 
 export default async function handler(req: any, res: any) {
@@ -49,9 +88,13 @@ Create a practical adaptive daily action plan. Never invent scores, weaknesses, 
 `;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: MODEL,
+    const ai = new GoogleGenAI({
+      apiKey,
+      // Prevent SDK retries from keeping a Vercel function open for minutes.
+      httpOptions: { timeout: 20000, retryOptions: { attempts: 1 } },
+    });
+
+    const generationRequest = {
       contents: 'Generate a personalized daily English learning plan based only on the verified evidence provided.',
       config: {
         systemInstruction,
@@ -84,19 +127,36 @@ Create a practical adaptive daily action plan. Never invent scores, weaknesses, 
           required: ['coachGreeting', 'diagnosticSummary', 'dailyPriority', 'targetMinutes', 'learningCycleSteps'],
         },
       },
-    });
+    };
 
-    const parsed = JSON.parse(response.text || '{}');
-    if (!Array.isArray(parsed.learningCycleSteps) || parsed.learningCycleSteps.length !== 3) {
-      throw new Error('The AI Coach returned an incomplete daily plan. Please try again.');
+    let parsed: any;
+    let lastError: unknown;
+    for (const [index, model] of [PRIMARY_MODEL, FALLBACK_MODEL].entries()) {
+      try {
+        const response = await ai.models.generateContent({ model, ...generationRequest });
+        parsed = parseCoachPlan(response.text || '{}');
+        break;
+      } catch (error) {
+        lastError = error;
+        if (index === 0 && isRetryableCoachError(error)) {
+          console.warn('AI Coach primary model failed validation or is temporarily unavailable; trying fallback.');
+          continue;
+        }
+        throw error;
+      }
     }
 
+    if (!parsed) throw lastError || new Error('The AI Coach could not generate a plan.');
     return res.status(200).json({ success: true, data: parsed });
   } catch (error: any) {
+    const retryable = isRetryableCoachError(error);
     console.error('BenEnglish coach plan function failed:', error?.message || error);
-    return res.status(502).json({
+    return res.status(retryable ? 503 : 502).json({
       success: false,
-      error: error?.message || 'The AI Coach could not generate a plan right now. Please try again.',
+      error: retryable
+        ? 'The AI Coach is temporarily busy. Please try again in a moment.'
+        : error?.message || 'The AI Coach could not generate a plan right now. Please try again.',
+      retryable,
     });
   }
 }
