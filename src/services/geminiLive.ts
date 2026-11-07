@@ -3,6 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 export type GeminiLiveCallbacks = {
   onStatus?: (status: 'connecting' | 'connected' | 'listening' | 'speaking' | 'closed') => void;
   onInputTranscript?: (text: string, isFinal: boolean) => void;
+  onInputTurnComplete?: () => void;
   onOutputTranscript?: (text: string, isFinal: boolean) => void;
   onError?: (message: string) => void;
 };
@@ -153,7 +154,7 @@ export class GeminiLiveSpeakingSession {
     }
 
     if (content.turnComplete) {
-      this.callbacks.onInputTranscript?.('', true);
+      this.callbacks.onInputTurnComplete?.();
       this.callbacks.onOutputTranscript?.('', true);
       this.callbacks.onStatus?.('listening');
     } else if (parts.length) {
