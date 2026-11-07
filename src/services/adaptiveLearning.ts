@@ -37,7 +37,7 @@ export function buildAdaptiveLearnerSnapshot(user: UserProfile): AdaptiveLearner
   const roleplays = user.roleplayProgress?.history || [];
 
   const recentListening = (user.recentListeningScores || []).filter(safeScore).slice(-5);
-  const listeningAttempts = (listening?.dictationAttemptCount || 0) + (listening?.comprehensionAttemptCount || 0);
+  const listeningSampleCount = recentListening.length + ((listening?.dictationAttemptCount || 0) > 0 ? 1 : 0) + ((listening?.comprehensionAttemptCount || 0) > 0 ? 1 : 0);
   const listeningMeasures = [
     ...recentListening,
     ...(listening && (listening.dictationAttemptCount || 0) > 0 && safeScore(listening.dictationAccuracyAvg) ? [listening.dictationAccuracyAvg] : []),
@@ -59,8 +59,8 @@ export function buildAdaptiveLearnerSnapshot(user: UserProfile): AdaptiveLearner
   const skillEvidence: AdaptiveLearnerSnapshot['skillEvidence'] = {
     listening: {
       score: average(listeningMeasures),
-      samples: Math.max(recentListening.length, listeningAttempts),
-      confidence: Math.max(recentListening.length, listeningAttempts) >= 5 ? 'high' : Math.max(recentListening.length, listeningAttempts) >= 2 ? 'medium' : 'low',
+      samples: listeningSampleCount,
+      confidence: listeningSampleCount >= 5 ? 'high' : listeningSampleCount >= 2 ? 'medium' : 'low',
       note: listeningMeasures.length ? 'Based on saved listening assessments and dictation/comprehension attempts.' : 'No scored listening attempts are saved yet.',
     },
     speaking: {
