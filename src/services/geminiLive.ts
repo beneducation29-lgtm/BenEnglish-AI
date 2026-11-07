@@ -121,7 +121,7 @@ export class GeminiLiveSpeakingSession {
     if (content.interrupted) this.stopPlayback();
 
     if (content.inputTranscription?.text) {
-      this.callbacks.onInputTranscript?.(content.inputTranscription.text, true);
+      this.callbacks.onInputTranscript?.(content.inputTranscription.text, false);
     }
     if (content.interimInputTranscription?.text) {
       this.callbacks.onInputTranscript?.(content.interimInputTranscription.text, false);
@@ -137,6 +137,7 @@ export class GeminiLiveSpeakingSession {
     }
 
     if (content.turnComplete) {
+      this.callbacks.onInputTranscript?.('', true);
       this.callbacks.onOutputTranscript?.('', true);
       this.callbacks.onStatus?.('listening');
     } else if (parts.length) {
