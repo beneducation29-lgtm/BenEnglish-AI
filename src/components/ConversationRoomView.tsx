@@ -614,7 +614,7 @@ export const ConversationRoomView: React.FC = () => {
         tutorPersona: selectedPersonaId,
         mode: selectedModeId,
         track: user.track,
-        userLevel: user.cefrLevel,
+        userLevel: user.placementAssessment?.skills.speaking.level || user.cefrLevel,
         occupation: user.track === 'high_school' ? user.grade : user.occupation,
         learnerMemory: {
           placementLevel: user.placementAssessment?.overallLevel || user.cefrLevel,
