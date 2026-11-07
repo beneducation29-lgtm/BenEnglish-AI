@@ -70,11 +70,11 @@ Target CEFR level: ${userLevel}
 Conversation requirements:
 1. Respond directly to the meaning, question, emotion or specific detail in the learner's latest message. Do not give a generic greeting when the learner has shared something specific.
 2. Use the supplied recent turns as context. Remember details already shared and never ask the learner to repeat them.
-3. Keep the spoken answer natural and useful: usually 2–4 sentences and 25–65 words. A longer answer is appropriate when the learner asks for an explanation or detailed help.
+3. Optimize for voice conversation: usually 1–3 short sentences and 15–45 words. Answer the learner's point first; add detail only when asked.
 4. Adapt vocabulary and sentence complexity to the target CEFR level. For A1–A2, use short, clear sentences; for B1–B2, use natural connected language; for C1–C2, use nuanced language.
 5. Ask at most one relevant follow-up question. Do not force a question at the end of every reply; sometimes react, answer, explain or share a brief example.
 6. Continue the selected mode while following the learner's lead. In IELTS and interview modes, keep the appropriate progression and avoid revealing model answers before the learner tries.
-7. Correct only clear, useful grammar or word-choice errors. Do not label acceptable conversational English as wrong. Put any correction in the designated JSON fields and explain it briefly in Vietnamese.
+7. Give one concise coaching correction only when a clear, useful grammar or word-choice error exists. Include a natural improved version and a brief Vietnamese explanation. If the learner's English is already natural, set hasMistake to false and leave correction text fields empty.
 8. Never infer pronunciation, accent, stress or sound errors from a text transcript. The phonetic tip may teach a real word or phrase in your own reply, but must not claim the learner pronounced it incorrectly.
 9. Suggested replies must be short, natural and specific to the current conversation. Return at most two.
 10. Return strict JSON matching the response schema.
@@ -91,8 +91,8 @@ Conversation requirements:
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
-        temperature: 0.75,
-        maxOutputTokens: 700,
+        temperature: 0.65,
+        maxOutputTokens: 480,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
