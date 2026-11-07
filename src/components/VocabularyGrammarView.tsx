@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { VocabItem } from '../types';
+import { VocabItem, HighSchoolGrade, CEFRLevel } from '../types';
 import { audioEngine } from '../services/speech';
 import {
   BookOpen,
@@ -51,11 +51,20 @@ export const VocabularyGrammarView: React.FC = () => {
   const [currentFlashcardIndex, setCurrentFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [gradeFilter, setGradeFilter] = useState<'all' | HighSchoolGrade>('all');
+  const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>('all');
+
+  const trackVocab = useMemo(() => vocabBank.filter((word) => {
+    const belongsToTrack = word.track === user.track || word.track === 'both';
+    const matchesGrade = user.track !== 'high_school' || gradeFilter === 'all' || !word.grade || word.grade === gradeFilter;
+    const matchesLevel = user.track !== 'professional' || levelFilter === 'all' || word.cefrLevel === levelFilter;
+    return belongsToTrack && matchesGrade && matchesLevel;
+  }), [vocabBank, user.track, gradeFilter, levelFilter]);
 
   const dueVocabBank = useMemo(() => {
     const now = Date.now();
-    return vocabBank.filter((word) => !word.nextReviewAt || new Date(word.nextReviewAt).getTime() <= now);
-  }, [vocabBank]);
+    return trackVocab.filter((word) => !word.nextReviewAt || new Date(word.nextReviewAt).getTime() <= now);
+  }, [trackVocab]);
   const currentWord = dueVocabBank[currentFlashcardIndex] || dueVocabBank[0];
 
   const handleNextFlashcard = (remembered: boolean) => {
@@ -72,10 +81,11 @@ export const VocabularyGrammarView: React.FC = () => {
   const successfulReviewCount = vocabBank.reduce((sum, word) => sum + (word.successfulReviewCount || 0), 0);
   const selfReportedRetention = totalReviewCount ? Math.round((successfulReviewCount / totalReviewCount) * 100) : null;
 
-  const filteredVocab = vocabBank.filter(
+  const filteredVocab = trackVocab.filter(
     (v) =>
       v.word.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      v.meaningVi.toLowerCase().includes(searchQuery.toLowerCase())
+      v.meaningVi.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      v.topic.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -149,8 +159,9 @@ export const VocabularyGrammarView: React.FC = () => {
           >
             <div className="flex items-center justify-between text-xs text-slate-400">
               <span className="font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                {currentWord.cefrLevel}
+                {currentWord.grade || currentWord.cefrLevel}
               </span>
+              <span className="text-[10px] text-slate-400">{currentWord.topic}</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -260,9 +271,22 @@ export const VocabularyGrammarView: React.FC = () => {
                 className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
-            <span className="text-xs text-slate-500 font-medium">
-              Showing {filteredVocab.length} words
-            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              {user.track === 'high_school' ? (
+                <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value as 'all' | HighSchoolGrade)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700">
+                  <option value="all">All grades · 10–12</option>
+                  <option value="Grade 10">Grade 10</option>
+                  <option value="Grade 11">Grade 11</option>
+                  <option value="Grade 12">Grade 12</option>
+                </select>
+              ) : (
+                <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value as 'all' | CEFRLevel)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700">
+                  <option value="all">All professional levels</option>
+                  {(['A1','A2','B1','B2','C1','C2'] as CEFRLevel[]).map((level) => <option key={level} value={level}>{level}</option>)}
+                </select>
+              )}
+              <span className="text-xs text-slate-500 font-medium">Showing {filteredVocab.length} words</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -298,6 +322,7 @@ export const VocabularyGrammarView: React.FC = () => {
                 </div>
 
                 <div className="font-semibold text-emerald-900">{vocab.meaningVi}</div>
+                <div className="text-[10px] text-slate-400">{vocab.grade || vocab.cefrLevel} · {vocab.topic}</div>
                 <p className="text-slate-600">{vocab.definitionEn}</p>
                 <div className="pt-1 text-[11px] text-slate-500 italic">
                   "{vocab.exampleEn}"
