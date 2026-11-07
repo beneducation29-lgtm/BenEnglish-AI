@@ -1022,7 +1022,7 @@ export const ConversationRoomView: React.FC = () => {
                   ? 'bg-rose-600 text-white ring-4 ring-rose-500/20 animate-pulse'
                   : 'bg-teal-600 hover:bg-teal-500 text-white'
               }`}
-              title={isRecording ? 'Finish speaking and send' : liveTranscript.trim() ? 'Send recognized speech' : 'Start English speech recognition'}
+              title={isRecording ? (isHandsFreeMode ? 'Send now, or pause naturally to send automatically' : 'Finish speaking and send') : liveTranscript.trim() ? 'Send recognized speech' : 'Start English speech recognition'}
             >
               {isRecording ? <Square className="w-5 h-5 fill-white" /> : liveTranscript.trim() ? <Send className="w-5 h-5" /> : <Mic className="w-6 h-6" />}
             </button>
@@ -1035,7 +1035,7 @@ export const ConversationRoomView: React.FC = () => {
               onKeyDown={(e) => e.key === 'Enter' && sendMessage(inputText)}
               placeholder={
                 isRecording
-                  ? 'Listening to your speech... (tap square to finish and send)'
+                  ? (isHandsFreeMode ? 'Listening… pause briefly after your sentence and AI will reply automatically.' : 'Listening to your speech... (tap square to finish and send)')
                   : 'Speak through microphone or type your message here...'
               }
               className="flex-1 p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs md:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
