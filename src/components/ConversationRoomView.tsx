@@ -616,6 +616,26 @@ export const ConversationRoomView: React.FC = () => {
         track: user.track,
         userLevel: user.cefrLevel,
         occupation: user.track === 'high_school' ? user.grade : user.occupation,
+        learnerMemory: {
+          placementLevel: user.placementAssessment?.overallLevel || user.cefrLevel,
+          skillLevels: user.placementAssessment?.skills
+            ? Object.fromEntries(Object.entries(user.placementAssessment.skills).map(([skill, result]) => [skill, result.level]))
+            : {},
+          priorities: [
+            ...(user.placementAssessment?.priorities || []),
+            ...(user.conversationProgress?.savedSessions || []).slice(0, 2)
+              .flatMap(session => session.summaryReport?.improvementSuggestions || []),
+          ].slice(0, 5),
+          recurringErrors: [
+            ...(user.conversationProgress?.savedSessions || []).slice(0, 3)
+              .flatMap(session => (session.summaryReport?.grammarMistakes || []).map(item => `${item.userSaid} → ${item.correction}`)),
+            ...(user.listeningProgress?.misunderstoodVocab || []).slice(0, 4)
+              .map(item => `Listening vocabulary: ${item.word} (missed ${item.count} times)`),
+          ].slice(0, 5),
+          recentSessionNotes: (user.conversationProgress?.savedSessions || []).slice(0, 3)
+            .map(session => session.summaryReport?.summary || '')
+            .filter(Boolean),
+        },
       });
 
       // AI Turn
