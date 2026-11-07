@@ -1476,7 +1476,7 @@ export const ListeningLabView: React.FC = () => {
                       dictationResult.diffWords
                         .filter((word) => word.type !== 'correct')
                         .map((word) => word.expected.trim())
-                        .filter((word) => word.length > 1 && !/^\\(missed\\)$/i.test(word))
+                        .filter((word) => word.length > 1 && !/^\(missed\)$/i.test(word))
                     ));
                     if (focusWords.length === 0) return null;
                     return (
