@@ -375,6 +375,7 @@ export const ConversationRoomView: React.FC = () => {
         level: user.cefrLevel,
         track: user.track,
       });
+      live.sendText('Please greet me briefly as my selected English tutor and invite me to start speaking. Keep it natural and appropriate to my CEFR level.');
     } catch (error: any) {
       await live.close();
       if (liveSessionRef.current === live) liveSessionRef.current = null;
@@ -990,7 +991,7 @@ export const ConversationRoomView: React.FC = () => {
                 {isRecording
                   ? 'Speak naturally at standard cadence'
                   : isAiSpeaking
-                  ? 'Tap "Interrupt" or start speaking to cut in'
+                  ? (liveModeStatus !== 'off' ? 'Speak naturally to interrupt the AI' : 'Tap "Interrupt" or start speaking to cut in')
                   : 'Tap the microphone or say something to begin'}
               </p>
             </div>
@@ -1029,7 +1030,7 @@ export const ConversationRoomView: React.FC = () => {
             </label>
 
             {/* Interruption Button when AI is speaking */}
-            {isAiSpeaking && (
+            {isAiSpeaking && liveModeStatus === 'off' && (
               <button
                 onClick={interruptAiSpeech}
                 className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
