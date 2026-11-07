@@ -20,6 +20,8 @@ Add these variables to the BenEnglish AI project for Preview and Production:
 - `VITE_FIREBASE_PROJECT_ID`
 - `VITE_FIREBASE_APP_ID`
 
+Also confirm the server-side `GEMINI_API_KEY` exists in Vercel Production and Preview; the AI conversation endpoint now returns a clear configuration error when it is missing. This key must not use a `VITE_` prefix.
+
 Redeploy after saving the variables. Do not put service-account private keys or Admin SDK credentials in any `VITE_*` variable.
 
 ## Current progress storage behavior
