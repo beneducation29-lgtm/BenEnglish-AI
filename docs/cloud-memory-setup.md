@@ -5,7 +5,7 @@ Cloud memory is opt-in. Until it is enabled, the app continues to save progress 
 ## Enable Firestore sync
 
 1. In the Firebase project used by the BenEnglish web app, create or enable a Cloud Firestore database.
-2. Review `firestore.rules` in this repository and deploy those rules to the same Firebase project. They allow a signed-in user to read and write only `learners/{their-own-uid}`.
+2. Review `firestore.rules` in this repository and deploy those rules to the same Firebase project (for example, with `firebase deploy --only firestore:rules --project <FIREBASE_PROJECT_ID>` after linking the Firebase CLI). They allow a signed-in user to read and write only `learners/{their-own-uid}`.
 3. In the Vercel project, add the environment variable `VITE_FIREBASE_ENABLE_CLOUD_SYNC=true` to the environments where you want sync enabled.
 4. Confirm the existing Firebase web app variables are set: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, and `VITE_FIREBASE_APP_ID`.
 5. Redeploy the Preview and test with two devices signed into the same Google account. Also verify that a second Google account cannot see the first account's learner document.
