@@ -27,12 +27,15 @@ export const ReadingWritingView: React.FC = () => {
     () => READ_ALOUD_PASSAGES.filter((item) => item.track === 'both' || item.track === user.track),
     [user.track]
   );
-  const passage: ReadAloudPassage = passages.find((item) => item.id === selectedId) || passages[0] || READ_ALOUD_PASSAGES[0];
+  const passage: ReadAloudPassage = passages.find((item) => item.id === selectedId) || passages.find((item) => item.level === readingLevel) || passages[0] || READ_ALOUD_PASSAGES[0];
   const storageKey = `benenglish_writing_draft_v1:${user.email || 'guest'}:${passage.id}`;
 
   useEffect(() => {
-    if (!selectedId && passages[0]) setSelectedId(passages[0].id);
-  }, [passages, selectedId]);
+    if (!selectedId && passages[0]) {
+      const matched = passages.find((item) => item.level === readingLevel) || passages[0];
+      setSelectedId(matched.id);
+    }
+  }, [passages, selectedId, readingLevel]);
 
   useEffect(() => {
     try {
