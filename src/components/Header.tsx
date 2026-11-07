@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import {
   Headphones, Mic, BookOpen, ChevronDown, Flame, Award,
   LayoutDashboard, MessageCircle, Users, AudioLines, Library, BookMarked,
-  GraduationCap, BarChart3,
+  GraduationCap, BarChart3, LogIn, LogOut,
 } from 'lucide-react';
 
 const coreLinks = [
@@ -23,6 +24,8 @@ const moreLinks = [
 
 export const Header: React.FC = () => {
   const { user, activeTab, setActiveTab, switchTrack } = useApp();
+  const { authUser, isGoogleAuthConfigured, signInWithGoogle, signOut } = useAuth();
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [showTrackDropdown, setShowTrackDropdown] = useState(false);
   const isMoreActive = moreLinks.some((item) => item.id === activeTab) || activeTab === 'progress';
@@ -88,6 +91,30 @@ export const Header: React.FC = () => {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
+          <div className="relative">
+            {authUser ? (
+              <button
+                onClick={async () => { try { await signOut(); setAuthMessage(null); } catch { setAuthMessage('Could not sign out. Please try again.'); } }}
+                className="flex max-w-[190px] items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-2.5 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+                title={authUser.email || 'Signed in with Google'}
+              >
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">{(authUser.displayName || authUser.email || 'G').charAt(0).toUpperCase()}</span>
+                <span className="hidden max-w-[105px] truncate sm:inline">{authUser.displayName || authUser.email}</span>
+                <LogOut className="h-3.5 w-3.5 shrink-0" />
+              </button>
+            ) : (
+              <button
+                onClick={async () => { try { setAuthMessage(null); await signInWithGoogle(); } catch (error: any) { setAuthMessage(error?.message || 'Google sign-in could not be completed.'); } }}
+                className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700"
+                title="Sign in with your Google account"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Continue with Google</span>
+                <span className="sm:hidden">Google</span>
+              </button>
+            )}
+            {authMessage && <div role="status" className="absolute right-0 top-full z-[60] mt-2 w-64 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-relaxed text-amber-900 shadow-lg">{authMessage}</div>}
+          </div>
           <div className="hidden items-center gap-1.5 text-xs font-semibold text-amber-600 xl:flex">
             <Flame className="h-4 w-4 fill-amber-500" /> {user.streakDays}d
           </div>
