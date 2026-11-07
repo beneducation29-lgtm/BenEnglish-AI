@@ -10,6 +10,21 @@ export type GeminiLiveCallbacks = {
 const TARGET_SAMPLE_RATE = 16000;
 const OUTPUT_SAMPLE_RATE = 24000;
 
+function resampleTo16k(input: Float32Array, sourceRate: number): Float32Array {
+  if (sourceRate === TARGET_SAMPLE_RATE) return input;
+  const outputLength = Math.max(1, Math.round(input.length * TARGET_SAMPLE_RATE / sourceRate));
+  const output = new Float32Array(outputLength);
+  const ratio = sourceRate / TARGET_SAMPLE_RATE;
+  for (let i = 0; i < outputLength; i += 1) {
+    const sourceIndex = i * ratio;
+    const left = Math.floor(sourceIndex);
+    const right = Math.min(input.length - 1, left + 1);
+    const weight = sourceIndex - left;
+    output[i] = (input[left] || 0) * (1 - weight) + (input[right] || 0) * weight;
+  }
+  return output;
+}
+
 function floatToPcm16(input: Float32Array): Int16Array {
   const output = new Int16Array(input.length);
   for (let i = 0; i < input.length; i += 1) {
@@ -94,17 +109,18 @@ export class GeminiLiveSpeakingSession {
     });
     const context = this.audioContext;
     this.source = context.createMediaStreamSource(this.stream);
-    this.processor = context.createScriptProcessor(4096, 1, 1);
+    this.processor = context.createScriptProcessor(512, 1, 1);
     this.gain = context.createGain();
     this.gain.gain.value = 0;
     this.processor.onaudioprocess = (event) => {
       if (this.closed || !this.session) return;
       const input = event.inputBuffer.getChannelData(0);
-      const pcm = floatToPcm16(input);
+      const resampled = resampleTo16k(input, context.sampleRate);
+      const pcm = floatToPcm16(resampled);
       this.session.sendRealtimeInput({
         audio: {
           data: toBase64(new Uint8Array(pcm.buffer)),
-          mimeType: `audio/pcm;rate=${context.sampleRate}`,
+          mimeType: `audio/pcm;rate=${TARGET_SAMPLE_RATE}`,
         },
       });
     };
