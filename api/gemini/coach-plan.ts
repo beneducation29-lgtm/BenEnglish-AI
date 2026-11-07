@@ -94,7 +94,12 @@ export default async function handler(req: any, res: any) {
     `Latest pronunciation score: ${isFiniteScore(stats.pronunciationScore) ? `${stats.pronunciationScore}/100` : 'No recorded assessment yet'}`,
     `Placement level: ${placementLevel}`,
     `Placement skill levels: ${skillLevels}`,
-    `Verified weak areas: ${weakAreas.length ? JSON.stringify(weakAreas) : 'None identified from recorded results yet'}`,\n    `Recurring errors: ${recurringErrors.length ? JSON.stringify(recurringErrors) : 'No repeated error pattern confirmed yet'}`,\n    `Recent session notes: ${recentSessionNotes.length ? JSON.stringify(recentSessionNotes) : 'No saved session summaries'}`,\n    `Skill evidence: ${evidenceSummary.length ? evidenceSummary.join('; ') : 'No detailed evidence summary'}`,\n    `Sample counts: ${sampleCounts}`,\n    `Suggested focus areas: ${recommendedFocus.length ? recommendedFocus.join(', ') : 'Choose from the verified evidence'}`,
+    `Verified weak areas: ${weakAreas.length ? JSON.stringify(weakAreas) : 'None identified from recorded results yet'}`,
+    `Recurring errors: ${recurringErrors.length ? JSON.stringify(recurringErrors) : 'No repeated error pattern confirmed yet'}`,
+    `Recent session notes: ${recentSessionNotes.length ? JSON.stringify(recentSessionNotes) : 'No saved session summaries'}`,
+    `Skill evidence: ${evidenceSummary.length ? evidenceSummary.join('; ') : 'No detailed evidence summary'}`,
+    `Sample counts: ${sampleCounts}`,
+    `Suggested focus areas: ${recommendedFocus.length ? recommendedFocus.join(', ') : 'Choose from the verified evidence'}`,
   ].join('\n');
 
   const systemInstruction = `
