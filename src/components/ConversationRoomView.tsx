@@ -220,6 +220,7 @@ export const ConversationRoomView: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const liveTranscriptRef = useRef('');
   const micSessionRef = useRef<SpeechRecognitionSession | null>(null);
+  const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Timer effect
   useEffect(() => {
@@ -245,6 +246,7 @@ export const ConversationRoomView: React.FC = () => {
       audioEngine.stop();
       micSessionRef.current?.stop();
       micSessionRef.current = null;
+      if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
     };
   }, []);
 
@@ -331,6 +333,17 @@ export const ConversationRoomView: React.FC = () => {
         liveTranscriptRef.current = state.transcript;
         setLiveTranscript(state.transcript);
         setFinalTranscript(state.finalTranscript);
+
+        // In Hands-Free mode, submit after a natural pause once the browser
+        // has confirmed at least one final speech segment. Interim words alone
+        // never trigger a send, so short thinking pauses are less likely to cut
+        // the learner off.
+        if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+        if (isHandsFreeMode && state.finalTranscript.trim().length >= 2) {
+          autoSendTimerRef.current = setTimeout(() => {
+            if (micSessionRef.current?.active) stopListeningAndSend();
+          }, 1700);
+        }
       },
       (err) => {
         setMicError(err);
@@ -345,6 +358,10 @@ export const ConversationRoomView: React.FC = () => {
   };
 
   const stopListeningAndSend = () => {
+    if (autoSendTimerRef.current) {
+      clearTimeout(autoSendTimerRef.current);
+      autoSendTimerRef.current = null;
+    }
     const session = micSessionRef.current;
     if (!session) {
       const fallbackText = inputText.trim();
@@ -395,10 +412,16 @@ export const ConversationRoomView: React.FC = () => {
 
     try {
       // Build history for backend API
-      const historyPayload = turns.slice(-6).map((t) => ({
-        role: t.role,
-        content: t.content,
-      }));
+      // The first assistant turn is a locally-authored greeting, not a
+      // Gemini response. Sending it as the first model turn can invalidate
+      // provider chat history. Keep only real alternating turns and let the
+      // current learner message be the final user content below.
+      const historyPayload = turns
+        .filter((turn) => turn.id !== 'init-turn')
+        .slice(-8)
+        .map((turn) => ({ role: turn.role, content: turn.content }))
+        .filter((turn, index, items) => index > 0 || turn.role === 'user')
+        .filter((turn, index, items) => index === 0 || turn.role !== items[index - 1].role);
 
       const response: ConversationResponseData = await sendConversationMessage({
         message: messageText.trim(),
@@ -999,7 +1022,7 @@ export const ConversationRoomView: React.FC = () => {
                   ? 'bg-rose-600 text-white ring-4 ring-rose-500/20 animate-pulse'
                   : 'bg-teal-600 hover:bg-teal-500 text-white'
               }`}
-              title={isRecording ? 'Finish speaking and send' : liveTranscript.trim() ? 'Send recognized speech' : 'Start English speech recognition'}
+              title={isRecording ? (isHandsFreeMode ? 'Send now, or pause naturally to send automatically' : 'Finish speaking and send') : liveTranscript.trim() ? 'Send recognized speech' : 'Start English speech recognition'}
             >
               {isRecording ? <Square className="w-5 h-5 fill-white" /> : liveTranscript.trim() ? <Send className="w-5 h-5" /> : <Mic className="w-6 h-6" />}
             </button>
@@ -1012,7 +1035,7 @@ export const ConversationRoomView: React.FC = () => {
               onKeyDown={(e) => e.key === 'Enter' && sendMessage(inputText)}
               placeholder={
                 isRecording
-                  ? 'Listening to your speech... (tap square to finish and send)'
+                  ? (isHandsFreeMode ? 'Listening… pause briefly after your sentence and AI will reply automatically.' : 'Listening to your speech... (tap square to finish and send)')
                   : 'Speak through microphone or type your message here...'
               }
               className="flex-1 p-3.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-xs md:text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"

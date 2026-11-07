@@ -27,6 +27,14 @@ const ai = new GoogleGenAI({
 // 1. AI English Conversation Room Endpoint
 app.post('/api/gemini/conversation', async (req: Request, res: Response): Promise<void> => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(503).json({
+        success: false,
+        error: 'AI conversation is not configured on the server. Add GEMINI_API_KEY to the Vercel project environment, then redeploy.',
+      });
+      return;
+    }
+
     const {
       message,
       history = [],
@@ -100,6 +108,8 @@ CRITICAL PEDAGOGICAL RULES:
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
+        temperature: 0.75,
+        maxOutputTokens: 500,
         responseSchema: {
           type: Type.OBJECT,
           properties: {

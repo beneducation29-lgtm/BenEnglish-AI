@@ -18,6 +18,7 @@ import { VocabularyGrammarView } from './components/VocabularyGrammarView';
 import { ExamPrepView } from './components/ExamPrepView';
 import { ProgressAnalyticsView } from './components/ProgressAnalyticsView';
 import { Headphones, Heart } from 'lucide-react';
+import { AuthProvider, useAuth } from './context/AuthContext';
 
 const MainContent: React.FC = () => {
   const { activeTab } = useApp();
@@ -39,9 +40,15 @@ const MainContent: React.FC = () => {
   );
 };
 
-export default function App() {
+const AppShell: React.FC = () => {
+  const { authUser, authLoading } = useAuth();
+
+  if (authLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm font-semibold text-slate-600">Loading your learning profile…</div>;
+  }
+
   return (
-    <AppProvider>
+    <AppProvider key={authUser?.uid || 'guest'}>
       <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans selection:bg-emerald-200 selection:text-emerald-950">
         <Header />
         <div className="flex-1">
@@ -63,5 +70,13 @@ export default function App() {
         </footer>
       </div>
     </AppProvider>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }
