@@ -45,9 +45,9 @@ export function buildAdaptiveLearnerSnapshot(user: UserProfile): AdaptiveLearner
   ];
   const speakingHistory = (speaking?.history || []).slice(-5).map(item => item.score).filter(safeScore);
   const recentSpeaking = (user.recentSpeakingScores || []).filter(safeScore).slice(-5);
+  const roleplayScores = roleplays.slice(-5).map(item => item.assessment?.overallScore).filter(safeScore);
   const speakingMeasures = [...(speakingHistory.length ? speakingHistory : recentSpeaking), ...roleplayScores];
   const pronunciationMeasures = (user.recentPronunciationScores || []).filter(safeScore).slice(-5);
-  const roleplayScores = roleplays.slice(-5).map(item => item.assessment?.overallScore).filter(safeScore);
   const conversationMistakes = conversations.slice(-6).flatMap(session =>
     (session.summaryReport?.grammarMistakes || []).map(item => ({
       original: item.userSaid,
