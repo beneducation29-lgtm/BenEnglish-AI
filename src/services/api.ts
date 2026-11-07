@@ -415,3 +415,30 @@ export async function generateSpeakingTopic(payload: {
 }
 
 
+
+export async function evaluatePlacementSpeaking(payload: {
+  prompt: string;
+  transcript: string;
+  track: string;
+}): Promise<{
+  score: number;
+  cefrLevel: string;
+  strengths: string[];
+  priorities: string[];
+  feedback: string;
+  rubric?: { grammar: number; vocabulary: number; coherence: number; taskFulfilment: number };
+}> {
+  const res = await fetch('/api/gemini/placement-speaking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success || !data.data) {
+    throw new Error(data?.error || `Speaking assessment returned HTTP ${res.status}. Please try again.`);
+  }
+  return data.data;
+}
