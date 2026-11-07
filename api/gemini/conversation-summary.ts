@@ -45,6 +45,8 @@ Evidence rules:
 5. List strengths only when supported by the learner's actual turns. If evidence is limited, say so.
 6. Give practical next steps without inventing scores or achievements.
 7. Recommend one relevant BenEnglish AI practice area.
+8. Create one short, personalized speaking exercise based on the learner's actual mistakes or gaps in this transcript. Include a prompt, 2–4 target phrases, a concise model answer, and one clear focus. If evidence is limited, make the exercise simple and do not invent a weakness.
+9. Keep the report concise and actionable. Do not generate numerical scores unless explicitly supported by a validated scoring rubric.
 Return strict JSON matching the schema.
 `;
 
@@ -98,6 +100,16 @@ Return strict JSON matching the schema.
               },
               required: ['lab', 'title', 'targetFocus'],
             },
+            personalizedExercise: {
+              type: Type.OBJECT,
+              properties: {
+                prompt: { type: Type.STRING },
+                targetPhrases: { type: Type.ARRAY, items: { type: Type.STRING } },
+                modelAnswer: { type: Type.STRING },
+                focus: { type: Type.STRING },
+              },
+              required: ['prompt', 'targetPhrases', 'modelAnswer', 'focus'],
+            },
           },
           required: [
             'summary',
@@ -107,6 +119,7 @@ Return strict JSON matching the schema.
             'strongPoints',
             'improvementSuggestions',
             'recommendedPractice',
+            'personalizedExercise',
           ],
         },
       },
