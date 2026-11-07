@@ -132,9 +132,19 @@ export async function sendConversationMessage(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
+
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const responseText = await res.text();
+    const detail = responseText.slice(0, 180).replace(/\s+/g, ' ').trim();
+    throw new Error(
+      `Conversation API returned HTTP ${res.status} instead of JSON. ${detail || 'Check the Vercel API function deployment.'}`,
+    );
+  }
+
   const data = await res.json();
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to communicate with AI Tutor');
+  if (!res.ok || !data.success) {
+    throw new Error(data.error || `Conversation API failed with HTTP ${res.status}`);
   }
   return data.data;
 }

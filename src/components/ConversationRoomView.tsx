@@ -295,8 +295,11 @@ export const ConversationRoomView: React.FC = () => {
           }, 450);
         }
       },
-      onError: () => {
+      onError: (error: any) => {
         setIsAiSpeaking(false);
+        setConversationError(
+          `AI đã trả lời nhưng trình duyệt không phát được giọng đọc (${error?.error || 'audio playback error'}). Hãy bấm Replay Voice hoặc kiểm tra âm lượng và quyền phát âm thanh của trình duyệt.`,
+        );
         onFinish?.();
       },
     });
@@ -452,7 +455,8 @@ export const ConversationRoomView: React.FC = () => {
     } catch (e: any) {
       console.error('Conversation API unavailable', e);
       setIsAiResponding(false);
-      setConversationError('AI đang tạm thời không kết nối được. Tin nhắn của bạn vẫn được giữ lại; hãy thử gửi lại sau.');
+      const detail = String(e?.message || 'Unknown API error').replace(/\\s+/g, ' ').slice(0, 220);
+      setConversationError(`Không thể nhận phản hồi từ AI: ${detail}. Tin nhắn của bạn vẫn được giữ lại; hãy thử gửi lại sau.`);
     }
   };
 
