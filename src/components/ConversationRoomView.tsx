@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import {
   sendConversationMessage,
@@ -145,6 +146,7 @@ const CONVERSATION_MODES: { id: ConversationModeId; name: string; description: s
 ];
 
 export const ConversationRoomView: React.FC = () => {
+  const { authUser } = useAuth();
   const {
     user,
     playbackSpeed,
@@ -205,6 +207,9 @@ export const ConversationRoomView: React.FC = () => {
   const [conversationError, setConversationError] = useState<string | null>(null);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [aiCaption, setAiCaption] = useState('');
+  const [liveModeStatus, setLiveModeStatus] = useState<'off' | 'connecting' | 'connected' | 'listening' | 'speaking'>('off');
+  const [liveModeError, setLiveModeError] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
   const [useAiTranscription, setUseAiTranscription] = useState(false);
   const [finalTranscript, setFinalTranscript] = useState('');
@@ -221,6 +226,20 @@ export const ConversationRoomView: React.FC = () => {
   const liveTranscriptRef = useRef('');
   const micSessionRef = useRef<SpeechRecognitionSession | null>(null);
   const autoSendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isHandsFreeModeRef = useRef(isHandsFreeMode);
+  const isSessionActiveRef = useRef(isSessionActive);
+  const isAiRespondingRef = useRef(isAiResponding);
+  const sendLockRef = useRef(false);
+  const liveSessionRef = useRef<any>(null);
+  const liveInputBufferRef = useRef('');
+  const liveInputFinalRef = useRef(false);
+  const liveInputTurnCompleteRef = useRef(false);
+  const liveOutputBufferRef = useRef('');
+
+  // Keep async speech callbacks synchronized with the latest React state.
+  useEffect(() => { isHandsFreeModeRef.current = isHandsFreeMode; }, [isHandsFreeMode]);
+  useEffect(() => { isSessionActiveRef.current = isSessionActive; }, [isSessionActive]);
+  useEffect(() => { isAiRespondingRef.current = isAiResponding; }, [isAiResponding]);
 
   // Timer effect
   useEffect(() => {
@@ -244,6 +263,8 @@ export const ConversationRoomView: React.FC = () => {
   useEffect(() => {
     return () => {
       audioEngine.stop();
+      void liveSessionRef.current?.close();
+      liveSessionRef.current = null;
       micSessionRef.current?.stop();
       micSessionRef.current = null;
       if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
@@ -251,17 +272,160 @@ export const ConversationRoomView: React.FC = () => {
   }, []);
 
   // -------------------------------------------------------------
+  // GEMINI LIVE: native, bidirectional audio conversation
+  // -------------------------------------------------------------
+  const stopGeminiLive = async () => {
+    const session = liveSessionRef.current;
+    liveSessionRef.current = null;
+    if (session) await session.close();
+    setLiveModeStatus('off');
+    setIsRecording(false);
+    setIsAiSpeaking(false);
+    setAiCaption('');
+    setLiveTranscript('');
+    liveInputBufferRef.current = '';
+    liveInputFinalRef.current = false;
+    liveInputTurnCompleteRef.current = false;
+    liveOutputBufferRef.current = '';
+  };
+
+  const startGeminiLive = async () => {
+    if (!authUser) {
+      setLiveModeError('Sign in with Google to use real-time AI voice conversation.');
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setLiveModeError('Microphone streaming is not supported in this browser. Use the standard Speaking mode instead.');
+      return;
+    }
+    setLiveModeError(null);
+    liveInputBufferRef.current = '';
+    liveInputFinalRef.current = false;
+    liveInputTurnCompleteRef.current = false;
+    liveOutputBufferRef.current = '';
+    const { GeminiLiveSpeakingSession } = await import('../services/geminiLive');
+    const live = new GeminiLiveSpeakingSession({
+      onStatus: (status) => {
+        if (status === 'connecting') setLiveModeStatus('connecting');
+        if (status === 'connected' || status === 'listening') {
+          setLiveModeStatus('listening');
+          setIsRecording(true);
+          setIsAiSpeaking(false);
+          setConversationError(null);
+        }
+        if (status === 'speaking') {
+          setLiveModeStatus('speaking');
+          setIsRecording(false);
+          setIsAiSpeaking(true);
+        }
+        if (status === 'closed') {
+          setLiveModeStatus('off');
+          setIsRecording(false);
+          setIsAiSpeaking(false);
+        }
+      },
+      onInputTranscript: (text, isFinal) => {
+        if (!text) return;
+        if (isFinal) {
+          liveInputBufferRef.current = `${liveInputBufferRef.current} ${text}`.trim();
+          liveInputFinalRef.current = true;
+          setLiveTranscript(liveInputBufferRef.current);
+          setFinalTranscript(liveInputBufferRef.current);
+          if (liveInputTurnCompleteRef.current) {
+            const transcript = liveInputBufferRef.current.trim();
+            if (transcript) {
+              setTurns((prev) => [...prev, {
+                id: `live-user-${Date.now()}`,
+                role: 'user',
+                content: transcript,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              }]);
+            }
+            liveInputBufferRef.current = '';
+            liveInputFinalRef.current = false;
+            liveInputTurnCompleteRef.current = false;
+            setLiveTranscript('');
+            setFinalTranscript('');
+          }
+        } else {
+          setLiveTranscript(`${liveInputBufferRef.current} ${text}`.trim());
+        }
+      },
+      onInputTurnComplete: () => {
+        liveInputTurnCompleteRef.current = true;
+        if (!liveInputFinalRef.current) return;
+        const transcript = liveInputBufferRef.current.trim();
+        if (transcript) {
+          setTurns((prev) => [...prev, {
+            id: `live-user-${Date.now()}`,
+            role: 'user',
+            content: transcript,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }]);
+        }
+        liveInputBufferRef.current = '';
+        liveInputFinalRef.current = false;
+        liveInputTurnCompleteRef.current = false;
+        setLiveTranscript('');
+        setFinalTranscript('');
+      },
+      onOutputTranscript: (text, isFinal) => {
+        if (text) {
+          liveOutputBufferRef.current = `${liveOutputBufferRef.current} ${text}`.trim();
+          setAiCaption(liveOutputBufferRef.current);
+        }
+        if (isFinal) {
+          const transcript = liveOutputBufferRef.current.trim();
+          if (transcript) {
+            setTurns((prev) => [...prev, {
+              id: `live-ai-${Date.now()}`,
+              role: 'assistant',
+              content: transcript,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            }]);
+          }
+          liveOutputBufferRef.current = '';
+          setAiCaption('');
+          setIsAiSpeaking(false);
+        }
+      },
+      onError: (message) => {
+        setLiveModeError(message);
+        setConversationError(message);
+      },
+    });
+    liveSessionRef.current = live;
+    try {
+      const idToken = await authUser.getIdToken();
+      await live.connect(idToken, {
+        persona: selectedPersonaId,
+        mode: selectedModeId,
+        level: user.cefrLevel,
+        track: user.track,
+      });
+      live.sendText('Please greet me briefly as my selected English tutor and invite me to start speaking. Keep it natural and appropriate to my CEFR level.');
+    } catch (error: any) {
+      await live.close();
+      if (liveSessionRef.current === live) liveSessionRef.current = null;
+      setLiveModeStatus('off');
+      setIsRecording(false);
+      setLiveModeError(error?.message || 'Could not start real-time voice conversation.');
+    }
+  };
+
+  // -------------------------------------------------------------
   // AI SPEECH SYNTHESIS ENGINE
   // -------------------------------------------------------------
   const speakAiReply = (text: string, onFinish?: () => void) => {
     if (isMuted) {
       onFinish?.();
-      if (isHandsFreeMode && isSessionActive) {
-        setTimeout(() => startListening(), 450);
+      if (isHandsFreeModeRef.current && isSessionActiveRef.current) {
+        window.setTimeout(() => startListening(), 350);
       }
       return;
     }
 
+    setAiCaption('');
     setIsAiSpeaking(true);
     audioEngine.stop();
 
@@ -285,19 +449,26 @@ export const ConversationRoomView: React.FC = () => {
       rate: activePersona.voiceRate * playbackSpeed,
       pitch: activePersona.voicePitch,
       voiceName: preferredVoiceName,
+      onBoundary: (charIndex) => {
+        const nextWordEnd = text.indexOf(' ', charIndex + 1);
+        setAiCaption(text.slice(0, nextWordEnd > -1 ? nextWordEnd : Math.min(text.length, charIndex + 36)));
+      },
       onEnd: () => {
         setIsAiSpeaking(false);
         onFinish?.();
         // Hands-Free loop: automatically start listening again
-        if (isHandsFreeMode && isSessionActive) {
-          setTimeout(() => {
-            startListening();
-          }, 450);
+        setAiCaption(text);
+        if (isHandsFreeModeRef.current && isSessionActiveRef.current) {
+          window.setTimeout(() => startListening(), 350);
         }
       },
       onError: () => {
         setIsAiSpeaking(false);
+        setAiCaption('');
         onFinish?.();
+        if (isHandsFreeModeRef.current && isSessionActiveRef.current) {
+          window.setTimeout(() => startListening(), 350);
+        }
       },
     });
   };
@@ -306,6 +477,7 @@ export const ConversationRoomView: React.FC = () => {
   const interruptAiSpeech = () => {
     audioEngine.stop();
     setIsAiSpeaking(false);
+    setAiCaption('');
     startListening();
   };
 
@@ -317,7 +489,7 @@ export const ConversationRoomView: React.FC = () => {
       setMicError('Speech recognition is not supported in this browser. Enable AI transcription or type your response instead.');
       return;
     }
-    if (isAiResponding) return;
+    if (isAiRespondingRef.current) return;
     if (isAiSpeaking) {
       audioEngine.stop();
       setIsAiSpeaking(false);
@@ -339,10 +511,10 @@ export const ConversationRoomView: React.FC = () => {
         // never trigger a send, so short thinking pauses are less likely to cut
         // the learner off.
         if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
-        if (isHandsFreeMode && state.finalTranscript.trim().length >= 2) {
+        if (isHandsFreeModeRef.current && state.finalTranscript.trim().length >= 2) {
           autoSendTimerRef.current = setTimeout(() => {
             if (micSessionRef.current?.active) stopListeningAndSend();
-          }, 1700);
+          }, 1250);
         }
       },
       (err) => {
@@ -389,7 +561,16 @@ export const ConversationRoomView: React.FC = () => {
   // SEND MESSAGE HANDLER
   // -------------------------------------------------------------
   const sendMessage = async (messageText: string) => {
-    if (!messageText.trim() || isAiResponding) return;
+    if (!messageText.trim() || sendLockRef.current || isAiRespondingRef.current) return;
+    if (liveSessionRef.current && liveModeStatus !== 'off') {
+      const content = messageText.trim();
+      setTurns((prev) => [...prev, { id: `live-text-${Date.now()}`, role: 'user', content, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }]);
+      liveSessionRef.current.sendText(content);
+      setInputText('');
+      return;
+    }
+    sendLockRef.current = true;
+    isAiRespondingRef.current = true;
 
     // User Turn
     const userTurn: ConversationTurnRecord = {
@@ -446,12 +627,16 @@ export const ConversationRoomView: React.FC = () => {
 
       setTurns((prev) => [...prev, aiTurn]);
       setIsAiResponding(false);
+      isAiRespondingRef.current = false;
+      sendLockRef.current = false;
 
       // Play AI voice
       speakAiReply(response.replyText);
     } catch (e: any) {
       console.error('Conversation API unavailable', e);
       setIsAiResponding(false);
+      isAiRespondingRef.current = false;
+      sendLockRef.current = false;
       setConversationError('AI đang tạm thời không kết nối được. Tin nhắn của bạn vẫn được giữ lại; hãy thử gửi lại sau.');
     }
   };
@@ -461,11 +646,13 @@ export const ConversationRoomView: React.FC = () => {
   // -------------------------------------------------------------
   const endCurrentSession = async () => {
     audioEngine.stop();
+    await stopGeminiLive();
     if (micSessionRef.current) micSessionRef.current.stop();
     micSessionRef.current = null;
     setIsRecording(false);
     setIsAiSpeaking(false);
     setIsSessionActive(false);
+    isSessionActiveRef.current = false;
     setIsGeneratingSummary(true);
 
     const durationMins = Math.max(1, Math.round(sessionElapsedSeconds / 60));
@@ -536,6 +723,7 @@ export const ConversationRoomView: React.FC = () => {
   // Start a fresh new session
   const startNewSession = (persona: TutorPersonaId, mode: ConversationModeId) => {
     audioEngine.stop();
+    void stopGeminiLive();
     setSelectedPersonaId(persona);
     setSelectedModeId(mode);
 
@@ -557,6 +745,19 @@ export const ConversationRoomView: React.FC = () => {
 
     setSessionElapsedSeconds(0);
     setIsSessionActive(true);
+    isSessionActiveRef.current = true;
+    isAiRespondingRef.current = false;
+    sendLockRef.current = false;
+    setIsAiResponding(false);
+    setIsAiSpeaking(false);
+    setAiCaption('');
+    if (autoSendTimerRef.current) {
+      clearTimeout(autoSendTimerRef.current);
+      autoSendTimerRef.current = null;
+    }
+    micSessionRef.current?.stop();
+    micSessionRef.current = null;
+    setIsRecording(false);
     setSummaryReportModal(null);
     setViewingPastSession(null);
 
@@ -616,7 +817,15 @@ export const ConversationRoomView: React.FC = () => {
 
             {/* Hands-Free Voice Mode Toggle */}
             <button
-              onClick={() => setIsHandsFreeMode(!isHandsFreeMode)}
+              onClick={() => {
+                const next = !isHandsFreeMode;
+                isHandsFreeModeRef.current = next;
+                setIsHandsFreeMode(next);
+                if (!next && autoSendTimerRef.current) {
+                  clearTimeout(autoSendTimerRef.current);
+                  autoSendTimerRef.current = null;
+                }
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
                 isHandsFreeMode
                   ? 'bg-teal-600 text-white shadow-xs'
@@ -626,6 +835,20 @@ export const ConversationRoomView: React.FC = () => {
             >
               <Sparkles className="w-3.5 h-3.5" />
               <span>Hands-Free {isHandsFreeMode ? 'ON' : 'OFF'}</span>
+            </button>
+
+            <button
+              onClick={() => liveModeStatus === 'off' ? void startGeminiLive() : void stopGeminiLive()}
+              disabled={liveModeStatus === 'connecting'}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all disabled:opacity-60 ${
+                liveModeStatus !== 'off'
+                  ? 'bg-violet-600 text-white border-violet-500'
+                  : 'bg-violet-50 text-violet-700 border-violet-200 hover:bg-violet-100'
+              }`}
+              title="Gemini Live: natural, bidirectional voice conversation"
+            >
+              <Mic className="w-3.5 h-3.5" />
+              <span>{liveModeStatus === 'connecting' ? 'Connecting Live…' : liveModeStatus === 'off' ? 'Live Voice' : 'Stop Live'}</span>
             </button>
 
             {/* Mute Toggle */}
@@ -789,11 +1012,14 @@ export const ConversationRoomView: React.FC = () => {
                 )}
               </div>
               <h3 className="text-lg font-extrabold mt-0.5">{activePersona.name}</h3>
+              {isAiSpeaking && aiCaption && (
+                <p aria-live="off" className="mt-1 max-w-xl text-[11px] leading-relaxed text-teal-100 line-clamp-2">{aiCaption}</p>
+              )}
               <p className="text-xs text-slate-400">
                 {isRecording
                   ? 'Speak naturally at standard cadence'
                   : isAiSpeaking
-                  ? 'Tap "Interrupt" or start speaking to cut in'
+                  ? (liveModeStatus !== 'off' ? 'Speak naturally to interrupt the AI' : 'Tap "Interrupt" or start speaking to cut in')
                   : 'Tap the microphone or say something to begin'}
               </p>
             </div>
@@ -832,7 +1058,7 @@ export const ConversationRoomView: React.FC = () => {
             </label>
 
             {/* Interruption Button when AI is speaking */}
-            {isAiSpeaking && (
+            {isAiSpeaking && liveModeStatus === 'off' && (
               <button
                 onClick={interruptAiSpeech}
                 className="px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-teal-300 border border-teal-500/40 text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
@@ -844,6 +1070,13 @@ export const ConversationRoomView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {liveModeError && (
+        <div role="status" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-xs text-violet-900 flex items-start justify-between gap-3">
+          <span>{liveModeError}</span>
+          <button onClick={() => setLiveModeError(null)} aria-label="Dismiss Live mode error"><X className="w-4 h-4" /></button>
+        </div>
+      )}
 
       {/* --------------------------------------------------------- */}
       {/* 3. CONVERSATION TRANSCRIPT & INLINE CORRECTIONS           */}
@@ -1163,6 +1396,36 @@ export const ConversationRoomView: React.FC = () => {
                     </div>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {summaryReportModal.personalizedExercise && (
+              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-3">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" /> Your Personal Speaking Drill
+                </h4>
+                <p className="text-sm font-semibold text-slate-900">{summaryReportModal.personalizedExercise.prompt}</p>
+                <p className="text-xs text-amber-900">Focus: {summaryReportModal.personalizedExercise.focus}</p>
+                {summaryReportModal.personalizedExercise.targetPhrases?.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {summaryReportModal.personalizedExercise.targetPhrases.map((phrase, index) => (
+                      <span key={index} className="rounded-full bg-white border border-amber-200 px-3 py-1 text-[11px] font-semibold text-amber-900">{phrase}</span>
+                    ))}
+                  </div>
+                )}
+                <div className="rounded-xl bg-white/80 border border-amber-100 p-3">
+                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Model answer</span>
+                  <p className="text-xs leading-relaxed text-slate-800">{summaryReportModal.personalizedExercise.modelAnswer}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSummaryReportModal(null);
+                    startNewSession(selectedPersonaId, 'free');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold"
+                >
+                  Practise this in a new conversation
+                </button>
               </div>
             )}
 

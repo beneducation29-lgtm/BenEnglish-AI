@@ -327,6 +327,12 @@ export interface ConversationSummaryReport {
     title: string;
     targetFocus: string;
   };
+  personalizedExercise?: {
+    prompt: string;
+    targetPhrases: string[];
+    modelAnswer: string;
+    focus: string;
+  };
 }
 
 export interface ConversationSessionRecord {
