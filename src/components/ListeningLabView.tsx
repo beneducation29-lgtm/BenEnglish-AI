@@ -44,6 +44,7 @@ import {
   Check,
   AlertCircle,
   Plus,
+  Target,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
