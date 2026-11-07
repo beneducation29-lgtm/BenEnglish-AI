@@ -37,6 +37,7 @@ export interface VocabItem {
   cefrLevel: CEFRLevel;
   topic: string;
   track: TrackType | 'both' | 'ielts';
+  grade?: HighSchoolGrade;
   masteryLevel: number; // 0 - 5 (spaced repetition)
   lastReviewed?: string;
   nextReviewAt?: string;

@@ -26,6 +26,7 @@ import {
   SPEAKING_CHALLENGES,
   ROLEPLAY_SCENARIOS,
 } from '../data/curriculumData';
+import { TRACK_VOCABULARY } from '../data/trackVocabulary';
 import { ADDITIONAL_LISTENING_LESSONS } from '../data/skillsPracticePack';
 import { useAuth } from './AuthContext';
 
@@ -268,17 +269,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
 
   const [vocabBank, setVocabBank] = useState<VocabItem[]>(() => {
+    const resetReviewMetadata = (item: VocabItem): VocabItem => item.reviewCount === undefined
+      ? { ...item, masteryLevel: 0, lastReviewed: undefined, nextReviewAt: undefined, reviewCount: 0, successfulReviewCount: 0 }
+      : item;
+    const base = [...INITIAL_VOCABULARY_BANK, ...TRACK_VOCABULARY];
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(accountStorageKey('benenglish_vocab', authUser?.uid));
       if (saved) {
         try {
-          return (JSON.parse(saved) as VocabItem[]).map((item) => item.reviewCount === undefined ? { ...item, masteryLevel: 0, lastReviewed: undefined, nextReviewAt: undefined, reviewCount: 0, successfulReviewCount: 0 } : item);
+          const existing = (JSON.parse(saved) as VocabItem[]).map(resetReviewMetadata);
+          const knownIds = new Set(existing.map((item) => item.id));
+          // Add newly released curriculum words without replacing a learner's saved review history.
+          return [...existing, ...base.filter((item) => !knownIds.has(item.id)).map(resetReviewMetadata)];
         } catch (e) {
-          // ignore
+          // ignore malformed legacy data and initialise from the current catalogue
         }
       }
     }
-    return INITIAL_VOCABULARY_BANK.map((item) => ({ ...item, masteryLevel: 0, lastReviewed: undefined, nextReviewAt: undefined, reviewCount: 0, successfulReviewCount: 0 }));
+    return base.map(resetReviewMetadata);
   });
 
   const [customLessons, setCustomLessons] = useState<ListeningLesson[]>(() => {
