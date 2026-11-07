@@ -121,7 +121,7 @@ export function buildAdaptiveLearnerSnapshot(user: UserProfile): AdaptiveLearner
     .slice(0, 4).forEach(item => weakAreas.push(`Roleplay feedback: ${item}`));
 
   const candidates = (Object.entries(skillEvidence) as [LearnerSkill, AdaptiveLearnerSnapshot['skillEvidence'][LearnerSkill]][])
-    .filter(([skill, evidence]) => evidence.score !== null && (evidence.samples >= 2 || placement?.skills[skill as keyof typeof placement.skills]?.score !== undefined))
+    .filter(([skill, evidence]) => evidence.score !== null && (evidence.samples >= 2 || (skill !== 'pronunciation' && placement?.skills[skill]?.score !== undefined)))
     .sort((a, b) => (a[1].score ?? 100) - (b[1].score ?? 100));
   const recommendedFocus = candidates.slice(0, 2).map(([skill]) => skill);
   if (!recommendedFocus.length) {
