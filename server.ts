@@ -1295,6 +1295,13 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
-  console.error('Server failed to start:', err);
-});
+// Export the same Express app for Vercel's serverless API entrypoint.
+export default app;
+
+// Vercel invokes the exported app through api/[...path].ts. Keep the
+// long-running listener only for local development and standalone hosting.
+if (!process.env.VERCEL) {
+  startServer().catch((err) => {
+    console.error('Server failed to start:', err);
+  });
+}
