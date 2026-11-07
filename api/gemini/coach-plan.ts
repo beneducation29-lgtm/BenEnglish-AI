@@ -68,11 +68,17 @@ export default async function handler(req: any, res: any) {
   const weakAreas = Array.isArray(stats.weakAreas)
     ? stats.weakAreas.filter((item: unknown) => typeof item === 'string').slice(0, 12)
     : [];
+  const placementLevel = typeof stats.placementLevel === 'string' ? stats.placementLevel.slice(0, 8) : 'Not assessed';
+  const skillLevels = stats.skillLevels && typeof stats.skillLevels === 'object'
+    ? Object.entries(stats.skillLevels).slice(0, 4).map(([skill, level]) => `${skill}: ${String(level).slice(0, 8)}`).join('; ')
+    : 'No per-skill placement data';
 
   const evidence = [
     `Latest listening score: ${isFiniteScore(stats.listeningScore) ? `${stats.listeningScore}/100` : 'No recorded assessment yet'}`,
     `Latest speaking score: ${isFiniteScore(stats.speakingScore) ? `${stats.speakingScore}/100` : 'No recorded assessment yet'}`,
     `Latest pronunciation score: ${isFiniteScore(stats.pronunciationScore) ? `${stats.pronunciationScore}/100` : 'No recorded assessment yet'}`,
+    `Placement level: ${placementLevel}`,
+    `Placement skill levels: ${skillLevels}`,
     `Verified weak areas: ${weakAreas.length ? JSON.stringify(weakAreas) : 'None identified from recorded results yet'}`,
   ].join('\n');
 
