@@ -205,6 +205,8 @@ export const ConversationRoomView: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isAiResponding, setIsAiResponding] = useState(false);
   const [conversationError, setConversationError] = useState<string | null>(null);
+  const [failedMessage, setFailedMessage] = useState<string | null>(null);
+  const [failedTurnId, setFailedTurnId] = useState<string | null>(null);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [aiCaption, setAiCaption] = useState('');
@@ -589,6 +591,8 @@ export const ConversationRoomView: React.FC = () => {
     setFinalTranscript('');
     setMicError(null);
     setConversationError(null);
+    setFailedMessage(null);
+    setFailedTurnId(null);
     setIsAiResponding(true);
 
     try {
@@ -626,6 +630,8 @@ export const ConversationRoomView: React.FC = () => {
       };
 
       setTurns((prev) => [...prev, aiTurn]);
+      setFailedMessage(null);
+      setFailedTurnId(null);
       setIsAiResponding(false);
       isAiRespondingRef.current = false;
       sendLockRef.current = false;
@@ -637,8 +643,24 @@ export const ConversationRoomView: React.FC = () => {
       setIsAiResponding(false);
       isAiRespondingRef.current = false;
       sendLockRef.current = false;
-      setConversationError('AI đang tạm thời không kết nối được. Tin nhắn của bạn vẫn được giữ lại; hãy thử gửi lại sau.');
+      setFailedMessage(messageText.trim());
+      setFailedTurnId(userTurn.id);
+      const detail = typeof e?.message === 'string' && e.message.trim()
+        ? e.message.trim()
+        : 'Không nhận được phản hồi từ AI.';
+      setConversationError(`AI chưa thể phản hồi: ${detail}. Tin nhắn của bạn vẫn được giữ lại.`);
     }
+  };
+
+  const retryFailedMessage = () => {
+    if (!failedMessage || sendLockRef.current || isAiRespondingRef.current) return;
+    const message = failedMessage;
+    const failedId = failedTurnId;
+    if (failedId) setTurns((prev) => prev.filter((turn) => turn.id !== failedId));
+    setFailedMessage(null);
+    setFailedTurnId(null);
+    setConversationError(null);
+    void sendMessage(message);
   };
 
   // -------------------------------------------------------------
@@ -1239,7 +1261,22 @@ export const ConversationRoomView: React.FC = () => {
           )}
 
         {/* --------------------------------------------------------- */}
-        {conversationError && <div role="alert" className="mx-4 mb-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{conversationError}</div>}
+        {conversationError && (
+          <div role="alert" className="mx-4 mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+            <span className="min-w-0 flex-1">{conversationError}</span>
+            {failedMessage && (
+              <button
+                type="button"
+                onClick={retryFailedMessage}
+                disabled={isAiResponding}
+                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-amber-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-amber-800 disabled:opacity-50"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Thử gửi lại
+              </button>
+            )}
+          </div>
+        )}
         {micError && <div role="alert" className="mx-4 mb-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">{micError}</div>}
 
         {/* 4. BOTTOM INTERACTION BAR: MIC & TEXT FALLBACK            */}
