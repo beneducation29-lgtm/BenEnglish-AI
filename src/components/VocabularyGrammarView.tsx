@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { VocabItem, HighSchoolGrade, CEFRLevel } from '../types';
 import { audioEngine } from '../services/speech';
+import { TRACK_GRAMMAR_CLINICS } from '../data/trackGrammarClinics';
 import {
   BookOpen,
   Volume2,
@@ -87,6 +88,14 @@ export const VocabularyGrammarView: React.FC = () => {
       v.meaningVi.toLowerCase().includes(searchQuery.toLowerCase()) ||
       v.topic.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const visibleGrammarClinics = [
+    ...GRAMMAR_CLINICS,
+    ...TRACK_GRAMMAR_CLINICS.filter((clinic) =>
+      clinic.track === user.track &&
+      (user.track !== 'high_school' || gradeFilter === 'all' || clinic.grade === gradeFilter)
+    ),
+  ];
 
   return (
     <div className="space-y-8 pb-16">
@@ -336,7 +345,7 @@ export const VocabularyGrammarView: React.FC = () => {
       {/* Tab 3: Grammar Clinics for Vietnamese Learners */}
       {activeSubTab === 'grammar' && (
         <div className="space-y-4">
-          {GRAMMAR_CLINICS.map((clinic) => (
+          {visibleGrammarClinics.map((clinic) => (
             <div
               key={clinic.id}
               className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3"
