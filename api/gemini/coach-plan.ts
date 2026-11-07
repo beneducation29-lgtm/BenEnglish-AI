@@ -69,6 +69,21 @@ export default async function handler(req: any, res: any) {
     ? stats.weakAreas.filter((item: unknown) => typeof item === 'string').slice(0, 12)
     : [];
   const placementLevel = typeof stats.placementLevel === 'string' ? stats.placementLevel.slice(0, 8) : 'Not assessed';
+  const recurringErrors = Array.isArray(stats.recurringErrors)
+    ? stats.recurringErrors.filter((item: unknown) => typeof item === 'string').slice(0, 8)
+    : [];
+  const recentSessionNotes = Array.isArray(stats.recentSessionNotes)
+    ? stats.recentSessionNotes.filter((item: unknown) => typeof item === 'string').slice(0, 3)
+    : [];
+  const evidenceSummary = Array.isArray(stats.evidenceSummary)
+    ? stats.evidenceSummary.filter((item: unknown) => typeof item === 'string').slice(0, 6)
+    : [];
+  const recommendedFocus = Array.isArray(stats.recommendedFocus)
+    ? stats.recommendedFocus.filter((item: unknown) => typeof item === 'string').slice(0, 3)
+    : [];
+  const sampleCounts = stats.sampleCounts && typeof stats.sampleCounts === 'object'
+    ? Object.entries(stats.sampleCounts).slice(0, 5).map(([skill, count]) => `${skill}: ${String(count)} saved sample(s)`).join('; ')
+    : 'Sample counts unavailable';
   const skillLevels = stats.skillLevels && typeof stats.skillLevels === 'object'
     ? Object.entries(stats.skillLevels).slice(0, 4).map(([skill, level]) => `${skill}: ${String(level).slice(0, 8)}`).join('; ')
     : 'No per-skill placement data';
@@ -79,7 +94,7 @@ export default async function handler(req: any, res: any) {
     `Latest pronunciation score: ${isFiniteScore(stats.pronunciationScore) ? `${stats.pronunciationScore}/100` : 'No recorded assessment yet'}`,
     `Placement level: ${placementLevel}`,
     `Placement skill levels: ${skillLevels}`,
-    `Verified weak areas: ${weakAreas.length ? JSON.stringify(weakAreas) : 'None identified from recorded results yet'}`,
+    `Verified weak areas: ${weakAreas.length ? JSON.stringify(weakAreas) : 'None identified from recorded results yet'}`,\n    `Recurring errors: ${recurringErrors.length ? JSON.stringify(recurringErrors) : 'No repeated error pattern confirmed yet'}`,\n    `Recent session notes: ${recentSessionNotes.length ? JSON.stringify(recentSessionNotes) : 'No saved session summaries'}`,\n    `Skill evidence: ${evidenceSummary.length ? evidenceSummary.join('; ') : 'No detailed evidence summary'}`,\n    `Sample counts: ${sampleCounts}`,\n    `Suggested focus areas: ${recommendedFocus.length ? recommendedFocus.join(', ') : 'Choose from the verified evidence'}`,
   ].join('\n');
 
   const systemInstruction = `
@@ -90,7 +105,7 @@ Learning cycle: LEARN → LISTEN → UNDERSTAND → SPEAK → RECEIVE FEEDBACK �
 Verified learner evidence:
 ${evidence}
 
-Create a practical adaptive daily action plan. Never invent scores, weaknesses, achievements or improvements. If a skill has no evidence, recommend a baseline practice and explicitly say there is not enough data to diagnose it. Use exactly three balanced steps, with realistic minute estimates that add up to targetMinutes (20–30). recommendedLab must be one of: listening, speaking, conversation, roleplay, pronunciation. Greet the learner warmly and keep all coaching specific, concise and actionable.
+Create a practical adaptive daily action plan. Never invent scores, weaknesses, achievements or improvements. If a skill has no evidence, recommend a baseline practice and explicitly say there is not enough data to diagnose it. Distinguish low sample counts from confirmed weaknesses. Treat a pattern as recurring only when it appears repeatedly in saved evaluations. Use suggested focus areas as a hint, but choose the weakest skill only when its evidence is sufficiently reliable. Never infer pronunciation from transcript-only grammar feedback. Use exactly three balanced steps, with realistic minute estimates that add up to targetMinutes (20–30). recommendedLab must be one of: listening, speaking, conversation, roleplay, pronunciation. Greet the learner warmly and keep all coaching specific, concise and actionable.
 `;
 
   try {
