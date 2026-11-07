@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, Headphones, Loader2, Mic, Play, Sparkles, Volume2 } from 'lucide-react';
+import { ArrowRight, BookOpen, CheckCircle2, Headphones, Loader2, Mic, Sparkles, Volume2 } from 'lucide-react';
 import { audioEngine, SpeechRecognitionSession, isSpeechRecognitionSupported } from '../services/speech';
 import { evaluatePlacementSpeaking } from '../services/api';
 import { CEFRLevel } from '../types';
@@ -93,12 +93,10 @@ export const PlacementTestView: React.FC<Props> = ({ onComplete, onClose }) => {
     try {
       const speaking = await evaluatePlacementSpeaking({ prompt:'Describe a skill you would like to learn and explain why it is important to you. Give examples and speak for about 45–60 seconds.', transcript:speakingText, track:'general' });
       const skillScores = {
-        listening: Math.round(Object.values(answers).filter((_,i)=>QUESTIONS[i]?.skill==='listening').length / counts.listening * 100),
-        reading: Math.round(Object.entries(answers).filter(([id,v])=>QUESTIONS.find(q=>q.id===id)?.skill==='reading' && QUESTIONS.find(q=>q.id===id)?.answer===v).length / counts.reading * 100),
-        understanding: Math.round(Object.entries(answers).filter(([id,v])=>QUESTIONS.find(q=>q.id===id)?.skill==='understanding' && QUESTIONS.find(q=>q.id===id)?.answer===v).length / counts.understanding * 100),
+        listening: Math.round(QUESTIONS.filter(q=>q.skill==='listening' && answers[q.id]===q.answer).length / counts.listening * 100),
+        reading: Math.round(QUESTIONS.filter(q=>q.skill==='reading' && answers[q.id]===q.answer).length / counts.reading * 100),
+        understanding: Math.round(QUESTIONS.filter(q=>q.skill==='understanding' && answers[q.id]===q.answer).length / counts.understanding * 100),
       };
-      // Count listening answers against their own answer key; never infer a score from an unplayed item.
-      skillScores.listening = Math.round(QUESTIONS.filter(q=>q.skill==='listening' && answers[q.id]===q.answer).length / counts.listening * 100);
       const skills = {
         listening:{score:skillScores.listening,level:levelForScore(skillScores.listening),evidence:'4 short audio-comprehension questions'},
         reading:{score:skillScores.reading,level:levelForScore(skillScores.reading),evidence:'4 reading-comprehension questions'},
