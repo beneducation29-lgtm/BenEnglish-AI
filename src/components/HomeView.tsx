@@ -65,9 +65,9 @@ export const HomeView: React.FC = () => {
       console.error(err);
       setPlanError('AI Coach is temporarily unavailable. This evidence-based practice plan was created from your saved learning record.');
       const focus = learner.recommendedFocus[0] || 'listening';
-      const focusLab = focus === 'understanding' || focus === 'reading' ? 'reading-writing'
-        : focus === 'pronunciation' ? 'pronunciation'
-        : focus === 'speaking' ? 'speaking' : 'listening';
+      const focusLab = focus === 'pronunciation' ? 'pronunciation'
+        : focus === 'speaking' ? 'speaking'
+        : focus === 'reading' || focus === 'understanding' ? 'conversation' : 'listening';
       const focusAction = learner.weakAreas[0] || learner.recurringErrors[0]
         || `Build more ${focus} evidence so your tutor can estimate this skill with greater confidence.`;
       setCoachPlan({
