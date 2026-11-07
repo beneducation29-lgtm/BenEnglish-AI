@@ -53,7 +53,7 @@ export const VocabularyGrammarView: React.FC = () => {
   const [isFlipped, setIsFlipped] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | HighSchoolGrade>(user.grade || 'all');
-  const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>('all');
+  const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>(user.track === 'professional' ? user.placementAssessment?.skills.understanding.level || 'all' : 'all');
 
   const trackVocab = useMemo(() => vocabBank.filter((word) => {
     const belongsToTrack = word.track === user.track || word.track === 'both';
