@@ -304,9 +304,26 @@ export async function fetchCoachPlan(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to generate personalized coach plan');
+  const contentType = res.headers.get('content-type') || '';
+  const rawBody = await res.text();
+  let data: any = null;
+  try {
+    data = contentType.includes('application/json') ? JSON.parse(rawBody) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok || !data?.success) {
+    const detail = typeof data?.error === 'string' && data.error.trim()
+      ? data.error.trim()
+      : rawBody.trim().slice(0, 180) || 'The server returned an empty response.';
+    if (res.status === 404) {
+      throw new Error('AI Coach API route was not found (HTTP 404). The latest Preview deployment may still be building.');
+    }
+    throw new Error(`AI Coach API returned HTTP ${res.status}: ${detail}`);
+  }
+  if (!data.data || !Array.isArray(data.data.learningCycleSteps)) {
+    throw new Error('The AI Coach returned an incomplete plan. Please try again.');
   }
   return data.data;
 }
