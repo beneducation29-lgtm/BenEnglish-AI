@@ -132,9 +132,25 @@ export async function sendConversationMessage(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to communicate with AI Tutor');
+  const contentType = res.headers.get('content-type') || '';
+  const rawBody = await res.text();
+  let data: any;
+  try {
+    data = contentType.includes('application/json') ? JSON.parse(rawBody) : null;
+  } catch {
+    data = null;
+  }
+  if (!res.ok || !data?.success) {
+    const detail = typeof data?.error === 'string' && data.error.trim()
+      ? data.error.trim()
+      : rawBody.trim().slice(0, 180) || 'The server returned an empty response.';
+    if (res.status === 404) {
+      throw new Error('Conversation API route was not found (HTTP 404). Please redeploy the latest Preview and check the Vercel function route.');
+    }
+    throw new Error(`Conversation API returned HTTP ${res.status}: ${detail}`);
+  }
+  if (!data.data || typeof data.data.replyText !== 'string' || !data.data.replyText.trim()) {
+    throw new Error('The AI service returned an empty reply. Your message is preserved; please try again.');
   }
   return data.data;
 }
