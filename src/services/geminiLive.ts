@@ -121,7 +121,7 @@ export class GeminiLiveSpeakingSession {
     if (content.interrupted) this.stopPlayback();
 
     if (content.inputTranscription?.text) {
-      this.callbacks.onInputTranscript?.(content.inputTranscription.text, false);
+      this.callbacks.onInputTranscript?.(content.inputTranscription.text, true);
     }
     if (content.interimInputTranscription?.text) {
       this.callbacks.onInputTranscript?.(content.interimInputTranscription.text, false);
