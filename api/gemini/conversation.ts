@@ -65,6 +65,20 @@ export default async function handler(req: any, res: any) {
   const userLevel = String(req.body?.userLevel || 'B1').slice(0, 8);
   const occupation = String(req.body?.occupation || 'Student').slice(0, 120);
   const history = normalizeHistory(req.body?.history);
+  const rawMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
+  const safeList = (value: unknown, maxItems = 5) => Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string').slice(0, maxItems).map(item => item.slice(0, 220))
+    : [];
+  const skillLevels = rawMemory.skillLevels && typeof rawMemory.skillLevels === 'object'
+    ? Object.entries(rawMemory.skillLevels).slice(0, 4).map(([skill, level]) => `${String(skill).slice(0, 30)}: ${String(level).slice(0, 8)}`).join('; ')
+    : 'Not assessed yet';
+  const memoryContext = [
+    `Placement level: ${typeof rawMemory.placementLevel === 'string' ? rawMemory.placementLevel.slice(0, 8) : userLevel}`,
+    `Skill levels: ${skillLevels}`,
+    `Learning priorities: ${safeList(rawMemory.priorities).join('; ') || 'Not established yet'}`,
+    `Recurring errors: ${safeList(rawMemory.recurringErrors).join('; ') || 'No verified recurring errors yet'}`,
+    `Recent session notes: ${safeList(rawMemory.recentSessionNotes, 3).join(' | ') || 'No previous session notes available'}`,
+  ].join('\\n');
 
   const systemInstruction = `
 You are the interactive AI voice conversation partner for BenEnglish AI.
@@ -72,6 +86,11 @@ Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_tea
 Current mode: ${modeDescriptions[mode] || modeDescriptions.everyday}
 Learner track: ${track === 'high_school' ? 'High-school student (Grades 10–12)' : `Working professional (${occupation})`}
 Target CEFR level: ${userLevel}
+
+Long-term learner memory (verified from saved assessments and prior sessions):
+${memoryContext}
+
+Use this memory to continue prior topics naturally, revisit recurring errors without embarrassing the learner, reinforce demonstrated strengths, and adapt the challenge. Do not claim to remember details that are absent from this context. If placement has not been completed, treat the level as provisional.
 
 Conversation requirements:
 1. Respond directly to the meaning, question, emotion or specific detail in the learner's latest message. Do not give a generic greeting when the learner has shared something specific.
