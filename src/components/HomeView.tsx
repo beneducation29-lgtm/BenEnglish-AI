@@ -96,82 +96,62 @@ export const HomeView: React.FC = () => {
 
   return (
     <div className="space-y-10 pb-16">
-      {/* Hero Showcase with Generated Visual Asset */}
-      <section className="relative overflow-hidden rounded-3xl bg-slate-950 text-white shadow-xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 items-stretch min-h-[440px]">
-          {/* Left Text Zone */}
-          <div className="lg:col-span-7 p-8 sm:p-12 flex flex-col justify-between z-10">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-medium text-emerald-400 mb-3">
-                <Sparkles className="w-4 h-4 text-emerald-400" />
-                <span>BENENGLISH AI ACADEMY</span>
-                <span aria-hidden="true" className="text-slate-600">·</span>
-                <span className="text-slate-300">Four-Skill English Learning</span>
-              </div>
-
-              <h1 className="font-display text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight text-white leading-tight">
-                Build Confident English Across <span className="text-emerald-400">All Four Skills</span>
-              </h1>
-
-              <p className="mt-4 text-sm sm:text-base text-slate-300 max-w-xl leading-relaxed">
-                Designed specifically for Vietnamese high school students and ambitious professionals.
-                Listen, speak, read and write through focused practice, clear feedback and level-matched learning.
-              </p>
+      {/* AI-first hero: compact, warm and focused on listening + speaking */}
+      <section className="relative isolate overflow-hidden rounded-[2rem] border border-amber-100 bg-[#fff9e9] shadow-sm">
+        <div className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-amber-200/50 blur-3xl" />
+        <div className="grid min-h-[390px] lg:grid-cols-2">
+          <div className="relative z-10 flex flex-col justify-center p-7 sm:p-10 lg:p-12">
+            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full bg-amber-100 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-amber-700">
+              <Sparkles className="h-4 w-4" /> AI English speaking coach
             </div>
-
-            {/* Core Philosophy Banner */}
-            <div className="mt-6 pt-6 border-t border-slate-800/80">
-              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                The BenEnglish 8-Stage Mastery Cycle:
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs text-slate-300 font-medium">
-                <span className="text-emerald-400 font-semibold">LEARN</span>
-                <span className="text-slate-600">→</span>
-                <span>LISTEN</span>
-                <span className="text-slate-600">→</span>
-                <span>UNDERSTAND</span>
-                <span className="text-slate-600">→</span>
-                <span className="text-emerald-400 font-semibold">SPEAK</span>
-                <span className="text-slate-600">→</span>
-                <span>FEEDBACK</span>
-                <span className="text-slate-600">→</span>
-                <span>CORRECT</span>
-                <span className="text-slate-600">→</span>
-                <span>REPEAT</span>
-                <span className="text-slate-600">→</span>
-                <span className="text-amber-400 font-bold">MASTER</span>
-              </div>
+            <h1 className="max-w-xl font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-blue-700 sm:text-5xl lg:text-[3.35rem]">
+              Listen better.<br />Speak with <span className="text-amber-500">confidence.</span>
+            </h1>
+            <p className="mt-5 max-w-xl text-sm leading-7 text-slate-700 sm:text-base">
+              Practice real conversations, train your listening reflexes and get clear AI feedback.
+              A focused daily path for Vietnamese learners at school and at work.
+            </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <button onClick={() => setActiveTab('conversation')} className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700">
+                <Mic className="h-4 w-4" /> Practice with AI <ArrowRight className="h-4 w-4" />
+              </button>
+              <button onClick={() => setActiveTab('listening')} className="inline-flex items-center justify-center gap-2 rounded-full border border-blue-300 bg-white px-6 py-3.5 text-sm font-bold text-blue-700 transition hover:bg-blue-50">
+                <Headphones className="h-4 w-4" /> Train listening
+              </button>
             </div>
-
-            {/* Quick Action Buttons */}
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <button
-                onClick={() => setActiveTab('conversation')}
-                className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition-all shadow-md hover:shadow-emerald-500/20 flex items-center gap-2 whitespace-nowrap shrink-0"
-              >
-                <Mic className="w-4 h-4" />
-                <span>Start Speaking Practice</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setActiveTab('listening')}
-                className="px-5 py-2.5 rounded-xl bg-slate-800/90 hover:bg-slate-700 text-white font-medium text-sm transition-colors border border-slate-700/80 flex items-center gap-2 whitespace-nowrap shrink-0"
-              >
-                <Headphones className="w-4 h-4 text-emerald-400" />
-                <span>Open Listening Lab</span>
-              </button>
+            <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Level-matched practice</span>
+              <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Feedback from your real attempts</span>
             </div>
           </div>
-
-          {/* Right Hero Image */}
-          <div className="lg:col-span-5 relative min-h-[260px] lg:min-h-full">
-            <img
-              src="/src/assets/images/benenglish_hero_banner_1793851275036.jpg"
-              alt="BenEnglish AI Academy Learners practicing listening and speaking"
-              referrerPolicy="no-referrer"
-              className="absolute inset-0 w-full h-full object-cover object-center"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t lg:bg-gradient-to-r from-slate-950 via-slate-950/30 to-transparent"></div>
+          <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 p-6 sm:p-10">
+            <div className="absolute inset-0 opacity-25" style={{backgroundImage:'linear-gradient(rgba(255,255,255,.7) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.7) 1px, transparent 1px)',backgroundSize:'42px 42px'}} />
+            <div className="relative flex w-full max-w-lg items-center justify-center gap-4 sm:gap-7">
+              <div className="w-[46%] rotate-[-5deg] rounded-[1.8rem] border-[7px] border-slate-800 bg-white p-4 shadow-2xl">
+                <div className="mb-5 flex items-center justify-between text-[10px] font-bold text-slate-500"><span>LISTENING LAB</span><Headphones className="h-4 w-4 text-blue-600" /></div>
+                <div className="rounded-xl bg-blue-50 p-3">
+                  <div className="mb-2 text-xs font-bold text-blue-800">Hear the difference</div>
+                  <div className="flex h-12 items-center justify-center gap-1">
+                    {Array.from({length:19},(_,i)=><span key={i} className="w-1.5 rounded-full bg-blue-500" style={{height:`${12+Math.abs(Math.sin(i*1.7))*30}px`}} />)}
+                  </div>
+                  <div className="mt-2 h-1.5 rounded-full bg-blue-100"><div className="h-1.5 w-2/3 rounded-full bg-blue-500" /></div>
+                </div>
+                <div className="mt-4 space-y-2"><div className="h-2 w-full rounded bg-slate-100"/><div className="h-2 w-4/5 rounded bg-slate-100"/><div className="h-2 w-3/5 rounded bg-slate-100"/></div>
+                <div className="mt-4 rounded-full bg-emerald-50 px-3 py-2 text-center text-[10px] font-bold text-emerald-700">Listen · Understand · Repeat</div>
+              </div>
+              <div className="w-[46%] rotate-[6deg] rounded-[1.8rem] border-[7px] border-slate-800 bg-slate-950 p-3 shadow-2xl">
+                <div className="mb-4 flex items-center justify-between text-[10px] font-bold text-slate-300"><span>AI SPEAKING ROOM</span><span className="h-2 w-2 rounded-full bg-emerald-400"/></div>
+                <div className="flex h-28 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-700 to-indigo-950">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-400 text-slate-900 shadow-lg"><Volume2 className="h-8 w-8"/></div>
+                </div>
+                <div className="mt-4 rounded-xl bg-white/10 p-3">
+                  <div className="mb-2 text-[10px] font-bold text-amber-300">Your AI coach</div>
+                  <div className="text-[10px] leading-4 text-white">“Tell me about your day. What happened next?”</div>
+                </div>
+                <div className="mt-3 flex items-center justify-center gap-2 rounded-full bg-blue-500 py-2 text-[10px] font-bold text-white"><Mic className="h-3 w-3"/> Start speaking</div>
+              </div>
+            </div>
+            <div className="absolute bottom-5 left-5 rounded-full bg-white/90 px-4 py-2 text-xs font-extrabold text-blue-700 shadow">Your practice. Your pace. Your progress.</div>
           </div>
         </div>
       </section>
