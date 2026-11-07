@@ -1886,7 +1886,7 @@ export const SpeakingLabView: React.FC = () => {
           {/* Full Free Speaking Evaluation Report */}
           {freeEvalResult && (
             <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
+              <div className="pb-4 border-b border-slate-100 space-y-3">
                 <div>
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
                     AI Practice Estimate · Transcript-based
