@@ -67,7 +67,7 @@ export const SpeakingLabView: React.FC = () => {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<SpeakingTab>('dashboard');
-  const [selectedCefr, setSelectedCefr] = useState<string>(user.cefrLevel);
+  const [selectedCefr, setSelectedCefr] = useState<string>(user.placementAssessment?.skills.speaking.level || user.cefrLevel);
   const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>(user.track);
 
   // Mic permission status
@@ -418,7 +418,7 @@ export const SpeakingLabView: React.FC = () => {
     try {
       const data = await generateSpeakingTopic({
         track: user.track,
-        cefrLevel: user.cefrLevel,
+        cefrLevel: selectedCefr,
         occupationOrGrade: user.track === 'high_school' ? user.grade : user.occupation,
         previousMistakes: user.speakingProgress?.pronunciationMemory.map((p) => p.pairLabel),
       });
@@ -427,7 +427,7 @@ export const SpeakingLabView: React.FC = () => {
         id: `ai-top-${Date.now()}`,
         title: data.title,
         track: user.track,
-        level: user.cefrLevel,
+        level: selectedCefr,
         category: data.category,
         prompt: data.prompt,
         guidingQuestions: data.guidingQuestions || [],
