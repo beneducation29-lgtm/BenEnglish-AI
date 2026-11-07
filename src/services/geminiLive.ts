@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 
 export type GeminiLiveCallbacks = {
   onStatus?: (status: 'connecting' | 'connected' | 'listening' | 'speaking' | 'closed') => void;
@@ -90,7 +90,7 @@ export class GeminiLiveSpeakingSession {
     this.session = await ai.live.connect({
       model: tokenPayload.model || 'gemini-3.8-live',
       config: {
-        responseModalities: ['AUDIO'],
+        responseModalities: [Modality.AUDIO],
         inputAudioTranscription: {},
         outputAudioTranscription: {},
       },

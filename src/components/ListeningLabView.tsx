@@ -67,7 +67,7 @@ export const ListeningLabView: React.FC = () => {
 
   // Selected Lesson
   const [selectedLesson, setSelectedLesson] = useState<ListeningLesson>(() =>
-    allListeningLessons.find((lesson) => lesson.track === user.track && lesson.level === user.cefrLevel) ||
+    allListeningLessons.find((lesson) => lesson.track === user.track && lesson.level === (user.placementAssessment?.skills.listening.level || user.cefrLevel)) ||
     allListeningLessons.find((lesson) => lesson.track === user.track || lesson.track === 'both') ||
     allListeningLessons[0]
   );
@@ -78,7 +78,7 @@ export const ListeningLabView: React.FC = () => {
   >('intensive');
 
   // Filters
-  const [cefrFilter, setCefrFilter] = useState<string>(user.cefrLevel);
+  const [cefrFilter, setCefrFilter] = useState<string>(user.placementAssessment?.skills.listening.level || user.cefrLevel);
   const [trackFilter, setTrackFilter] = useState<string>(user.track);
   const [topicSearch, setTopicSearch] = useState<string>('');
   const [viewMode, setViewMode] = useState<'dashboard' | 'lesson'>('dashboard');

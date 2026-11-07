@@ -18,6 +18,8 @@ import {
 } from 'lucide-react';
 import { fetchCoachPlan, CoachPlanData } from '../services/api';
 import { HighSchoolGrade, ProfessionalOccupation, CEFRLevel } from '../types';
+import { PlacementTestView } from './PlacementTestView';
+import { buildAdaptiveLearnerSnapshot } from '../services/adaptiveLearning';
 
 export const HomeView: React.FC = () => {
   const {
@@ -32,70 +34,125 @@ export const HomeView: React.FC = () => {
   const [coachPlan, setCoachPlan] = useState<CoachPlanData | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [showPlacementTest, setShowPlacementTest] = useState(false);
+  const { savePlacementAssessment } = useApp();
 
   const loadDailyPlan = async () => {
     setLoadingPlan(true);
     setPlanError(null);
+    const learner = buildAdaptiveLearnerSnapshot(user);
+    const focusLabel = learner.recommendedFocus.map(skill => skill[0].toUpperCase() + skill.slice(1)).join(' & ');
     try {
       const data = await fetchCoachPlan({
         track: user.track,
         gradeOrOccupation: user.track === 'high_school' ? user.grade || 'Grade 11' : user.occupation || 'Software & Tech',
         performanceStats: {
-          listeningScore: user.recentListeningScores.length ? user.recentListeningScores[user.recentListeningScores.length - 1] : null,
-          speakingScore: user.recentSpeakingScores.length ? user.recentSpeakingScores[user.recentSpeakingScores.length - 1] : null,
-          pronunciationScore: user.recentPronunciationScores.length ? user.recentPronunciationScores[user.recentPronunciationScores.length - 1] : null,
-          weakAreas: (user.listeningProgress?.misunderstoodVocab || []).map((item) => `Listening: ${item.word} (${item.count} missed)`),
+          listeningScore: learner.skillEvidence.listening.score,
+          speakingScore: learner.skillEvidence.speaking.score,
+          pronunciationScore: learner.skillEvidence.pronunciation.score,
+          weakAreas: learner.weakAreas,
+          recurringErrors: learner.recurringErrors,
+          recentSessionNotes: learner.recentSessionNotes,
+          evidenceSummary: learner.evidenceSummary,
+          recommendedFocus: learner.recommendedFocus,
+          placementLevel: learner.placementLevel,
+          skillLevels: learner.skillLevels,
+          sampleCounts: Object.fromEntries(Object.entries(learner.skillEvidence).map(([skill, evidence]) => [skill, evidence.samples])),
         },
       });
       setCoachPlan(data);
     } catch (err: any) {
       console.error(err);
-      setPlanError('AI Coach is offline. Showing a general practice plan; no performance diagnosis is available.');
-      // Fallback structured plan
+      setPlanError('AI Coach is temporarily unavailable. This evidence-based practice plan was created from your saved learning record.');
+      const focus = learner.recommendedFocus[0] || 'listening';
+      const focusLab = focus === 'pronunciation' ? 'pronunciation'
+        : focus === 'speaking' ? 'speaking'
+        : focus === 'reading' || focus === 'understanding' ? 'conversation' : 'listening';
+      const focusAction = learner.weakAreas[0] || learner.recurringErrors[0]
+        || `Build more ${focus} evidence so your tutor can estimate this skill with greater confidence.`;
       setCoachPlan({
-        coachGreeting: `Good day ${user.name}! Ready to elevate your spoken English today?`,
-        diagnosticSummary:
-          'No verified assessment data is available yet. Complete listening or speaking activities to receive evidence-based recommendations.',
-        dailyPriority:
-          user.track === 'high_school' ? 'Build your first listening and speaking activity history' : 'Build your first workplace English activity history',
+        coachGreeting: `Welcome back, ${user.name}. Let's make today's practice count.`,
+        diagnosticSummary: learner.evidenceSummary.join(' · '),
+        dailyPriority: `Focus today: ${focusLabel}. ${focusAction}`,
         targetMinutes: 25,
         learningCycleSteps: [
-          {
-            phase: '1. LEARN & LISTEN',
-            title: 'Intensive Listening Lab',
-            action: 'Listen to native dialogues, identify linking sounds (/end ʌp/), and note unfamiliar collocations.',
-            estimatedMinutes: 8,
-            recommendedLab: 'listening',
-          },
-          {
-            phase: '2. PRONUNCIATION CLINIC',
-            title: 'IPA Sound Mastery',
-            action: 'Choose a pronunciation drill and save an evaluation before treating any sound as a personal weakness.',
-            estimatedMinutes: 6,
-            recommendedLab: 'pronunciation',
-          },
-          {
-            phase: '3. SPEAK & RECEIVE FEEDBACK',
-            title: 'Voice AI Conversation Room',
-            action: 'Complete a short conversation and review the saved feedback.',
-            estimatedMinutes: 11,
-            recommendedLab: 'conversation',
-          },
+          { phase: '1. TARGETED PRACTICE', title: `Strengthen ${focus}`, action: focusAction, estimatedMinutes: 10, recommendedLab: focusLab },
+          { phase: '2. RETRIEVE & APPLY', title: 'Use what you learned', action: learner.recurringErrors[0] || 'Complete a short task without looking at the model answer, then check your result.', estimatedMinutes: 7, recommendedLab: focus === 'speaking' ? 'conversation' : 'listening' },
+          { phase: '3. REFLECT & REPEAT', title: 'Check your progress', action: 'Save your result and note one thing that felt easier and one thing to practise next time.', estimatedMinutes: 8, recommendedLab: 'conversation' },
         ],
-        coachMotivationalQuote:
-          '"Fluency is not the absence of mistakes; it is the courage to speak through them until accuracy becomes second nature."',
+        coachMotivationalQuote: 'Small, consistent practice turns feedback into progress.',
       });
     } finally {
       setLoadingPlan(false);
     }
   };
 
+  const adaptiveEvidenceKey = JSON.stringify({
+    placement: user.placementAssessment?.completedAt,
+    listeningScores: user.recentListeningScores,
+    listeningAttempts: [user.listeningProgress?.dictationAttemptCount, user.listeningProgress?.comprehensionAttemptCount],
+    misunderstood: (user.listeningProgress?.misunderstoodVocab || []).map(item => [item.word, item.count]),
+    speakingScores: user.recentSpeakingScores,
+    speakingHistory: (user.speakingProgress?.history || []).slice(-5).map(item => item.id),
+    pronunciationScores: user.recentPronunciationScores,
+    conversations: (user.conversationProgress?.savedSessions || []).slice(-5).map(session => ({
+      id: session.id,
+      summary: session.summaryReport?.summary,
+      mistakes: session.summaryReport?.grammarMistakes,
+    })),
+    roleplays: (user.roleplayProgress?.history || []).slice(-5).map(session => ({
+      id: session.id,
+      score: session.assessment?.overallScore,
+      priorities: session.assessment?.criticalAreasForImprovement,
+    })),
+  });
+
   useEffect(() => {
     loadDailyPlan();
-  }, [user.track, user.grade, user.occupation]);
+  }, [user.track, user.grade, user.occupation, adaptiveEvidenceKey]);
 
   return (
     <div className="space-y-10 pb-16">
+      {showPlacementTest && (
+        <PlacementTestView
+          onClose={() => setShowPlacementTest(false)}
+          onComplete={(assessment) => {
+            savePlacementAssessment(assessment);
+            setShowPlacementTest(false);
+            setPlanError(null);
+          }}
+        />
+      )}
+
+      <section className="rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-blue-50 p-5 shadow-sm sm:p-7">
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-indigo-700">
+              <Sparkles className="h-4 w-4" /> Your personal English tutor
+            </div>
+            <h2 className="mt-2 text-xl font-extrabold text-slate-900 sm:text-2xl">
+              {user.placementAssessment ? 'Your learning profile is ready' : 'First, discover your English level'}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {user.placementAssessment
+                ? `Your current starting level is ${user.placementAssessment.overallLevel}. Retake the diagnostic when you want to refresh your four-skill profile.`
+                : 'Take a short four-skill diagnostic so BenEnglish AI can choose the right level for Listening, Speaking, Reading and Use of English.'}
+            </p>
+            {user.placementAssessment && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {Object.entries(user.placementAssessment.skills).map(([skill, result]) => (
+                  <span key={skill} className="rounded-full border border-indigo-100 bg-white px-3 py-1.5 text-xs font-semibold text-indigo-800">
+                    {skill}: {result.level}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+          <button onClick={() => setShowPlacementTest(true)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-700">
+            <Sparkles className="h-4 w-4" /> {user.placementAssessment ? 'Retake placement test' : 'Start placement test'} <ArrowRight className="h-4 w-4" />
+          </button>
+        </div>
+      </section>
       {/* AI-first hero: compact, warm and focused on listening + speaking */}
       <section className="relative isolate overflow-hidden rounded-[2rem] border border-amber-100 bg-[#fff9e9] shadow-sm">
         <div className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-amber-200/50 blur-3xl" />

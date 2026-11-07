@@ -1,6 +1,12 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
-const MODEL = 'gemini-3.8-flash';
+const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
+const FALLBACK_MODEL = 'gemini-3.8-flash';
+
+function isTransientModelError(error: unknown): boolean {
+  const message = String((error as any)?.message || error || '').toLowerCase();
+  return /503|429|unavailable|resource_exhausted|high demand|overload|timed? ?out|timeout|aborterror/.test(message);
+}
 
 const personaDescriptions: Record<string, string> = {
   friendly_teacher: 'You are Teacher Emma, a warm, patient and encouraging English tutor. Speak clearly and help learners feel comfortable.',
@@ -59,6 +65,20 @@ export default async function handler(req: any, res: any) {
   const userLevel = String(req.body?.userLevel || 'B1').slice(0, 8);
   const occupation = String(req.body?.occupation || 'Student').slice(0, 120);
   const history = normalizeHistory(req.body?.history);
+  const rawMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
+  const safeList = (value: unknown, maxItems = 5) => Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string').slice(0, maxItems).map(item => item.slice(0, 220))
+    : [];
+  const skillLevels = rawMemory.skillLevels && typeof rawMemory.skillLevels === 'object'
+    ? Object.entries(rawMemory.skillLevels).slice(0, 4).map(([skill, level]) => `${String(skill).slice(0, 30)}: ${String(level).slice(0, 8)}`).join('; ')
+    : 'Not assessed yet';
+  const memoryContext = [
+    `Placement level: ${typeof rawMemory.placementLevel === 'string' ? rawMemory.placementLevel.slice(0, 8) : userLevel}`,
+    `Skill levels: ${skillLevels}`,
+    `Learning priorities: ${safeList(rawMemory.priorities).join('; ') || 'Not established yet'}`,
+    `Recurring errors: ${safeList(rawMemory.recurringErrors).join('; ') || 'No verified recurring errors yet'}`,
+    `Recent session notes: ${safeList(rawMemory.recentSessionNotes, 3).join(' | ') || 'No previous session notes available'}`,
+  ].join('\\n');
 
   const systemInstruction = `
 You are the interactive AI voice conversation partner for BenEnglish AI.
@@ -67,10 +87,15 @@ Current mode: ${modeDescriptions[mode] || modeDescriptions.everyday}
 Learner track: ${track === 'high_school' ? 'High-school student (Grades 10–12)' : `Working professional (${occupation})`}
 Target CEFR level: ${userLevel}
 
+Long-term learner memory (verified from saved assessments and prior sessions):
+${memoryContext}
+
+Use this memory to continue prior topics naturally, revisit recurring errors without embarrassing the learner, reinforce demonstrated strengths, and adapt the challenge. Do not claim to remember details that are absent from this context. If placement has not been completed, treat the level as provisional.
+
 Conversation requirements:
 1. Respond directly to the meaning, question, emotion or specific detail in the learner's latest message. Do not give a generic greeting when the learner has shared something specific.
 2. Use the supplied recent turns as context. Remember details already shared and never ask the learner to repeat them.
-3. Optimize for voice conversation: usually 1–3 short sentences and 15–45 words. Answer the learner's point first; add detail only when asked.
+3. Optimize for voice conversation: usually 2–4 natural sentences and 25–65 words. Answer the learner's point first; add a useful example or explanation when it helps. Keep replies shorter for A1–A2 learners and expand when the learner asks for detail.
 4. Adapt vocabulary and sentence complexity to the target CEFR level. For A1–A2, use short, clear sentences; for B1–B2, use natural connected language; for C1–C2, use nuanced language.
 5. Ask at most one relevant follow-up question. Do not force a question at the end of every reply; sometimes react, answer, explain or share a brief example.
 6. Continue the selected mode while following the learner's lead. In IELTS and interview modes, keep the appropriate progression and avoid revealing model answers before the learner tries.
@@ -81,9 +106,16 @@ Conversation requirements:
 `;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: MODEL,
+    const ai = new GoogleGenAI({
+      apiKey,
+      // Bound each attempt. The SDK's default exponential retries can otherwise
+      // keep a chat turn pending until the Vercel function itself times out.
+      httpOptions: {
+        timeout: 20000,
+        retryOptions: { attempts: 1 },
+      },
+    });
+    const generationRequest = {
       contents: [
         ...history,
         { role: 'user', parts: [{ text: message }] },
@@ -92,7 +124,7 @@ Conversation requirements:
         systemInstruction,
         responseMimeType: 'application/json',
         temperature: 0.65,
-        maxOutputTokens: 480,
+        maxOutputTokens: 650,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -114,13 +146,37 @@ Conversation requirements:
           required: ['replyText', 'phoneticTip', 'suggestedUserReplies'],
         },
       },
-    });
+    };
 
-    const raw = response.text || '{}';
-    const parsed = JSON.parse(raw);
-    if (typeof parsed.replyText !== 'string' || !parsed.replyText.trim()) {
-      throw new Error('The AI returned an empty reply. Please try again.');
+    let parsed: any = null;
+    let lastError: unknown;
+    for (const [index, model] of [PRIMARY_MODEL, FALLBACK_MODEL].entries()) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          ...generationRequest,
+        });
+        const raw = response.text || '';
+        if (!raw.trim()) throw new Error('The AI returned an empty reply. Please try again.');
+        parsed = JSON.parse(raw);
+        if (typeof parsed.replyText !== 'string' || !parsed.replyText.trim()) {
+          throw new Error('The AI returned an empty reply. Please try again.');
+        }
+        break;
+      } catch (error) {
+        lastError = error;
+        const retryable = isTransientModelError(error) ||
+          /json|unexpected token|empty reply|unexpected end/i.test(String((error as any)?.message || error));
+        if (index === 0 && retryable) {
+          console.warn('Conversation primary model failed or returned an invalid response; trying fallback.');
+          continue;
+        }
+        throw error;
+      }
     }
+
+    if (!parsed) throw lastError || new Error('The AI tutor could not generate a reply.');
+
     return res.status(200).json({
       success: true,
       data: {
@@ -131,10 +187,14 @@ Conversation requirements:
       },
     });
   } catch (error: any) {
+    const transient = isTransientModelError(error);
     console.error('BenEnglish conversation function failed:', error?.message || error);
-    return res.status(502).json({
+    return res.status(transient ? 503 : 502).json({
       success: false,
-      error: error?.message || 'The AI tutor could not respond right now. Please try again.',
+      error: transient
+        ? 'The AI tutor is temporarily busy. Please try sending your message again in a moment.'
+        : error?.message || 'The AI tutor could not respond right now. Please try again.',
+      retryable: transient,
     });
   }
 }

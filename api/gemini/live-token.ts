@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Modality } from '@google/genai';
 
 const LIVE_MODEL = 'gemini-3.8-live';
 
@@ -78,7 +78,7 @@ export default async function handler(req: any, res: any) {
         liveConnectConstraints: {
           model: LIVE_MODEL,
           config: {
-            responseModalities: ['AUDIO'],
+            responseModalities: [Modality.AUDIO],
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             systemInstruction: { parts: [{ text: systemInstruction }] },

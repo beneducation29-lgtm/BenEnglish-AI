@@ -126,6 +126,7 @@ export async function sendConversationMessage(payload: {
   track: string;
   userLevel: string;
   occupation?: string;
+  learnerMemory?: { placementLevel?: string; skillLevels?: Record<string,string>; priorities?: string[]; recentSessionNotes?: string[]; recurringErrors?: string[] };
 }): Promise<ConversationResponseData> {
   const res = await fetch('/api/gemini/conversation', {
     method: 'POST',
@@ -304,9 +305,26 @@ export async function fetchCoachPlan(payload: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to generate personalized coach plan');
+  const contentType = res.headers.get('content-type') || '';
+  const rawBody = await res.text();
+  let data: any = null;
+  try {
+    data = contentType.includes('application/json') ? JSON.parse(rawBody) : null;
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok || !data?.success) {
+    const detail = typeof data?.error === 'string' && data.error.trim()
+      ? data.error.trim()
+      : rawBody.trim().slice(0, 180) || 'The server returned an empty response.';
+    if (res.status === 404) {
+      throw new Error('AI Coach API route was not found (HTTP 404). The latest Preview deployment may still be building.');
+    }
+    throw new Error(`AI Coach API returned HTTP ${res.status}: ${detail}`);
+  }
+  if (!data.data || !Array.isArray(data.data.learningCycleSteps)) {
+    throw new Error('The AI Coach returned an incomplete plan. Please try again.');
   }
   return data.data;
 }
@@ -398,3 +416,30 @@ export async function generateSpeakingTopic(payload: {
 }
 
 
+
+export async function evaluatePlacementSpeaking(payload: {
+  prompt: string;
+  transcript: string;
+  track: string;
+}): Promise<{
+  score: number;
+  cefrLevel: string;
+  strengths: string[];
+  priorities: string[];
+  feedback: string;
+  rubric?: { grammar: number; vocabulary: number; coherence: number; taskFulfilment: number };
+}> {
+  const res = await fetch('/api/gemini/placement-speaking', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success || !data.data) {
+    throw new Error(data?.error || `Speaking assessment returned HTTP ${res.status}. Please try again.`);
+  }
+  return data.data;
+}

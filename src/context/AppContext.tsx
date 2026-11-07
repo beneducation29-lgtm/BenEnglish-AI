@@ -17,6 +17,7 @@ import {
   RoleplaySessionRecord,
   RoleplayProgressRecord,
   RoleplayAssistanceMode,
+  PlacementAssessment,
 } from '../types';
 import {
   INITIAL_VOCABULARY_BANK,
@@ -28,7 +29,8 @@ import {
 } from '../data/curriculumData';
 import { TRACK_VOCABULARY } from '../data/trackVocabulary';
 import { ADDITIONAL_LISTENING_LESSONS } from '../data/skillsPracticePack';
-import { useAuth } from './AuthContext';
+import { useAuth, firebaseApp } from './AuthContext';
+import { loadCloudMemory, saveCloudMemory, mergeCloudMemory } from '../services/cloudMemory';
 
 const accountStorageKey = (key: string, uid?: string) => uid ? `${key}:${uid}` : key;
 
@@ -60,6 +62,7 @@ interface AppContextType {
   updateGrade: (grade: HighSchoolGrade) => void;
   updateOccupation: (occ: ProfessionalOccupation) => void;
   updateCefrLevel: (level: CEFRLevel) => void;
+  savePlacementAssessment: (assessment: PlacementAssessment) => void;
   addXp: (xp: number) => void;
   completeLesson: (lessonId: string, type: 'listening' | 'speaking' | 'roleplay', score?: number) => void;
   vocabBank: VocabItem[];
@@ -267,6 +270,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const [cloudMemoryReady, setCloudMemoryReady] = useState(false);
 
   const [vocabBank, setVocabBank] = useState<VocabItem[]>(() => {
     const resetReviewMetadata = (item: VocabItem): VocabItem => item.reviewCount === undefined
@@ -303,9 +307,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return [];
   });
 
+  // Cloud sync is opt-in until the Firebase project's Firestore database and owner-only rules are configured.
+  useEffect(() => {
+    let cancelled = false;
+    const enabled = import.meta.env.VITE_FIREBASE_ENABLE_CLOUD_SYNC === 'true' && !!firebaseApp && !!authUser?.uid;
+    if (!enabled || !firebaseApp || !authUser?.uid) {
+      setCloudMemoryReady(true);
+      return;
+    }
+    setCloudMemoryReady(false);
+    loadCloudMemory(firebaseApp, authUser.uid)
+      .then((remote) => {
+        if (cancelled || !remote) return;
+        setUser((local) => mergeCloudMemory(local, remote.profile));
+        if (Array.isArray(remote.vocabBank)) {
+          setVocabBank((local) => mergeCloudMemory(local, remote.vocabBank));
+        }
+        if (Array.isArray(remote.customLessons)) {
+          setCustomLessons((local) => mergeCloudMemory(local, remote.customLessons));
+        }
+      })
+      .catch((error) => console.warn('BenEnglish cloud memory is unavailable; local progress remains active.', error))
+      .finally(() => { if (!cancelled) setCloudMemoryReady(true); });
+    return () => { cancelled = true; };
+  }, [authUser?.uid]);
+
   useEffect(() => {
     localStorage.setItem(accountStorageKey('benenglish_user', authUser?.uid), JSON.stringify(user));
-  }, [user]);
+  }, [user, authUser?.uid]);
 
   useEffect(() => {
     localStorage.setItem(accountStorageKey('benenglish_vocab', authUser?.uid), JSON.stringify(vocabBank));
@@ -313,7 +342,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     localStorage.setItem(accountStorageKey('benenglish_custom_lessons', authUser?.uid), JSON.stringify(customLessons));
-  }, [customLessons]);
+  }, [customLessons, authUser?.uid]);
+
+  useEffect(() => {
+    if (!cloudMemoryReady || import.meta.env.VITE_FIREBASE_ENABLE_CLOUD_SYNC !== 'true' || !firebaseApp || !authUser?.uid) return;
+    const timer = window.setTimeout(() => {
+      saveCloudMemory(firebaseApp, authUser.uid, { profile: user, vocabBank, customLessons })
+        .catch((error) => console.warn('BenEnglish cloud sync failed; changes are still saved on this device.', error));
+    }, 1200);
+    return () => window.clearTimeout(timer);
+  }, [user, vocabBank, customLessons, cloudMemoryReady, authUser?.uid]);
 
   const allListeningLessons: ListeningLesson[] = [
     ...HIGH_SCHOOL_LISTENING_LESSONS,
@@ -433,6 +471,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateCefrLevel = (cefrLevel: CEFRLevel) => {
     setUser((prev) => ({ ...prev, cefrLevel }));
+  };
+
+  const savePlacementAssessment = (assessment: PlacementAssessment) => {
+    setUser((prev) => ({ ...prev, cefrLevel: assessment.overallLevel, placementAssessment: assessment }));
   };
 
   const addXp = (amount: number) => {
@@ -816,6 +858,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         updateGrade,
         updateOccupation,
         updateCefrLevel,
+        savePlacementAssessment,
         addXp,
         completeLesson,
         vocabBank,

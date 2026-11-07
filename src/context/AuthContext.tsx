@@ -17,7 +17,7 @@ const firebaseConfig = {
 };
 
 const isConfigured = Object.values(firebaseConfig).every((value) => typeof value === 'string' && value.length > 0);
-const firebaseApp = isConfigured ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
+export const firebaseApp = isConfigured ? (getApps().length ? getApp() : initializeApp(firebaseConfig)) : null;
 const firebaseAuth = firebaseApp ? getAuth(firebaseApp) : null;
 
 interface AuthContextValue {

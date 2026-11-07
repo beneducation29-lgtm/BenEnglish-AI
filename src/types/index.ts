@@ -104,6 +104,26 @@ export interface ListeningProgressRecord {
   }[];
 }
 
+export interface PlacementSkillResult {
+  score: number;
+  level: CEFRLevel;
+  evidence: string;
+}
+
+export interface PlacementAssessment {
+  completedAt: string;
+  overallLevel: CEFRLevel;
+  skills: {
+    listening: PlacementSkillResult;
+    speaking: PlacementSkillResult;
+    reading: PlacementSkillResult;
+    understanding: PlacementSkillResult;
+  };
+  strengths: string[];
+  priorities: string[];
+  speakingFeedback: string;
+}
+
 export interface UserProfile {
   name: string;
   email: string;
@@ -111,6 +131,7 @@ export interface UserProfile {
   grade?: HighSchoolGrade;
   occupation?: ProfessionalOccupation;
   cefrLevel: CEFRLevel;
+  placementAssessment?: PlacementAssessment;
   targetGoal: string;
   streakDays: number;
   totalXp: number;
