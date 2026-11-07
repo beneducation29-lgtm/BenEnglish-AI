@@ -91,7 +91,7 @@ export function buildAdaptiveLearnerSnapshot(user: UserProfile): AdaptiveLearner
 
   const skillLevels: AdaptiveLearnerSnapshot['skillLevels'] = {};
   for (const skill of Object.keys(skillEvidence) as LearnerSkill[]) {
-    const placed = placement?.skills[skill as keyof typeof placement.skills];
+    const placed = skill === 'pronunciation' ? undefined : placement?.skills[skill];
     const evidence = skillEvidence[skill];
     if (placed?.level) skillLevels[skill] = placed.level;
     else if (evidence.score !== null && evidence.samples >= 2) skillLevels[skill] = levelFromEvidence(evidence.score);
