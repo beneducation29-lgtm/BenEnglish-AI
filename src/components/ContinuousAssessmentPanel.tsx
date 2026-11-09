@@ -31,10 +31,38 @@ function Trend({ change }: { change: number | null }) {
 
 export const ContinuousAssessmentPanel: React.FC<{ user: UserProfile }> = ({ user }) => {
   const learner = buildAdaptiveLearnerSnapshot(user);
-  const listening = user.recentListeningScores || [];
-  const speaking = user.recentSpeakingScores || [];
+  const listeningHistory = user.listeningProgress?.history || [];
+  const speakingHistory = user.speakingProgress?.history || [];
+  const listening = listeningHistory.length
+    ? listeningHistory.map(item => item.score)
+    : (user.recentListeningScores || []);
+  const speaking = speakingHistory.length
+    ? speakingHistory.map(item => item.score)
+    : (user.recentSpeakingScores || []);
   const pronunciation = user.recentPronunciationScores || [];
   const placement = user.placementAssessment;
+  const recentAttempts = [
+    ...listeningHistory.map(item => ({
+      id: item.id,
+      title: item.type === 'dictation' ? 'Listening · Dictation' : 'Listening · Comprehension',
+      date: item.date,
+      score: item.score,
+    })),
+    ...speakingHistory.map(item => ({
+      id: item.id,
+      title: `Speaking · ${item.title}`,
+      date: item.date,
+      score: item.score,
+    })),
+    ...(user.roleplayProgress?.history || []).map(item => ({
+      id: item.id,
+      title: `Roleplay · ${item.scenarioTitle}`,
+      date: item.date,
+      score: item.assessment?.overallScore,
+    })),
+  ].filter(item => Number.isFinite(item.score) && item.score >= 0 && item.score <= 100)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
 
   const metrics: Metric[] = [
     { label: 'Listening', score: learner.skillEvidence.listening.score, samples: learner.skillEvidence.listening.samples, confidence: learner.skillEvidence.listening.confidence, change: getTrend(listening) },
@@ -75,6 +103,23 @@ export const ContinuousAssessmentPanel: React.FC<{ user: UserProfile }> = ({ use
           </div>
         ))}
       </div>
+
+      {recentAttempts.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-slate-100 bg-white/90 p-4">
+          <div className="text-xs font-bold uppercase tracking-wide text-slate-600">Recent assessed attempts</div>
+          <ul className="mt-3 divide-y divide-slate-100">
+            {recentAttempts.map(item => (
+              <li key={item.id} className="flex flex-col gap-1 py-2 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">{item.title}</p>
+                  <p className="text-xs text-slate-400">{Number.isFinite(new Date(item.date).getTime()) ? new Date(item.date).toLocaleString() : 'Date unavailable'}</p>
+                </div>
+                <span className="text-sm font-bold tabular-nums text-slate-700">{item.score}/100</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-white/80 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
