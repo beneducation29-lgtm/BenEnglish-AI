@@ -58,7 +58,7 @@ export const ContinuousAssessmentPanel: React.FC<{ user: UserProfile }> = ({ use
       id: item.id,
       title: `Roleplay · ${item.scenarioTitle}`,
       date: item.date,
-      score: item.assessment?.overallScore,
+      score: item.assessment.overallScore,
     })),
   ].filter(item => Number.isFinite(item.score) && item.score >= 0 && item.score <= 100)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
