@@ -20,6 +20,7 @@ import { fetchCoachPlan, CoachPlanData } from '../services/api';
 import { HighSchoolGrade, ProfessionalOccupation, CEFRLevel } from '../types';
 import { PlacementTestView } from './PlacementTestView';
 import { buildAdaptiveLearnerSnapshot } from '../services/adaptiveLearning';
+import { ContinuousAssessmentPanel } from './ContinuousAssessmentPanel';
 
 export const HomeView: React.FC = () => {
   const {
@@ -153,6 +154,8 @@ export const HomeView: React.FC = () => {
           </button>
         </div>
       </section>
+      <ContinuousAssessmentPanel user={user} />
+
       {/* AI-first hero: compact, warm and focused on listening + speaking */}
       <section className="relative isolate overflow-hidden rounded-[2rem] border border-amber-100 bg-[#fff9e9] shadow-sm">
         <div className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-amber-200/50 blur-3xl" />

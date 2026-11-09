@@ -83,8 +83,17 @@ export interface ListeningLesson {
   isAiGenerated?: boolean;
 }
 
+export interface ListeningAssessmentRecord {
+  id: string;
+  lessonId: string;
+  type: 'dictation' | 'comprehension';
+  date: string;
+  score: number;
+}
+
 export interface ListeningProgressRecord {
   totalListeningSeconds: number;
+  history: ListeningAssessmentRecord[];
   recentlyPlayedLessonIds: string[];
   continueLearningLessonId?: string;
   continueSentenceIndex?: number;

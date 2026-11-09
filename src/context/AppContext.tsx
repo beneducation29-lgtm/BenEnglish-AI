@@ -98,6 +98,7 @@ interface AppContextType {
 
 const defaultListeningProgress: ListeningProgressRecord = {
   totalListeningSeconds: 0,
+  history: [],
   recentlyPlayedLessonIds: [],
   continueLearningLessonId: undefined,
   continueSentenceIndex: 0,
@@ -405,10 +406,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const recordDictationAttempt = (lessonId: string, score: number, missedWords: string[] = []) => {
+    if (!Number.isFinite(score)) return;
+    const safeScore = Math.max(0, Math.min(100, score));
     setUser((prev) => {
       const current = prev.listeningProgress || defaultListeningProgress;
       const attempts = current.dictationAttemptCount || 0;
-      const newAvg = Math.round((current.dictationAccuracyAvg * attempts + score) / (attempts + 1));
+      const newAvg = Math.round((current.dictationAccuracyAvg * attempts + safeScore) / (attempts + 1));
+      const history = [...(current.history || []), {
+        id: `listening-dictation-${Date.now()}-${attempts + 1}`,
+        lessonId,
+        type: 'dictation' as const,
+        date: new Date().toISOString(),
+        score: safeScore,
+      }].slice(-100);
 
       let newMisunderstood = [...current.misunderstoodVocab];
       missedWords.forEach((word) => {
@@ -427,6 +437,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...current,
           dictationAccuracyAvg: newAvg,
           dictationAttemptCount: attempts + 1,
+          history,
           misunderstoodVocab: newMisunderstood.slice(0, 10),
         },
       };
@@ -434,10 +445,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const recordComprehensionAttempt = (lessonId: string, score: number) => {
+    if (!Number.isFinite(score)) return;
+    const safeScore = Math.max(0, Math.min(100, score));
     setUser((prev) => {
       const current = prev.listeningProgress || defaultListeningProgress;
       const attempts = current.comprehensionAttemptCount || 0;
-      const newAvg = Math.round((current.comprehensionAccuracyAvg * attempts + score) / (attempts + 1));
+      const newAvg = Math.round((current.comprehensionAccuracyAvg * attempts + safeScore) / (attempts + 1));
+      const history = [...(current.history || []), {
+        id: `listening-comprehension-${Date.now()}-${attempts + 1}`,
+        lessonId,
+        type: 'comprehension' as const,
+        date: new Date().toISOString(),
+        score: safeScore,
+      }].slice(-100);
       return {
         ...prev,
         totalXp: prev.totalXp + 40,
@@ -445,6 +465,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           ...current,
           comprehensionAccuracyAvg: newAvg,
           comprehensionAttemptCount: attempts + 1,
+          history,
         },
       };
     });
