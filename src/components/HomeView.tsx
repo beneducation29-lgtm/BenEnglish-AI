@@ -91,6 +91,7 @@ export const HomeView: React.FC = () => {
   const adaptiveEvidenceKey = JSON.stringify({
     placement: user.placementAssessment?.completedAt,
     listeningScores: user.recentListeningScores,
+    listeningHistory: (user.listeningProgress?.history || []).slice(-5).map(item => item.id),
     listeningAttempts: [user.listeningProgress?.dictationAttemptCount, user.listeningProgress?.comprehensionAttemptCount],
     misunderstood: (user.listeningProgress?.misunderstoodVocab || []).map(item => [item.word, item.count]),
     speakingScores: user.recentSpeakingScores,
