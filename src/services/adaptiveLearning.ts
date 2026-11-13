@@ -36,13 +36,19 @@ export function buildAdaptiveLearnerSnapshot(user: UserProfile): AdaptiveLearner
   const conversations = user.conversationProgress?.savedSessions || [];
   const roleplays = user.roleplayProgress?.history || [];
 
+  // Prefer attempt-level history when available so the adaptive coach and
+  // assessment dashboard evaluate the same real listening evidence.
+  const listeningHistory = (listening?.history || []).filter(item => safeScore(item.score)).slice(-5);
   const recentListening = (user.recentListeningScores || []).filter(safeScore).slice(-5);
-  const listeningSampleCount = recentListening.length + ((listening?.dictationAttemptCount || 0) > 0 ? 1 : 0) + ((listening?.comprehensionAttemptCount || 0) > 0 ? 1 : 0);
-  const listeningMeasures = [
+  const legacyListeningMeasures = [
     ...recentListening,
     ...(listening && (listening.dictationAttemptCount || 0) > 0 && safeScore(listening.dictationAccuracyAvg) ? [listening.dictationAccuracyAvg] : []),
     ...(listening && (listening.comprehensionAttemptCount || 0) > 0 && safeScore(listening.comprehensionAccuracyAvg) ? [listening.comprehensionAccuracyAvg] : []),
   ];
+  const listeningMeasures = listeningHistory.length
+    ? listeningHistory.map(item => item.score)
+    : legacyListeningMeasures;
+  const listeningSampleCount = listeningHistory.length || legacyListeningMeasures.length;
   const speakingHistory = (speaking?.history || []).slice(-5).map(item => item.score).filter(safeScore);
   const recentSpeaking = (user.recentSpeakingScores || []).filter(safeScore).slice(-5);
   const roleplayScores = roleplays.slice(-5).map(item => item.assessment?.overallScore).filter(safeScore);
