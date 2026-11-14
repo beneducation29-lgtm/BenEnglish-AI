@@ -15,36 +15,6 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const GRAMMAR_CLINICS = [
-  {
-    id: 'g-01',
-    title: 'Ending Consonants & S-Plural Concord',
-    level: 'High School & Pro',
-    issue: 'Vietnamese is an isolating language without inflectional morphology; learners often omit ending -s, -es, or third-person singular markers.',
-    correctExample: 'She analyzes the market data carefully. (Not: She analyze)',
-    incorrectExample: 'She analyze the market data.',
-    ruleVi: 'Quy tắc hòa hợp chủ ngữ và động từ số ít ở thì hiện tại đơn, luôn phát âm đuôi /s/, /z/, hoặc /ɪz/.',
-  },
-  {
-    id: 'g-02',
-    title: 'Past Tense Form & Pronunciation of -ed',
-    level: 'CEFR B1-B2',
-    issue: 'Dropping the -ed sound or pronouncing all -ed endings as /ɪd/.',
-    correctExample: 'We finished the audit yesterday (/fɪnɪʃt/).',
-    incorrectExample: 'We finish the audit yesterday.',
-    ruleVi: 'Đuôi -ed có 3 cách đọc: /t/ (sau âm vô thanh), /d/ (sau âm hữu thanh), /ɪd/ (chỉ sau /t/ và /d/).',
-  },
-  {
-    id: 'g-03',
-    title: 'Articles: A, An, The vs Zero Article',
-    level: 'CEFR B1-C1',
-    issue: 'Vietnamese uses classifier words ("cái", "con") rather than definite articles, leading to omitting "the" before specific nouns.',
-    correctExample: 'The revenue generated in Q2 surpassed our expectations.',
-    incorrectExample: 'Revenue generated in Q2 surpassed expectations.',
-    ruleVi: 'Dùng "the" khi danh từ đã được xác định rõ bởi mệnh đề phụ hoặc ngữ cảnh chung.',
-  },
-];
-
 export const VocabularyGrammarView: React.FC = () => {
   const { vocabBank, toggleVocabBookmark, recordVocabReview, user, audioFeedbackSound } = useApp();
 
@@ -91,13 +61,10 @@ export const VocabularyGrammarView: React.FC = () => {
       v.topic.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const visibleGrammarClinics = [
-    ...GRAMMAR_CLINICS,
-    ...TRACK_GRAMMAR_CLINICS.filter((clinic) =>
-      clinic.track === user.track &&
-      (user.track !== 'high_school' || gradeFilter === 'all' || clinic.grade === gradeFilter)
-    ),
-  ];
+  const visibleGrammarClinics = TRACK_GRAMMAR_CLINICS.filter((clinic) =>
+    clinic.track === user.track &&
+    (user.track !== 'high_school' || gradeFilter === 'all' || clinic.grade === gradeFilter)
+  );
 
   return (
     <div className="space-y-8 pb-16">
@@ -108,10 +75,10 @@ export const VocabularyGrammarView: React.FC = () => {
             VOCABULARY & GRAMMAR ENGINE · RETENTION
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Spaced Repetition & Contextual Lexicon
+            {user.track === 'high_school' ? 'School Vocabulary & Grammar' : 'Workplace Vocabulary & Communication'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Build long-term memory with collocations, IPA audio, and Vietnamese grammar clinics.
+            {user.track === 'high_school' ? 'Grade 10–12 themes, school-ready examples and grammar practice for Vietnamese learners.' : 'Workplace language for meetings, email, projects, leadership and professional communication.'}
           </p>
         </div>
 
@@ -135,7 +102,7 @@ export const VocabularyGrammarView: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Vocab Bank ({vocabBank.length})
+            Vocab Bank ({trackVocab.length})
           </button>
           <button
             onClick={() => setActiveSubTab('grammar')}
@@ -347,6 +314,32 @@ export const VocabularyGrammarView: React.FC = () => {
       {/* Tab 3: Grammar Clinics for Vietnamese Learners */}
       {activeSubTab === 'grammar' && (
         <div className="space-y-4">
+          <div className={`rounded-2xl border p-5 sm:p-6 ${user.track === 'high_school' ? 'border-sky-200 bg-sky-50' : 'border-violet-200 bg-violet-50'}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className={`text-[10px] font-bold uppercase tracking-wider ${user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}`}>
+                  {user.track === 'high_school' ? 'HIGH SCHOOL · GRADES 10–12' : 'PROFESSIONAL · WORKPLACE ENGLISH'}
+                </div>
+                <h2 className="mt-1 text-lg font-bold text-slate-900">
+                  {user.track === 'high_school' ? 'Ngữ pháp theo chương trình phổ thông' : 'Grammar for real workplace situations'}
+                </h2>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
+                  {user.track === 'high_school'
+                    ? 'Ôn cấu trúc thường gặp trong học tập, bài kiểm tra và viết học thuật ở bậc THPT.'
+                    : 'Luyện cách diễn đạt lịch sự, rõ ràng và có căn cứ trong email, báo cáo và trao đổi công việc.'}
+                </p>
+              </div>
+              {user.track === 'high_school' && (
+                <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value as 'all' | HighSchoolGrade)} aria-label="Filter grammar by school grade" className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                  <option value="all">All grades · 10–12</option>
+                  <option value="Grade 10">Grade 10</option>
+                  <option value="Grade 11">Grade 11</option>
+                  <option value="Grade 12">Grade 12</option>
+                </select>
+              )}
+            </div>
+            <div className="mt-3 text-[11px] font-medium text-slate-500">{visibleGrammarClinics.length} lessons in this track · Content and examples are kept separate between tracks.</div>
+          </div>
           {visibleGrammarClinics.map((clinic) => (
             <div
               key={clinic.id}
