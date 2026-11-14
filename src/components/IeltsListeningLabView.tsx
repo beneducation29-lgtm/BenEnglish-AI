@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { IELTS_LISTENING_MOCK_01, IELTSPart, IELTSQuestion } from '../data/ieltsListeningMockTest';
 import { Headphones, Play, Pause, RotateCcw, CheckCircle2, Clock3, Mic, BookOpen, Volume2, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -31,6 +31,11 @@ export const ListeningLabView: React.FC = () => {
   const part: IELTSPart = parts[activePart - 1];
   const shadow: IELTSPart = parts[shadowPart - 1];
   const allQuestions = useMemo(() => parts.flatMap(p => p.questions), [parts]);
+  useEffect(() => {
+    if (mode !== 'test' || submitted || secondsLeft <= 0) return;
+    const timerId = window.setInterval(() => setSecondsLeft(value => Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timerId);
+  }, [mode, submitted, secondsLeft > 0]);
   const completedCount = tests.length;
   const saveRecords = (nextTests: SavedTest[], nextShadows: SavedShadow[]) => {
     setTests(nextTests); setShadows(nextShadows);
