@@ -121,6 +121,9 @@ export const HomeView: React.FC = () => {
     <div className="space-y-10 pb-16">
       {showPlacementTest && (
         <PlacementTestView
+          track={user.track}
+          grade={user.grade}
+          occupation={user.occupation}
           onClose={() => setShowPlacementTest(false)}
           onComplete={(assessment) => {
             savePlacementAssessment(assessment);
