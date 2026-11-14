@@ -30,9 +30,20 @@ export default async function handler(req: any, res: any) {
   const track = req.body?.track === 'professional' ? 'professional' : 'high_school';
   const userLevel = String(req.body?.userLevel || 'B1').slice(0, 8);
 
+  const trackAssessmentLens = track === 'high_school'
+    ? `HIGH SCHOOL REPORT LENS:
+- Interpret the learner as a Vietnamese Grade 10–12 student. Focus on age-appropriate academic communication, school-topic vocabulary, grammar foundations, explaining ideas, classroom discussion and exam readiness.
+- Recommend practice that fits the student's school track. Do not judge workplace etiquette, business negotiation or corporate performance.
+- Explain priority corrections in learner-friendly Vietnamese and separate a genuine grammar error from a natural conversational choice.`
+    : `PROFESSIONAL REPORT LENS:
+- Interpret the learner as a working adult. Focus on workplace clarity, concise updates, professional tone, diplomacy, client communication, meeting contributions and role-relevant vocabulary.
+- Recommend practice that improves real work outcomes. Do not assess school homework, classroom participation or national school exam readiness.
+- Explain corrections in terms of register, precision, tone and action-oriented communication, with a polished workplace-ready alternative.`;
+
   const systemInstruction = `
-You are the Head Academic Director at BenEnglish AI.
+You are the Head Learning Coach at BenEnglish AI.
 Analyze this English conversation for a learner (${track}, CEFR ${userLevel}) with tutor ${persona} in mode ${mode}.
+\n${trackAssessmentLens}
 
 Transcript (the only learner evidence supplied):
 ${transcript}
