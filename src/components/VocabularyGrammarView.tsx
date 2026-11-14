@@ -54,6 +54,8 @@ export const VocabularyGrammarView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | HighSchoolGrade>(user.grade || 'all');
   const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>(user.track === 'professional' ? user.placementAssessment?.skills.understanding.level || 'all' : 'all');
+  const [grammarAnswers, setGrammarAnswers] = useState<Record<string, string>>({});
+  const [grammarChecked, setGrammarChecked] = useState<Record<string, boolean>>({});
 
   const trackVocab = useMemo(() => vocabBank.filter((word) => {
     const belongsToTrack = word.track === user.track || word.track === 'both';
@@ -373,6 +375,66 @@ export const VocabularyGrammarView: React.FC = () => {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
                 <strong>Giải thích ngữ pháp:</strong> {clinic.ruleVi}
               </div>
+
+              {'practiceQuestion' in clinic && clinic.practiceQuestion && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-indigo-800">
+                    <Sparkles className="h-4 w-4" /> Quick practice
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{clinic.practiceQuestion}</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {clinic.practiceOptions?.map((option) => {
+                      const selected = grammarAnswers[clinic.id] === option;
+                      const checked = !!grammarChecked[clinic.id];
+                      const correct = option === clinic.practiceCorrect;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          disabled={checked}
+                          onClick={() => setGrammarAnswers((previous) => ({ ...previous, [clinic.id]: option }))}
+                          className={`rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                            checked && correct ? 'border-emerald-400 bg-emerald-50 text-emerald-900'
+                              : checked && selected && !correct ? 'border-rose-300 bg-rose-50 text-rose-900'
+                              : selected ? 'border-indigo-400 bg-white text-indigo-900'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {grammarChecked[clinic.id] && (
+                    <p className={`text-xs font-medium ${grammarAnswers[clinic.id] === clinic.practiceCorrect ? 'text-emerald-800' : 'text-rose-800'}`}>
+                      {grammarAnswers[clinic.id] === clinic.practiceCorrect ? 'Correct!' : `Not quite. Correct answer: ${clinic.practiceCorrect}.`} {clinic.practiceExplanation}
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    {grammarChecked[clinic.id] ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGrammarAnswers((previous) => ({ ...previous, [clinic.id]: '' }));
+                          setGrammarChecked((previous) => ({ ...previous, [clinic.id]: false }));
+                        }}
+                        className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                      >
+                        Try again
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!grammarAnswers[clinic.id]}
+                        onClick={() => setGrammarChecked((previous) => ({ ...previous, [clinic.id]: true }))}
+                        className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Check answer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
