@@ -200,7 +200,8 @@ export const ListeningLabView: React.FC = () => {
   const transcriptSegments = shadow.transcript.split(/(\s+)/);
   let transcriptWordIndex = 0;
 
-  return <div className="space-y-6 pb-12">\n    <ListeningSourceHub track={user.track} />
+  return <div className="space-y-6 pb-12">
+    <ListeningSourceHub track={user.track} />
     <section className={`rounded-3xl bg-gradient-to-br ${user.track === 'high_school' ? 'from-sky-950 via-blue-900 to-cyan-950' : 'from-violet-950 via-purple-900 to-indigo-950'} p-7 md:p-9 text-white shadow-lg`}>
       <div className={`flex items-center gap-2 ${user.track === 'high_school' ? 'text-sky-300' : 'text-violet-300'} text-xs font-bold tracking-[.18em] uppercase`}><Headphones size={16}/> BenEnglish AI · {user.track === 'high_school' ? 'School Listening Studio' : 'Professional Listening Studio'}</div>
       <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
