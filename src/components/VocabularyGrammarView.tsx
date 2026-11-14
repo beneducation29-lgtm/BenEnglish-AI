@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { VocabItem, HighSchoolGrade, CEFRLevel } from '../types';
+import { VocabItem, HighSchoolGrade, CEFRLevel, ProfessionalOccupation } from '../types';
 import { audioEngine } from '../services/speech';
 import { TRACK_GRAMMAR_CLINICS } from '../data/trackGrammarClinics';
 import {
@@ -15,35 +15,15 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-const GRAMMAR_CLINICS = [
-  {
-    id: 'g-01',
-    title: 'Ending Consonants & S-Plural Concord',
-    level: 'High School & Pro',
-    issue: 'Vietnamese is an isolating language without inflectional morphology; learners often omit ending -s, -es, or third-person singular markers.',
-    correctExample: 'She analyzes the market data carefully. (Not: She analyze)',
-    incorrectExample: 'She analyze the market data.',
-    ruleVi: 'Quy tắc hòa hợp chủ ngữ và động từ số ít ở thì hiện tại đơn, luôn phát âm đuôi /s/, /z/, hoặc /ɪz/.',
-  },
-  {
-    id: 'g-02',
-    title: 'Past Tense Form & Pronunciation of -ed',
-    level: 'CEFR B1-B2',
-    issue: 'Dropping the -ed sound or pronouncing all -ed endings as /ɪd/.',
-    correctExample: 'We finished the audit yesterday (/fɪnɪʃt/).',
-    incorrectExample: 'We finish the audit yesterday.',
-    ruleVi: 'Đuôi -ed có 3 cách đọc: /t/ (sau âm vô thanh), /d/ (sau âm hữu thanh), /ɪd/ (chỉ sau /t/ và /d/).',
-  },
-  {
-    id: 'g-03',
-    title: 'Articles: A, An, The vs Zero Article',
-    level: 'CEFR B1-C1',
-    issue: 'Vietnamese uses classifier words ("cái", "con") rather than definite articles, leading to omitting "the" before specific nouns.',
-    correctExample: 'The revenue generated in Q2 surpassed our expectations.',
-    incorrectExample: 'Revenue generated in Q2 surpassed expectations.',
-    ruleVi: 'Dùng "the" khi danh từ đã được xác định rõ bởi mệnh đề phụ hoặc ngữ cảnh chung.',
-  },
-];
+const PROFESSIONAL_TOPIC_FILTERS: Record<ProfessionalOccupation, string[]> = {
+  'Software & Tech': ['Technology', 'Data & analysis', 'Project management', 'Workplace communication'],
+  'Finance & Banking': ['Finance', 'Governance & compliance', 'Data & analysis', 'Workplace communication'],
+  'Sales & Marketing': ['Sales & marketing', 'Negotiation', 'Customer support', 'Workplace communication'],
+  'Human Resources': ['Human resources', 'Leadership & HR', 'Leadership', 'Workplace communication'],
+  'Customer Support': ['Customer support', 'Healthcare communication', 'Workplace communication'],
+  'Healthcare & Medical': ['Healthcare communication', 'Governance & compliance', 'Workplace communication'],
+  'International Business': ['Negotiation', 'Governance & compliance', 'Strategy & operations', 'Workplace communication'],
+};
 
 export const VocabularyGrammarView: React.FC = () => {
   const { vocabBank, toggleVocabBookmark, recordVocabReview, user, audioFeedbackSound } = useApp();
@@ -54,13 +34,18 @@ export const VocabularyGrammarView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | HighSchoolGrade>(user.grade || 'all');
   const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>(user.track === 'professional' ? user.placementAssessment?.skills.understanding.level || 'all' : 'all');
+  const [occupationFilter, setOccupationFilter] = useState<'all' | ProfessionalOccupation>(user.occupation || 'all');
+  const [grammarAnswers, setGrammarAnswers] = useState<Record<string, string>>({});
+  const [grammarChecked, setGrammarChecked] = useState<Record<string, boolean>>({});
 
   const trackVocab = useMemo(() => vocabBank.filter((word) => {
     const belongsToTrack = word.track === user.track || word.track === 'both';
     const matchesGrade = user.track !== 'high_school' || gradeFilter === 'all' || !word.grade || word.grade === gradeFilter;
     const matchesLevel = user.track !== 'professional' || levelFilter === 'all' || word.cefrLevel === levelFilter;
-    return belongsToTrack && matchesGrade && matchesLevel;
-  }), [vocabBank, user.track, gradeFilter, levelFilter]);
+    const occupationTopics = occupationFilter === 'all' ? null : PROFESSIONAL_TOPIC_FILTERS[occupationFilter];
+    const matchesOccupation = user.track !== 'professional' || !occupationTopics || occupationTopics.includes(word.topic);
+    return belongsToTrack && matchesGrade && matchesLevel && matchesOccupation;
+  }), [vocabBank, user.track, gradeFilter, levelFilter, occupationFilter]);
 
   const dueVocabBank = useMemo(() => {
     const now = Date.now();
@@ -89,13 +74,10 @@ export const VocabularyGrammarView: React.FC = () => {
       v.topic.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const visibleGrammarClinics = [
-    ...GRAMMAR_CLINICS,
-    ...TRACK_GRAMMAR_CLINICS.filter((clinic) =>
-      clinic.track === user.track &&
-      (user.track !== 'high_school' || gradeFilter === 'all' || clinic.grade === gradeFilter)
-    ),
-  ];
+  const visibleGrammarClinics = TRACK_GRAMMAR_CLINICS.filter((clinic) =>
+    clinic.track === user.track &&
+    (user.track !== 'high_school' || gradeFilter === 'all' || clinic.grade === gradeFilter)
+  );
 
   return (
     <div className="space-y-8 pb-16">
@@ -106,10 +88,10 @@ export const VocabularyGrammarView: React.FC = () => {
             VOCABULARY & GRAMMAR ENGINE · RETENTION
           </div>
           <h1 className="text-2xl font-bold text-slate-900">
-            Spaced Repetition & Contextual Lexicon
+            {user.track === 'high_school' ? 'School Vocabulary & Grammar' : 'Workplace Vocabulary & Communication'}
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Build long-term memory with collocations, IPA audio, and Vietnamese grammar clinics.
+            {user.track === 'high_school' ? 'Grade 10–12 themes, school-ready examples and grammar practice for Vietnamese learners.' : 'Workplace language for meetings, email, projects, leadership and professional communication.'}
           </p>
         </div>
 
@@ -133,7 +115,7 @@ export const VocabularyGrammarView: React.FC = () => {
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Vocab Bank ({vocabBank.length})
+            Vocab Bank ({trackVocab.length})
           </button>
           <button
             onClick={() => setActiveSubTab('grammar')}
@@ -294,6 +276,18 @@ export const VocabularyGrammarView: React.FC = () => {
                   {(['A1','A2','B1','B2','C1','C2'] as CEFRLevel[]).map((level) => <option key={level} value={level}>{level}</option>)}
                 </select>
               )}
+              {user.track === 'professional' && (
+                <select value={occupationFilter} onChange={(e) => setOccupationFilter(e.target.value as 'all' | ProfessionalOccupation)} aria-label="Filter professional vocabulary by field" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700">
+                  <option value="all">All professional fields</option>
+                  <option value="Software & Tech">Software & Tech</option>
+                  <option value="Finance & Banking">Finance & Banking</option>
+                  <option value="Sales & Marketing">Sales & Marketing</option>
+                  <option value="Human Resources">Human Resources</option>
+                  <option value="Customer Support">Customer Support</option>
+                  <option value="Healthcare & Medical">Healthcare & Medical</option>
+                  <option value="International Business">International Business</option>
+                </select>
+              )}
               <span className="text-xs text-slate-500 font-medium">Showing {filteredVocab.length} words</span>
             </div>
           </div>
@@ -345,6 +339,32 @@ export const VocabularyGrammarView: React.FC = () => {
       {/* Tab 3: Grammar Clinics for Vietnamese Learners */}
       {activeSubTab === 'grammar' && (
         <div className="space-y-4">
+          <div className={`rounded-2xl border p-5 sm:p-6 ${user.track === 'high_school' ? 'border-sky-200 bg-sky-50' : 'border-violet-200 bg-violet-50'}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div className={`text-[10px] font-bold uppercase tracking-wider ${user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}`}>
+                  {user.track === 'high_school' ? 'HIGH SCHOOL · GRADES 10–12' : 'PROFESSIONAL · WORKPLACE ENGLISH'}
+                </div>
+                <h2 className="mt-1 text-lg font-bold text-slate-900">
+                  {user.track === 'high_school' ? 'Ngữ pháp theo chương trình phổ thông' : 'Grammar for real workplace situations'}
+                </h2>
+                <p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-600">
+                  {user.track === 'high_school'
+                    ? 'Ôn cấu trúc thường gặp trong học tập, bài kiểm tra và viết học thuật ở bậc THPT.'
+                    : 'Luyện cách diễn đạt lịch sự, rõ ràng và có căn cứ trong email, báo cáo và trao đổi công việc.'}
+                </p>
+              </div>
+              {user.track === 'high_school' && (
+                <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value as 'all' | HighSchoolGrade)} aria-label="Filter grammar by school grade" className="rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                  <option value="all">All grades · 10–12</option>
+                  <option value="Grade 10">Grade 10</option>
+                  <option value="Grade 11">Grade 11</option>
+                  <option value="Grade 12">Grade 12</option>
+                </select>
+              )}
+            </div>
+            <div className="mt-3 text-[11px] font-medium text-slate-500">{visibleGrammarClinics.length} lessons in this track · Content and examples are kept separate between tracks.</div>
+          </div>
           {visibleGrammarClinics.map((clinic) => (
             <div
               key={clinic.id}
@@ -373,6 +393,66 @@ export const VocabularyGrammarView: React.FC = () => {
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
                 <strong>Giải thích ngữ pháp:</strong> {clinic.ruleVi}
               </div>
+
+              {'practiceQuestion' in clinic && clinic.practiceQuestion && (
+                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-indigo-800">
+                    <Sparkles className="h-4 w-4" /> Quick practice
+                  </div>
+                  <p className="text-sm font-semibold text-slate-900">{clinic.practiceQuestion}</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {clinic.practiceOptions?.map((option) => {
+                      const selected = grammarAnswers[clinic.id] === option;
+                      const checked = !!grammarChecked[clinic.id];
+                      const correct = option === clinic.practiceCorrect;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          disabled={checked}
+                          onClick={() => setGrammarAnswers((previous) => ({ ...previous, [clinic.id]: option }))}
+                          className={`rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition-colors ${
+                            checked && correct ? 'border-emerald-400 bg-emerald-50 text-emerald-900'
+                              : checked && selected && !correct ? 'border-rose-300 bg-rose-50 text-rose-900'
+                              : selected ? 'border-indigo-400 bg-white text-indigo-900'
+                              : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300'
+                          }`}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {grammarChecked[clinic.id] && (
+                    <p className={`text-xs font-medium ${grammarAnswers[clinic.id] === clinic.practiceCorrect ? 'text-emerald-800' : 'text-rose-800'}`}>
+                      {grammarAnswers[clinic.id] === clinic.practiceCorrect ? 'Correct!' : `Not quite. Correct answer: ${clinic.practiceCorrect}.`} {clinic.practiceExplanation}
+                    </p>
+                  )}
+                  <div className="flex justify-end gap-2">
+                    {grammarChecked[clinic.id] ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setGrammarAnswers((previous) => ({ ...previous, [clinic.id]: '' }));
+                          setGrammarChecked((previous) => ({ ...previous, [clinic.id]: false }));
+                        }}
+                        className="rounded-lg border border-indigo-200 bg-white px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-50"
+                      >
+                        Try again
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={!grammarAnswers[clinic.id]}
+                        onClick={() => setGrammarChecked((previous) => ({ ...previous, [clinic.id]: true }))}
+                        className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Check answer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
