@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { VocabItem, HighSchoolGrade, CEFRLevel } from '../types';
+import { VocabItem, HighSchoolGrade, CEFRLevel, ProfessionalOccupation } from '../types';
 import { audioEngine } from '../services/speech';
 import { TRACK_GRAMMAR_CLINICS } from '../data/trackGrammarClinics';
 import {
@@ -15,6 +15,16 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+const PROFESSIONAL_TOPIC_FILTERS: Record<ProfessionalOccupation, string[]> = {
+  'Software & Tech': ['Technology', 'Data & analysis', 'Project management', 'Workplace communication'],
+  'Finance & Banking': ['Finance', 'Governance & compliance', 'Data & analysis', 'Workplace communication'],
+  'Sales & Marketing': ['Sales & marketing', 'Negotiation', 'Customer support', 'Workplace communication'],
+  'Human Resources': ['Human resources', 'Leadership & HR', 'Leadership', 'Workplace communication'],
+  'Customer Support': ['Customer support', 'Healthcare communication', 'Workplace communication'],
+  'Healthcare & Medical': ['Healthcare communication', 'Governance & compliance', 'Workplace communication'],
+  'International Business': ['Negotiation', 'Governance & compliance', 'Strategy & operations', 'Workplace communication'],
+};
+
 export const VocabularyGrammarView: React.FC = () => {
   const { vocabBank, toggleVocabBookmark, recordVocabReview, user, audioFeedbackSound } = useApp();
 
@@ -24,6 +34,7 @@ export const VocabularyGrammarView: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | HighSchoolGrade>(user.grade || 'all');
   const [levelFilter, setLevelFilter] = useState<'all' | CEFRLevel>(user.track === 'professional' ? user.placementAssessment?.skills.understanding.level || 'all' : 'all');
+  const [occupationFilter, setOccupationFilter] = useState<'all' | ProfessionalOccupation>(user.occupation || 'all');
   const [grammarAnswers, setGrammarAnswers] = useState<Record<string, string>>({});
   const [grammarChecked, setGrammarChecked] = useState<Record<string, boolean>>({});
 
@@ -31,8 +42,10 @@ export const VocabularyGrammarView: React.FC = () => {
     const belongsToTrack = word.track === user.track || word.track === 'both';
     const matchesGrade = user.track !== 'high_school' || gradeFilter === 'all' || !word.grade || word.grade === gradeFilter;
     const matchesLevel = user.track !== 'professional' || levelFilter === 'all' || word.cefrLevel === levelFilter;
-    return belongsToTrack && matchesGrade && matchesLevel;
-  }), [vocabBank, user.track, gradeFilter, levelFilter]);
+    const occupationTopics = occupationFilter === 'all' ? null : PROFESSIONAL_TOPIC_FILTERS[occupationFilter];
+    const matchesOccupation = user.track !== 'professional' || !occupationTopics || occupationTopics.includes(word.topic);
+    return belongsToTrack && matchesGrade && matchesLevel && matchesOccupation;
+  }), [vocabBank, user.track, gradeFilter, levelFilter, occupationFilter]);
 
   const dueVocabBank = useMemo(() => {
     const now = Date.now();
@@ -261,6 +274,18 @@ export const VocabularyGrammarView: React.FC = () => {
                 <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value as 'all' | CEFRLevel)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700">
                   <option value="all">All professional levels</option>
                   {(['A1','A2','B1','B2','C1','C2'] as CEFRLevel[]).map((level) => <option key={level} value={level}>{level}</option>)}
+                </select>
+              )}
+              {user.track === 'professional' && (
+                <select value={occupationFilter} onChange={(e) => setOccupationFilter(e.target.value as 'all' | ProfessionalOccupation)} aria-label="Filter professional vocabulary by field" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-xs text-slate-700">
+                  <option value="all">All professional fields</option>
+                  <option value="Software & Tech">Software & Tech</option>
+                  <option value="Finance & Banking">Finance & Banking</option>
+                  <option value="Sales & Marketing">Sales & Marketing</option>
+                  <option value="Human Resources">Human Resources</option>
+                  <option value="Customer Support">Customer Support</option>
+                  <option value="Healthcare & Medical">Healthcare & Medical</option>
+                  <option value="International Business">International Business</option>
                 </select>
               )}
               <span className="text-xs text-slate-500 font-medium">Showing {filteredVocab.length} words</span>
