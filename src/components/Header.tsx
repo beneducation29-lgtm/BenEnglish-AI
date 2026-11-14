@@ -2,21 +2,24 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import {
-  Headphones, Mic, BookOpen, ChevronDown, Flame, Award,
+  Headphones, Mic, BookOpen, ChevronDown, Flame,
   LayoutDashboard, MessageCircle, Users, AudioLines, Library, BookMarked,
   GraduationCap, BarChart3, LogIn, LogOut,
 } from 'lucide-react';
 
 const coreLinks = [
   { id: 'listening' as const, label: 'Listen', icon: Headphones },
-  { id: 'speaking' as const, label: 'Speak', icon: Mic },
   { id: 'reading-writing' as const, label: 'Read & Write', icon: BookOpen },
 ];
 
+const speakLinks = [
+  { id: 'speaking' as const, label: 'Speaking practice', icon: Mic, description: 'Read aloud, shadow and speak freely' },
+  { id: 'conversation' as const, label: 'AI Conversation', icon: MessageCircle, description: 'Talk naturally with your AI tutor' },
+  { id: 'roleplay' as const, label: 'Roleplay', icon: Users, description: 'Practise real-life situations' },
+  { id: 'pronunciation' as const, label: 'Pronunciation', icon: AudioLines, description: 'Train sounds and difficult words' },
+];
+
 const moreLinks = [
-  { id: 'conversation' as const, label: 'AI Conversation', icon: MessageCircle, description: 'Practice real conversations' },
-  { id: 'roleplay' as const, label: 'Roleplay', icon: Users, description: 'Practice real-life situations' },
-  { id: 'pronunciation' as const, label: 'Pronunciation', icon: AudioLines, description: 'Train individual sounds' },
   { id: 'library' as const, label: 'Learning Library', icon: Library, description: 'Podcasts and videos' },
   { id: 'vocabulary' as const, label: 'Vocabulary & Grammar', icon: BookMarked, description: 'Words, phrases and grammar' },
   { id: 'exam' as const, label: 'Exam Preparation', icon: GraduationCap, description: 'School exams and IELTS' },
@@ -28,7 +31,9 @@ export const Header: React.FC = () => {
   const [authMessage, setAuthMessage] = useState<string | null>(null);
   const [showMore, setShowMore] = useState(false);
   const [showTrackDropdown, setShowTrackDropdown] = useState(false);
+  const [showSpeak, setShowSpeak] = useState(false);
   const isMoreActive = moreLinks.some((item) => item.id === activeTab) || activeTab === 'progress';
+  const isSpeakActive = speakLinks.some((item) => item.id === activeTab);
 
   const navButton = (id: typeof coreLinks[number]['id'] | 'home', label: string, Icon: React.ElementType) => (
     <button
@@ -61,6 +66,29 @@ export const Header: React.FC = () => {
           {coreLinks.map(({ id, label, icon: Icon }) => navButton(id, label, Icon))}
           <div className="relative shrink-0">
             <button
+              onClick={() => { setShowSpeak((value) => !value); setShowMore(false); }}
+              aria-expanded={showSpeak}
+              className={`flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${isSpeakActive || showSpeak ? 'bg-emerald-50 text-emerald-800' : 'text-slate-600 hover:bg-slate-100'}`}
+            >
+              <Mic className="h-4 w-4" /> Speak <ChevronDown className={`h-4 w-4 transition-transform ${showSpeak ? 'rotate-180' : ''}`} />
+            </button>
+            {showSpeak && (
+              <>
+                <button aria-label="Close speaking menu" className="fixed inset-0 z-40 cursor-default" onClick={() => setShowSpeak(false)} />
+                <div className="absolute left-0 z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+                  <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">One place for speaking practice</p>
+                  {speakLinks.map(({ id, label, icon: Icon, description }) => (
+                    <button key={id} onClick={() => { setActiveTab(id); setShowSpeak(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-slate-50 ${activeTab === id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700'}`}>
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="min-w-0"><span className="block text-sm font-semibold">{label}</span><span className="block text-[11px] text-slate-500">{description}</span></span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <div className="relative shrink-0">
+            <button
               onClick={() => setShowMore((value) => !value)}
               aria-expanded={showMore}
               className={`flex items-center gap-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
@@ -75,7 +103,7 @@ export const Header: React.FC = () => {
                 <div className="absolute right-0 z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
                   <p className="px-3 pb-2 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">More learning tools</p>
                   {moreLinks.map(({ id, label, icon: Icon, description }) => (
-                    <button key={id} onClick={() => { setActiveTab(id); setShowMore(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-slate-50 ${activeTab === id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700'}`}>
+                    <button key={id} onClick={() => { setActiveTab(id); setShowMore(false); setShowSpeak(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-slate-50 ${activeTab === id ? 'bg-emerald-50 text-emerald-800' : 'text-slate-700'}`}>
                       <Icon className="h-4 w-4 shrink-0" />
                       <span className="min-w-0"><span className="block text-sm font-semibold">{label}</span><span className="block text-[11px] text-slate-500">{description}</span></span>
                     </button>
@@ -136,9 +164,6 @@ export const Header: React.FC = () => {
               </div>
             )}
           </div>
-          <button onClick={() => setActiveTab('progress')} aria-label="My progress" className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-white hover:bg-slate-700">
-            <Award className="h-4 w-4" />
-          </button>
         </div>
       </div>
       <div className="border-t border-slate-100 bg-slate-50/70 px-4 py-1.5 text-center text-[10px] font-medium text-slate-500 sm:hidden">
