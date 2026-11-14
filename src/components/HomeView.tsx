@@ -137,12 +137,12 @@ export const HomeView: React.FC = () => {
               <Sparkles className="h-4 w-4" /> Your personal English tutor
             </div>
             <h2 className="mt-2 text-xl font-extrabold text-slate-900 sm:text-2xl">
-              {user.placementAssessment ? 'Your learning profile is ready' : 'First, discover your English level'}
+              {user.placementAssessment ? (isHighSchool ? 'Your school English profile is ready' : 'Your professional English profile is ready') : (isHighSchool ? 'Discover your school English level' : 'Discover your workplace English level')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {user.placementAssessment
                 ? `Your current starting level is ${user.placementAssessment.overallLevel}. Retake the diagnostic when you want to refresh your four-skill profile.`
-                : 'Take a short four-skill diagnostic so BenEnglish AI can choose the right level for Listening, Speaking, Reading and Use of English.'}
+                : isHighSchool ? 'Take a four-skill diagnostic to identify your current level and build a study path for your grade, school topics and exam goals.' : 'Take a four-skill diagnostic to identify your current level and build a practical development path for meetings, presentations and workplace communication.'}
             </p>
             {user.placementAssessment && (
               <div className="mt-3 flex flex-wrap gap-2">
@@ -408,7 +408,7 @@ export const HomeView: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
           {/* 1. Listening Lab */}
           <div
             onClick={() => setActiveTab('listening')}
@@ -488,12 +488,30 @@ export const HomeView: React.FC = () => {
                 Reading & Writing
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Read level-matched passages, explore words in context, then write and save your own response.
+                {isHighSchool ? 'Read grade-appropriate texts, build academic vocabulary, write paragraphs and practise exam-style comprehension.' : 'Read workplace documents, emails and reports, then write concise professional messages and proposals.'}
               </p>
             </div>
             <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-600">
               <span>Read → Understand → Write</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </div>
+
+          {/* 5. Track-specific Exam Preparation */}
+          <div
+            onClick={() => setActiveTab('exam')}
+            className={`group cursor-pointer rounded-2xl border bg-white p-5 transition-all hover:-translate-y-0.5 hover:shadow-md ${trackTheme.border}`}
+          >
+            <div>
+              <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${trackTheme.soft} ${trackTheme.accent}`}>
+                <Award className="h-6 w-6" />
+              </div>
+              <h3 className="mb-1 text-lg font-bold text-slate-900">{isHighSchool ? 'School Exam Prep' : 'Professional Skills Check'}</h3>
+              <p className="text-xs leading-relaxed text-slate-600">{isHighSchool ? 'Review Grade 10–12 grammar, vocabulary, pronunciation and optional IELTS speaking practice.' : 'Test workplace judgement, diplomatic requests, project updates, client responses and evidence-led recommendations.'}</p>
+            </div>
+            <div className={`mt-5 flex items-center justify-between border-t border-slate-100 pt-3 text-xs font-semibold ${trackTheme.accent}`}>
+              <span>{isHighSchool ? 'Academic readiness' : 'Workplace performance'}</span>
+              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             </div>
           </div>
         </div>
