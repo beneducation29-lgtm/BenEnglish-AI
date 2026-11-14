@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { IELTS_LISTENING_MOCK_01, IELTSPart, IELTSQuestion } from '../data/ieltsListeningMockTest';
-import { Headphones, Play, Pause, RotateCcw, CheckCircle2, Clock3, Mic, BookOpen, Volume2, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Headphones, Play, Pause, RotateCcw, CheckCircle2, Clock3, Mic, BookOpen, Volume2, Lock, ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 
 type Mode = 'home' | 'track_lesson' | 'test' | 'result' | 'review' | 'adaptive' | 'shadow' | 'dictation';
 type SavedTest = { id: string; date: string; correct: number; total: number; band: number; partScores: number[]; answers: Record<number,string> };
@@ -34,7 +34,7 @@ const LISTENING_PATHWAYS = [
   { id:'pro-decision', track:'professional', level:'B1', title:'Making a decision', focus:'Đồng nghiệp thảo luận timeline và cách triển khai dự án', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/b1/making-decision', goal:'Nghe quan điểm trái chiều, lý do và quyết định chung.' },
 ];
 
-const ListeningSourceHub: React.FC<{track:'high_school'|'professional'}> = ({track}) => {
+const ListeningSourceHub: React.FC<{track:'high_school'|'professional'; onSelect:(item: typeof LISTENING_PATHWAYS[number])=>void; completedIds:string[]}> = ({track,onSelect,completedIds}) => {
   const [videoUrl,setVideoUrl] = useState(''); const [embedUrl,setEmbedUrl] = useState(''); const [error,setError] = useState('');
   const school = track === 'high_school';
   const sources = LISTENING_SOURCES.filter(source => source.tracks.includes(track));
@@ -58,11 +58,11 @@ const ListeningSourceHub: React.FC<{track:'high_school'|'professional'}> = ({tra
       <div className={'mt-2 text-[10px] font-extrabold uppercase tracking-wider ' + (school?'text-sky-700':'text-violet-700')}>{source.kind} · {source.levels}</div><p className='mt-2 text-xs leading-5 text-slate-600'>{source.description}</p></a>)}</div>
     <div className='mt-6'>
       <div className='flex flex-wrap items-end justify-between gap-2'><div><h3 className='text-lg font-extrabold text-slate-900'>Lộ trình nghe gợi ý</h3><p className='mt-1 text-xs text-slate-500'>Các trang bài nghe thật đã phân cấp; mở bài tại website gốc để nghe recording, xem transcript và làm bài tập của nhà xuất bản.</p></div><span className={'rounded-full px-3 py-1 text-xs font-bold '+(school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{school?'School-focused':'Work-focused'}</span></div>
-      <div className='mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>{pathways.map(item=><a key={item.id} href={item.url} target='_blank' rel='noreferrer' className='rounded-2xl border border-slate-200 p-4 hover:border-slate-400 hover:shadow-sm'>
+      <div className='mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>{pathways.map(item=><button type='button' key={item.id} onClick={()=>onSelect(item)} className='w-full text-left rounded-2xl border border-slate-200 p-4 hover:border-slate-400 hover:shadow-sm'>
         <div className='flex items-center justify-between gap-2'><span className={'rounded-lg px-2 py-1 text-[10px] font-extrabold '+(school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{item.level}</span><ExternalLink size={14} className='text-slate-400'/></div>
         <h4 className='mt-3 text-sm font-bold text-slate-900'>{item.title}</h4><p className='mt-1 text-xs leading-5 text-slate-600'>{item.focus}</p>
-        <p className='mt-3 text-[11px] font-semibold text-slate-500'>{item.provider}</p><p className='mt-2 text-xs leading-5 text-slate-600'><span className='font-bold'>Mục tiêu:</span> {item.goal}</p>
-      </a>)}</div>
+        <p className='mt-3 text-[11px] font-semibold text-slate-500'>{item.provider}</p><p className='mt-2 text-xs leading-5 text-slate-600'><span className='font-bold'>Mục tiêu:</span> {item.goal}</p><span className='mt-3 inline-flex items-center gap-1 text-xs font-bold text-slate-700'>{completedIds.includes(item.id)?'Đã hoàn thành · Xem lại lộ trình':'Mở hướng dẫn luyện nghe'} <ArrowRight size={13}/></span>
+      </button>)}</div>
     </div>
     <div className='mt-6 rounded-2xl bg-slate-50 p-4 md:p-5'><div className='flex items-center gap-2'><Play size={17}/><h3 className='font-bold text-slate-900'>Phát video YouTube ngay trong Listening</h3></div>
       <p className='mt-1 text-xs text-slate-500'>Dán link video bạn chọn. BenEnglish chỉ nhúng trình phát chính thức, không tải hoặc lưu video.</p>
@@ -76,6 +76,11 @@ export const ListeningLabView: React.FC = () => {
   const { user, allListeningLessons, recordListeningPlay, recordComprehensionAttempt, addListeningSeconds } = useApp();
   const storageKey = `benenglish_ielts_listening_${STORAGE_VERSION}_${(user.email || 'guest').toLowerCase()}`;
   const [mode, setMode] = useState<Mode>('home');
+  const externalProgressKey = `benenglish_external_listening_v1_${(user.email || 'guest').toLowerCase()}`;
+  const [externalLesson, setExternalLesson] = useState<typeof LISTENING_PATHWAYS[number] | null>(null);
+  const [externalSteps, setExternalSteps] = useState<boolean[]>([false,false,false,false]);
+  const [externalCompletedIds, setExternalCompletedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(externalProgressKey) || '[]'); } catch { return []; } });
+  const selectExternalLesson = (item: typeof LISTENING_PATHWAYS[number]) => { setExternalLesson(item); setExternalSteps([false,false,false,false]); };
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [lessonAnswers, setLessonAnswers] = useState<Record<number,string>>({});
   const [lessonSubmitted, setLessonSubmitted] = useState(false);
@@ -220,8 +225,17 @@ export const ListeningLabView: React.FC = () => {
   const transcriptSegments = shadow.transcript.split(/(\s+)/);
   let transcriptWordIndex = 0;
 
+  const completeExternalLesson = () => { if (!externalLesson || !externalSteps.every(Boolean)) return; const next = Array.from(new Set([...externalCompletedIds, externalLesson.id])); setExternalCompletedIds(next); localStorage.setItem(externalProgressKey, JSON.stringify(next)); };
+
   return <div className="space-y-6 pb-12">
-    <ListeningSourceHub track={user.track} />
+    <ListeningSourceHub track={user.track} onSelect={selectExternalLesson} completedIds={externalCompletedIds} />
+    {externalLesson && <section className={`rounded-3xl border p-5 md:p-7 ${user.track === 'high_school' ? 'border-sky-200 bg-sky-50/60' : 'border-violet-200 bg-violet-50/60'}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><div className={`text-xs font-extrabold tracking-widest ${user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}`}>GUIDED AUTHENTIC LISTENING · {externalLesson.level}</div><h2 className="mt-1 text-xl font-extrabold text-slate-900">{externalLesson.title}</h2><p className="mt-1 text-sm text-slate-600">{externalLesson.focus}</p></div><button type="button" onClick={()=>setExternalLesson(null)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold">Đóng hướng dẫn</button></div>
+      <div className="mt-4 rounded-2xl bg-white p-4"><p className="text-sm font-bold text-slate-900">Mục tiêu buổi nghe</p><p className="mt-1 text-sm text-slate-600">{externalLesson.goal}</p><p className="mt-2 text-xs text-slate-500">Nguồn: {externalLesson.provider}. Audio, transcript và câu hỏi thuộc trang gốc; BenEnglish không tự tạo đáp án hay điểm số cho recording bên ngoài.</p><a href={externalLesson.url} target="_blank" rel="noreferrer" className={`mt-3 inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white ${user.track === 'high_school' ? 'bg-sky-700' : 'bg-violet-700'}`}>Mở recording và bài tập gốc <ExternalLink size={15}/></a></div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">{['Lượt 1: Nghe toàn bài, chưa xem transcript; ghi lại chủ đề và ý chính.','Lượt 2: Nghe lại, ghi chú từ khóa, con số, tên riêng và thông tin quan trọng.','Làm bài tập comprehension trên website gốc; kiểm tra đáp án tại nguồn.','Xem transcript sau khi làm bài; ghi lại cách phát âm và cụm từ mới.'].map((step,index)=><label key={index} className="flex cursor-pointer items-start gap-3 rounded-xl border border-white bg-white p-3 text-sm text-slate-700"><input type="checkbox" checked={externalSteps[index]} onChange={event=>setExternalSteps(current=>current.map((value,i)=>i===index?event.target.checked:value))} className="mt-0.5 h-4 w-4 rounded"/><span>{step}</span></label>)}</div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-slate-600">Đã hoàn thành {externalSteps.filter(Boolean).length}/4 bước · {externalCompletedIds.includes(externalLesson.id)?'Đã lưu hoàn thành':'Chưa đánh dấu hoàn thành'}</span><button type="button" onClick={completeExternalLesson} disabled={!externalSteps.every(Boolean)} className={`rounded-xl px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 ${user.track === 'high_school' ? 'bg-sky-700' : 'bg-violet-700'}`}>{externalCompletedIds.includes(externalLesson.id)?'Đã hoàn thành':'Đánh dấu hoàn thành'}</button></div>
+      <p className="mt-2 text-[11px] text-slate-500">Trạng thái hoàn thành của các bài nghe nguồn ngoài được lưu riêng theo tài khoản trên thiết bị này; không thay đổi điểm IELTS, lịch sử Listening cũ hoặc XP.</p>
+    </section>}
     <section className={`rounded-3xl bg-gradient-to-br ${user.track === 'high_school' ? 'from-sky-950 via-blue-900 to-cyan-950' : 'from-violet-950 via-purple-900 to-indigo-950'} p-7 md:p-9 text-white shadow-lg`}>
       <div className={`flex items-center gap-2 ${user.track === 'high_school' ? 'text-sky-300' : 'text-violet-300'} text-xs font-bold tracking-[.18em] uppercase`}><Headphones size={16}/> BenEnglish AI · {user.track === 'high_school' ? 'School Listening Studio' : 'Professional Listening Studio'}</div>
       <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
