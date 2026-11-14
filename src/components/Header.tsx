@@ -54,9 +54,9 @@ export const Header: React.FC = () => {
   );
 
   return (
-    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur-md">
+    <header className={`sticky top-0 z-50 border-b ${theme.border} bg-white/95 backdrop-blur-md transition-colors duration-300`}>
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-        <button onClick={() => setActiveTab('home')} className="flex shrink-0 items-center gap-2.5 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 ${theme.focus}">
+        <button onClick={() => setActiveTab('home')} className={`flex shrink-0 items-center gap-2.5 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 ${theme.focus}`}>
           <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${theme.logo} text-white`}>
             <Headphones className="h-5 w-5" />
           </span>
