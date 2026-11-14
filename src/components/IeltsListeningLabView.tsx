@@ -29,7 +29,7 @@ const ListeningSourceHub: React.FC<{track:'high_school'|'professional'}> = ({tra
   const sources = LISTENING_SOURCES.filter(source => source.tracks.includes(track));
   const loadVideo = (event: React.FormEvent) => {
     event.preventDefault();
-    try { const url = new URL(videoUrl.trim()); const host = url.hostname.toLowerCase().replace(/^www\\./,''); let id = '';
+    try { const url = new URL(videoUrl.trim()); const host = url.hostname.toLowerCase().replace('www.',''); let id = '';
       if (host === 'youtu.be') id = url.pathname.split('/').filter(Boolean)[0] || '';
       if (['youtube.com','m.youtube.com','youtube-nocookie.com'].includes(host)) { if (url.pathname === '/watch') id = url.searchParams.get('v') || ''; else if (/^\\/(embed|shorts)\\//.test(url.pathname)) id = url.pathname.split('/')[2] || ''; }
       if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) throw new Error('invalid');
