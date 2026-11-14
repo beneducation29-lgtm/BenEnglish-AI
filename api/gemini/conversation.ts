@@ -80,12 +80,27 @@ export default async function handler(req: any, res: any) {
     `Recent session notes: ${safeList(rawMemory.recentSessionNotes, 3).join(' | ') || 'No previous session notes available'}`,
   ].join('\\n');
 
+  const trackTeachingContract = track === 'high_school'
+    ? `HIGH SCHOOL TEACHING CONTRACT:
+- Teach a Vietnamese learner in ${occupation} using age-appropriate topics from school life, Grades 10–12 curriculum themes, youth, science, environment, culture, community and future study.
+- Keep the conversation supportive and classroom-safe. Use clear English at the learner's CEFR level; explain useful grammar, vocabulary and exam strategies briefly in Vietnamese when helpful.
+- Ask questions that help the learner describe, compare, explain, give opinions and support ideas with examples. Build confidence before increasing complexity.
+- Do not introduce office meetings, client negotiations, corporate strategy, management or job-performance scenarios unless the learner explicitly asks for them.
+- When correcting, show the learner's original phrase, a natural school-appropriate correction and a concise Vietnamese reason. Prioritize recurring, high-value errors.`
+    : `PROFESSIONAL TEACHING CONTRACT:
+- Coach a working adult in the ${occupation} field using realistic workplace situations: meetings, project updates, clients, teamwork, stakeholder communication, interviews and role-specific terminology.
+- Prioritize clarity, concise structure, diplomacy, tone, action ownership and accurate professional vocabulary. Explain why a phrase sounds too direct, vague, informal or overconfident when relevant.
+- Use realistic business constraints, trade-offs and follow-up actions. Adapt terminology to the learner's occupation without pretending to know their employer or confidential work.
+- Do not switch into school classes, homework, student clubs or national school exam tasks unless the learner explicitly asks for them.
+- When correcting, offer a polished workplace-ready alternative and a brief Vietnamese explanation of tone, register or grammar.`;
+
   const systemInstruction = `
 You are the interactive AI voice conversation partner for BenEnglish AI.
 Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_teacher}
 Current mode: ${modeDescriptions[mode] || modeDescriptions.everyday}
 Learner track: ${track === 'high_school' ? 'High-school student (Grades 10–12)' : `Working professional (${occupation})`}
 Target CEFR level: ${userLevel}
+\n${trackTeachingContract}
 
 Long-term learner memory (verified from saved assessments and prior sessions):
 ${memoryContext}
