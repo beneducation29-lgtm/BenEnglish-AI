@@ -31,7 +31,7 @@ const ListeningSourceHub: React.FC<{track:'high_school'|'professional'}> = ({tra
     event.preventDefault();
     try { const url = new URL(videoUrl.trim()); const host = url.hostname.toLowerCase().replace('www.',''); let id = '';
       if (host === 'youtu.be') id = url.pathname.split('/').filter(Boolean)[0] || '';
-      if (['youtube.com','m.youtube.com','youtube-nocookie.com'].includes(host)) { if (url.pathname === '/watch') id = url.searchParams.get('v') || ''; else if (/^\\/(embed|shorts)\\//.test(url.pathname)) id = url.pathname.split('/')[2] || ''; }
+      if (['youtube.com','m.youtube.com','youtube-nocookie.com'].includes(host)) { if (url.pathname === '/watch') id = url.searchParams.get('v') || ''; else if (url.pathname.startsWith('/embed/') || url.pathname.startsWith('/shorts/')) id = url.pathname.split('/')[2] || ''; }
       if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) throw new Error('invalid');
       setEmbedUrl('https://www.youtube-nocookie.com/embed/' + id); setError('');
     } catch { setEmbedUrl(''); setError('Link YouTube chưa hợp lệ hoặc video không cho phép nhúng.'); }
