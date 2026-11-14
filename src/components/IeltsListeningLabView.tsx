@@ -11,6 +11,47 @@ const bandFor = (score: number) => score >= 39 ? 9 : score >= 37 ? 8.5 : score >
 const normalise = (value: string) => value.toLowerCase().trim().replace(/&/g, 'and').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ');
 const acceptedAnswers = (q: IELTSQuestion) => [q.answer, ...(q.accepted || [])].map(normalise);
 
+const LISTENING_SOURCES = [
+  { id:'bc', name:'British Council LearnEnglish', kind:'Graded listening', levels:'A1–C1', description:'Free recorded listening activities with speakers from different countries and comprehension exercises.', url:'https://learnenglish.britishcouncil.org/free-resources/listening', tracks:['high_school','professional'] },
+  { id:'voa', name:'VOA Learning English', kind:'Audio & video', levels:'A1–B2', description:'Human-presented news and learning programmes, often with transcripts and a slower delivery pace.', url:'https://learningenglish.voanews.com/', tracks:['high_school','professional'] },
+  { id:'elllo', name:'ELLLO', kind:'Real conversations', levels:'A1–C1', description:'Conversations with speakers from many countries, with audio, transcripts and quizzes.', url:'https://elllo.org/', tracks:['high_school','professional'] },
+  { id:'bbc', name:'BBC Learning English', kind:'Lessons & podcasts', levels:'A2–C1', description:'British English videos, interviews and short listening programmes.', url:'https://www.bbc.co.uk/learningenglish', tracks:['high_school','professional'] },
+  { id:'esllab', name:'Randall’s ESL Cyber Listening Lab', kind:'Listening quizzes', levels:'A1–C1', description:'Recorded everyday and academic conversations with comprehension questions.', url:'https://www.esl-lab.com/', tracks:['high_school','professional'] },
+  { id:'ted', name:'TED Talks', kind:'Talks & presentations', levels:'B1–C2', description:'Real speakers on science, education, technology and business; many talks provide transcripts.', url:'https://www.ted.com/talks', tracks:['high_school','professional'] },
+  { id:'bep', name:'Business English Pod', kind:'Workplace English', levels:'B1–C1', description:'Meetings, presentations, negotiations and workplace conversations; check each lesson for free access.', url:'https://www.businessenglishpod.com/', tracks:['professional'] },
+  { id:'bbc-youtube', name:'BBC Learning English · YouTube', kind:'Video channel', levels:'A2–C1', description:'Teacher-led videos and natural examples with YouTube captions.', url:'https://www.youtube.com/@bbclearningenglish', tracks:['high_school','professional'] },
+  { id:'voa-youtube', name:'VOA Learning English · YouTube', kind:'Video channel', levels:'A1–B2', description:'Human-presented English learning videos, news and everyday topics.', url:'https://www.youtube.com/@voalearningenglish', tracks:['high_school','professional'] },
+];
+
+const ListeningSourceHub: React.FC<{track:'high_school'|'professional'}> = ({track}) => {
+  const [videoUrl,setVideoUrl] = useState(''); const [embedUrl,setEmbedUrl] = useState(''); const [error,setError] = useState('');
+  const school = track === 'high_school';
+  const sources = LISTENING_SOURCES.filter(source => source.tracks.includes(track));
+  const loadVideo = (event: React.FormEvent) => {
+    event.preventDefault();
+    try { const url = new URL(videoUrl.trim()); const host = url.hostname.toLowerCase().replace(/^www\\./,''); let id = '';
+      if (host === 'youtu.be') id = url.pathname.split('/').filter(Boolean)[0] || '';
+      if (['youtube.com','m.youtube.com','youtube-nocookie.com'].includes(host)) { if (url.pathname === '/watch') id = url.searchParams.get('v') || ''; else if (/^\\/(embed|shorts)\\//.test(url.pathname)) id = url.pathname.split('/')[2] || ''; }
+      if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) throw new Error('invalid');
+      setEmbedUrl('https://www.youtube-nocookie.com/embed/' + id); setError('');
+    } catch { setEmbedUrl(''); setError('Link YouTube chưa hợp lệ hoặc video không cho phép nhúng.'); }
+  };
+  return <section className={'mb-6 rounded-3xl border bg-white p-5 md:p-7 ' + (school?'border-sky-200':'border-violet-200')}>
+    <div className='flex flex-wrap items-start justify-between gap-3'><div><div className={'text-xs font-extrabold tracking-widest ' + (school?'text-sky-700':'text-violet-700')}>AUTHENTIC LISTENING · REAL SPEAKERS</div>
+      <h2 className='mt-1 text-2xl font-extrabold text-slate-900'>Nghe tiếng Anh từ nguồn thật</h2>
+      <p className='mt-2 max-w-3xl text-sm leading-6 text-slate-600'>Audio và video được phát từ website hoặc kênh gốc — không dùng giọng đọc AI/TTS của BenEnglish. Chọn nguồn theo trình độ, nghe giọng người thật và mở transcript/phụ đề tại nguồn.</p></div>
+      <span className={'rounded-full px-3 py-1 text-xs font-bold ' + (school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{school?'HIGH SCHOOL':'PROFESSIONAL'}</span></div>
+    <div className='mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>{sources.map(source => <a key={source.id} href={source.url} target='_blank' rel='noreferrer' className='rounded-2xl border border-slate-200 p-4 transition hover:border-slate-400 hover:shadow-sm'>
+      <div className='flex items-center justify-between gap-2'><span className='text-sm font-bold text-slate-900'>{source.name}</span><ExternalLink size={15} className='shrink-0 text-slate-400'/></div>
+      <div className={'mt-2 text-[10px] font-extrabold uppercase tracking-wider ' + (school?'text-sky-700':'text-violet-700')}>{source.kind} · {source.levels}</div><p className='mt-2 text-xs leading-5 text-slate-600'>{source.description}</p></a>)}</div>
+    <div className='mt-6 rounded-2xl bg-slate-50 p-4 md:p-5'><div className='flex items-center gap-2'><Play size={17}/><h3 className='font-bold text-slate-900'>Phát video YouTube ngay trong Listening</h3></div>
+      <p className='mt-1 text-xs text-slate-500'>Dán link video bạn chọn. BenEnglish chỉ nhúng trình phát chính thức, không tải hoặc lưu video.</p>
+      <form onSubmit={loadVideo} className='mt-3 flex flex-col gap-2 sm:flex-row'><input value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder='https://www.youtube.com/watch?v=...' className='min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm'/><button className={'rounded-xl px-5 py-3 text-sm font-bold text-white ' + (school?'bg-sky-700':'bg-violet-700')}>Load video</button></form>
+      {error&&<p role='alert' className='mt-2 text-xs text-rose-600'>{error}</p>}{embedUrl&&<div className='mt-4 aspect-video max-w-4xl overflow-hidden rounded-2xl bg-black'><iframe src={embedUrl} title='Authentic English listening video from YouTube' className='h-full w-full' allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share' referrerPolicy='strict-origin-when-cross-origin' allowFullScreen/></div>}</div>
+    <p className='mt-4 text-[11px] leading-5 text-slate-500'>Nội dung vẫn thuộc chủ sở hữu nguồn. App chỉ liên kết hoặc nhúng theo cơ chế chính thức; không sao chép audio, transcript hay phụ đề nếu chưa có quyền. Miễn phí truy cập không đồng nghĩa được phép tái phân phối.</p>
+  </section>;
+};
+
 export const ListeningLabView: React.FC = () => {
   const { user, allListeningLessons, recordListeningPlay, recordComprehensionAttempt, addListeningSeconds } = useApp();
   const storageKey = `benenglish_ielts_listening_${STORAGE_VERSION}_${(user.email || 'guest').toLowerCase()}`;
@@ -184,7 +225,7 @@ export const ListeningLabView: React.FC = () => {
   const transcriptSegments = shadow.transcript.split(/(\s+)/);
   let transcriptWordIndex = 0;
 
-  return <div className="space-y-6 pb-12">
+  return <div className="space-y-6 pb-12">\n    <ListeningSourceHub track={user.track} />
     <section className={`rounded-3xl bg-gradient-to-br ${user.track === 'high_school' ? 'from-sky-950 via-blue-900 to-cyan-950' : 'from-violet-950 via-purple-900 to-indigo-950'} p-7 md:p-9 text-white shadow-lg`}>
       <div className={`flex items-center gap-2 ${user.track === 'high_school' ? 'text-sky-300' : 'text-violet-300'} text-xs font-bold tracking-[.18em] uppercase`}><Headphones size={16}/> BenEnglish AI · {user.track === 'high_school' ? 'School Listening Studio' : 'Professional Listening Studio'}</div>
       <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
