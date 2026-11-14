@@ -23,10 +23,20 @@ const LISTENING_SOURCES = [
   { id:'voa-youtube', name:'VOA Learning English · YouTube', kind:'Video channel', levels:'A1–B2', description:'Human-presented English learning videos, news and everyday topics.', url:'https://www.youtube.com/@voalearningenglish', tracks:['high_school','professional'] },
 ];
 
+const LISTENING_PATHWAYS = [
+  { id:'hs-a2', track:'high_school', level:'A2', title:'Everyday school & life', focus:'Hội thoại đời sống, học tập, chỉ dẫn và thông báo', provider:'British Council LearnEnglish Teens', url:'https://learnenglishteens.britishcouncil.org/skills/listening', goal:'Nghe ý chính và nhận diện thông tin cụ thể trong hội thoại ngắn.' },
+  { id:'hs-b1', track:'high_school', level:'B1', title:'Study, society & opinions', focus:'Thảo luận học tập, môi trường, xã hội và quan điểm', provider:'British Council LearnEnglish Teens', url:'https://learnenglishteens.britishcouncil.org/skills/listening', goal:'Theo dõi quan điểm, lý do và ví dụ trong bài nói.' },
+  { id:'hs-exam', track:'high_school', level:'A2–B1', title:'Exam listening practice', focus:'Luyện nghe theo cấp độ, chuẩn bị cho bài kiểm tra ở trường', provider:'British Council LearnEnglish Teens', url:'https://learnenglishteens.britishcouncil.org/skills/listening', goal:'Nghe lần đầu lấy ý chính, lần hai kiểm tra từ khóa và chi tiết.' },
+  { id:'pro-a2', track:'professional', level:'A2', title:'Workplace basics', focus:'Giới thiệu, lịch hẹn, trao đổi công việc và thông báo', provider:'British Council LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2', goal:'Nắm thông tin về người, thời gian, địa điểm và nhiệm vụ.' },
+  { id:'pro-b1', track:'professional', level:'B1', title:'Meetings & customer conversations', focus:'Cuộc gọi khách hàng, họp nhóm, ra quyết định và cân bằng công việc', provider:'British Council LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/b1', goal:'Nhận diện mục đích cuộc trao đổi, vấn đề và hành động tiếp theo.' },
+  { id:'pro-biz', track:'professional', level:'B1–C1', title:'Business English in context', focus:'Phỏng vấn, quản lý, xung đột, CV và giao tiếp nghề nghiệp', provider:'British Council Vietnam', url:'https://www.britishcouncil.vn/en/myclass/language-skills-development/listening', goal:'Nghe cách người đi làm trình bày, thương lượng và giải quyết vấn đề.' },
+];
+
 const ListeningSourceHub: React.FC<{track:'high_school'|'professional'}> = ({track}) => {
   const [videoUrl,setVideoUrl] = useState(''); const [embedUrl,setEmbedUrl] = useState(''); const [error,setError] = useState('');
   const school = track === 'high_school';
   const sources = LISTENING_SOURCES.filter(source => source.tracks.includes(track));
+  const pathways = LISTENING_PATHWAYS.filter(item => item.track === track);
   const loadVideo = (event: React.FormEvent) => {
     event.preventDefault();
     try { const url = new URL(videoUrl.trim()); const host = url.hostname.toLowerCase().replace('www.',''); let id = '';
@@ -44,6 +54,14 @@ const ListeningSourceHub: React.FC<{track:'high_school'|'professional'}> = ({tra
     <div className='mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>{sources.map(source => <a key={source.id} href={source.url} target='_blank' rel='noreferrer' className='rounded-2xl border border-slate-200 p-4 transition hover:border-slate-400 hover:shadow-sm'>
       <div className='flex items-center justify-between gap-2'><span className='text-sm font-bold text-slate-900'>{source.name}</span><ExternalLink size={15} className='shrink-0 text-slate-400'/></div>
       <div className={'mt-2 text-[10px] font-extrabold uppercase tracking-wider ' + (school?'text-sky-700':'text-violet-700')}>{source.kind} · {source.levels}</div><p className='mt-2 text-xs leading-5 text-slate-600'>{source.description}</p></a>)}</div>
+    <div className='mt-6'>
+      <div className='flex flex-wrap items-end justify-between gap-2'><div><h3 className='text-lg font-extrabold text-slate-900'>Lộ trình nghe gợi ý</h3><p className='mt-1 text-xs text-slate-500'>Các trang bài nghe thật đã phân cấp; mở bài tại website gốc để nghe recording, xem transcript và làm bài tập của nhà xuất bản.</p></div><span className={'rounded-full px-3 py-1 text-xs font-bold '+(school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{school?'School-focused':'Work-focused'}</span></div>
+      <div className='mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>{pathways.map(item=><a key={item.id} href={item.url} target='_blank' rel='noreferrer' className='rounded-2xl border border-slate-200 p-4 hover:border-slate-400 hover:shadow-sm'>
+        <div className='flex items-center justify-between gap-2'><span className={'rounded-lg px-2 py-1 text-[10px] font-extrabold '+(school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{item.level}</span><ExternalLink size={14} className='text-slate-400'/></div>
+        <h4 className='mt-3 text-sm font-bold text-slate-900'>{item.title}</h4><p className='mt-1 text-xs leading-5 text-slate-600'>{item.focus}</p>
+        <p className='mt-3 text-[11px] font-semibold text-slate-500'>{item.provider}</p><p className='mt-2 text-xs leading-5 text-slate-600'><span className='font-bold'>Mục tiêu:</span> {item.goal}</p>
+      </a>)}</div>
+    </div>
     <div className='mt-6 rounded-2xl bg-slate-50 p-4 md:p-5'><div className='flex items-center gap-2'><Play size={17}/><h3 className='font-bold text-slate-900'>Phát video YouTube ngay trong Listening</h3></div>
       <p className='mt-1 text-xs text-slate-500'>Dán link video bạn chọn. BenEnglish chỉ nhúng trình phát chính thức, không tải hoặc lưu video.</p>
       <form onSubmit={loadVideo} className='mt-3 flex flex-col gap-2 sm:flex-row'><input value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder='https://www.youtube.com/watch?v=...' className='min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm'/><button className={'rounded-xl px-5 py-3 text-sm font-bold text-white ' + (school?'bg-sky-700':'bg-violet-700')}>Load video</button></form>
