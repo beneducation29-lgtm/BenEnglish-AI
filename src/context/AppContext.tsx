@@ -34,6 +34,14 @@ import { loadCloudMemory, saveCloudMemory, mergeCloudMemory } from '../services/
 
 const accountStorageKey = (key: string, uid?: string) => uid ? `${key}:${uid}` : key;
 
+const LISTENING_RESET_VERSION = '2';
+const legacyListeningLessonIds = new Set([
+  ...HIGH_SCHOOL_LISTENING_LESSONS,
+  ...PROFESSIONAL_LISTENING_LESSONS,
+  ...IELTS_LISTENING_LESSONS,
+  ...ADDITIONAL_LISTENING_LESSONS,
+].map((lesson) => lesson.id));
+
 const getLocalDateKey = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
@@ -172,6 +180,18 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { authUser } = useAuth();
+  const listeningMigrationKey = accountStorageKey('benenglish_listening_reset_version', authUser?.uid);
+  const needsListeningReset = typeof window !== 'undefined' &&
+    localStorage.getItem(listeningMigrationKey) !== LISTENING_RESET_VERSION;
+  const legacyCustomListeningIds = (() => {
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const saved = localStorage.getItem(accountStorageKey('benenglish_custom_lessons', authUser?.uid));
+      const lessons = saved ? JSON.parse(saved) : [];
+      return new Set<string>((Array.isArray(lessons) ? lessons : []).map((lesson: ListeningLesson) => lesson.id));
+    } catch { return new Set<string>(); }
+  })();
+  const listeningIdsToReset = new Set([...legacyListeningLessonIds, ...legacyCustomListeningIds]);
   const [user, setUser] = useState<UserProfile>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(accountStorageKey('benenglish_user', authUser?.uid));
@@ -208,12 +228,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             totalXp: Math.max(0, (parsed.totalXp || 0) - 1850),
             dailyMinutesSpent: parsed.dailyActivityDate === todayKey ? Math.max(0, (parsed.dailyMinutesSpent || 0) - 16) : 0,
             dailyActivityDate: todayKey,
-            completedLessonIds: (parsed.completedLessonIds || []).filter((id: string) => id !== 'hs-env-01'),
+            completedLessonIds: needsListeningReset ? (parsed.completedLessonIds || []).filter((id: string) => !listeningIdsToReset.has(id)) : (parsed.completedLessonIds || []).filter((id: string) => id !== 'hs-env-01'),
             bookmarkedVocabIds: (parsed.bookmarkedVocabIds || []).filter((id: string) => !['v-b1-01', 'v-hs-1'].includes(id)),
             recentSpeakingScores: legacySeedScores(parsed.recentSpeakingScores, [72, 78, 81]),
-            recentListeningScores: legacySeedScores(parsed.recentListeningScores, [80, 85, 90]),
+            recentListeningScores: needsListeningReset ? [] : legacySeedScores(parsed.recentListeningScores, [80, 85, 90]),
             recentPronunciationScores: legacySeedScores(parsed.recentPronunciationScores, [75, 82, 84]),
-            listeningProgress: {
+            listeningProgress: needsListeningReset ? defaultListeningProgress : {
               ...defaultListeningProgress,
               ...legacyListening,
               totalListeningSeconds: Math.max(0, (legacyListening.totalListeningSeconds || 0) - 1420),
@@ -295,6 +315,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [customLessons, setCustomLessons] = useState<ListeningLesson[]>(() => {
+    if (needsListeningReset) return [];
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(accountStorageKey('benenglish_custom_lessons', authUser?.uid));
       if (saved) {
@@ -313,6 +334,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     let cancelled = false;
     const enabled = import.meta.env.VITE_FIREBASE_ENABLE_CLOUD_SYNC === 'true' && !!firebaseApp && !!authUser?.uid;
     if (!enabled || !firebaseApp || !authUser?.uid) {
+      if (needsListeningReset && typeof window !== 'undefined') localStorage.setItem(listeningMigrationKey, LISTENING_RESET_VERSION);
       setCloudMemoryReady(true);
       return;
     }
@@ -320,16 +342,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     loadCloudMemory(firebaseApp, authUser.uid)
       .then((remote) => {
         if (cancelled || !remote) return;
-        setUser((local) => mergeCloudMemory(local, remote.profile));
+        const remoteProfile = needsListeningReset ? {
+          ...remote.profile,
+          listeningProgress: defaultListeningProgress,
+          recentListeningScores: [],
+          completedLessonIds: (remote.profile.completedLessonIds || []).filter((id: string) => !listeningIdsToReset.has(id)),
+        } : remote.profile;
+        setUser((local) => mergeCloudMemory(local, remoteProfile));
         if (Array.isArray(remote.vocabBank)) {
           setVocabBank((local) => mergeCloudMemory(local, remote.vocabBank));
         }
         if (Array.isArray(remote.customLessons)) {
-          setCustomLessons((local) => mergeCloudMemory(local, remote.customLessons));
+          setCustomLessons((local) => needsListeningReset ? [] : mergeCloudMemory(local, remote.customLessons));
         }
       })
       .catch((error) => console.warn('BenEnglish cloud memory is unavailable; local progress remains active.', error))
-      .finally(() => { if (!cancelled) setCloudMemoryReady(true); });
+      .finally(() => { if (!cancelled) { if (needsListeningReset) localStorage.setItem(listeningMigrationKey, LISTENING_RESET_VERSION); setCloudMemoryReady(true); } });
     return () => { cancelled = true; };
   }, [authUser?.uid]);
 
