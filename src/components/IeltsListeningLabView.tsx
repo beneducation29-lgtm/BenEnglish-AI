@@ -40,7 +40,7 @@ export const ListeningLabView: React.FC = () => {
   const part: IELTSPart = parts[activePart - 1];
   const shadow: IELTSPart = parts[shadowPart - 1];
   const dictation: IELTSPart = parts[dictationPart - 1];
-  const dictationTokens = useMemo(() => dictation.transcript.match(/\\b[\\w'-]+\\b/g) || [], [dictation.transcript]);
+  const dictationTokens = useMemo(() => dictation.transcript.match(/\b[\w'-]+\b/g) || [], [dictation.transcript]);
   const dictationTargets = useMemo(() => dictationTokens.map((word,index)=>({word,index})).filter(item => item.index % 6 === 2).slice(0,12), [dictationTokens]);
   const dictationCorrect = dictationTargets.filter(item => normalise(dictationAnswers[item.index] || '') === normalise(item.word)).length;
   const transcriptWords = useMemo(() => {
