@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { IELTS_LISTENING_MOCK_01, IELTSPart, IELTSQuestion } from '../data/ieltsListeningMockTest';
 import { Headphones, Play, Pause, RotateCcw, CheckCircle2, Clock3, Mic, BookOpen, Volume2, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
 
-type Mode = 'home' | 'test' | 'result' | 'review' | 'adaptive' | 'shadow' | 'dictation';
+type Mode = 'home' | 'track_lesson' | 'test' | 'result' | 'review' | 'adaptive' | 'shadow' | 'dictation';
 type SavedTest = { id: string; date: string; correct: number; total: number; band: number; partScores: number[]; answers: Record<number,string> };
 type SavedShadow = { id: string; date: string; partId: number; transcriptMatch: number; target: string; recognised: string };
 const STORAGE_VERSION = 'v2';
@@ -12,9 +12,13 @@ const normalise = (value: string) => value.toLowerCase().trim().replace(/&/g, 'a
 const acceptedAnswers = (q: IELTSQuestion) => [q.answer, ...(q.accepted || [])].map(normalise);
 
 export const ListeningLabView: React.FC = () => {
-  const { user } = useApp();
+  const { user, allListeningLessons, recordListeningPlay, recordComprehensionAttempt, addListeningSeconds } = useApp();
   const storageKey = `benenglish_ielts_listening_${STORAGE_VERSION}_${(user.email || 'guest').toLowerCase()}`;
   const [mode, setMode] = useState<Mode>('home');
+  const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [lessonAnswers, setLessonAnswers] = useState<Record<number,string>>({});
+  const [lessonSubmitted, setLessonSubmitted] = useState(false);
+  const [isTrackAudioPlaying, setIsTrackAudioPlaying] = useState(false);
   const [activePart, setActivePart] = useState(1);
   const [answers, setAnswers] = useState<Record<number,string>>({});
   const [played, setPlayed] = useState<number[]>([]);
@@ -36,6 +40,9 @@ export const ListeningLabView: React.FC = () => {
   const [dictationPart, setDictationPart] = useState(1);
   const [dictationAnswers, setDictationAnswers] = useState<Record<number,string>>({});
   const [dictationChecked, setDictationChecked] = useState(false);
+  const trackLessons = allListeningLessons.filter(lesson => lesson.track === user.track);
+  const selectedLesson = trackLessons.find(lesson => lesson.id === selectedLessonId) || trackLessons[0];
+  const lessonCorrectCount = selectedLesson?.comprehensionQuiz.filter((question,index) => normalise(lessonAnswers[index] || '') === normalise(question.correctAnswer)).length || 0;
   const parts = IELTS_LISTENING_MOCK_01;
   const part: IELTSPart = parts[activePart - 1];
   const shadow: IELTSPart = parts[shadowPart - 1];
@@ -77,6 +84,34 @@ export const ListeningLabView: React.FC = () => {
       utterance.onend = () => setActiveTranscriptWord(-1);
     }
     window.speechSynthesis.speak(utterance);
+  };
+  const openTrackLesson = (lessonId: string) => {
+    setSelectedLessonId(lessonId);
+    setLessonAnswers({});
+    setLessonSubmitted(false);
+    setMode('track_lesson');
+    recordListeningPlay(lessonId, 0);
+  };
+  const playTrackLesson = () => {
+    if (!selectedLesson || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel();
+    const startedAt = Date.now();
+    const utterance = new SpeechSynthesisUtterance(selectedLesson.audioSampleText);
+    utterance.lang = 'en-US';
+    utterance.rate = 0.92;
+    utterance.onend = () => {
+      addListeningSeconds(Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
+      setIsTrackAudioPlaying(false);
+    };
+    utterance.onerror = () => setIsTrackAudioPlaying(false);
+    setIsTrackAudioPlaying(true);
+    window.speechSynthesis.speak(utterance);
+  };
+  const submitTrackLesson = () => {
+    if (!selectedLesson || lessonSubmitted) return;
+    const score = Math.round(100 * lessonCorrectCount / Math.max(1, selectedLesson.comprehensionQuiz.length));
+    recordComprehensionAttempt(selectedLesson.id, score);
+    setLessonSubmitted(true);
   };
   const startTest = () => {
     window.speechSynthesis?.cancel();
@@ -150,15 +185,21 @@ export const ListeningLabView: React.FC = () => {
   let transcriptWordIndex = 0;
 
   return <div className="space-y-6 pb-12">
-    <section className="rounded-3xl bg-gradient-to-br from-slate-950 via-slate-900 to-emerald-950 p-7 md:p-9 text-white shadow-lg">
-      <div className="flex items-center gap-2 text-emerald-300 text-xs font-bold tracking-[.18em] uppercase"><Headphones size={16}/> BenEnglish AI · Listening Intelligence</div>
+    <section className={`rounded-3xl bg-gradient-to-br ${user.track === 'high_school' ? 'from-sky-950 via-blue-900 to-cyan-950' : 'from-violet-950 via-purple-900 to-indigo-950'} p-7 md:p-9 text-white shadow-lg`}>
+      <div className={`flex items-center gap-2 ${user.track === 'high_school' ? 'text-sky-300' : 'text-violet-300'} text-xs font-bold tracking-[.18em] uppercase`}><Headphones size={16}/> BenEnglish AI · {user.track === 'high_school' ? 'School Listening Studio' : 'Professional Listening Studio'}</div>
       <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-        <div><h1 className="text-3xl md:text-4xl font-bold">IELTS Listening & Shadowing Lab</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">Luyện nghe theo cấu trúc 4 phần – 40 câu, phân tích lỗi theo từng Part và luyện nghe nhại với transcript đồng bộ.</p></div>
+        <div><h1 className="text-3xl md:text-4xl font-bold">{user.track === 'high_school' ? 'Listen, understand & learn' : 'Listen for workplace impact'}</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300">{user.track === 'high_school' ? `Bài nghe theo chủ đề học đường, môi trường, khoa học và đời sống học sinh · ${user.grade || 'Grade 11'} · ${user.cefrLevel}` : `Bài nghe công sở, cuộc họp, dự án và giao tiếp chuyên ngành · ${user.occupation || 'Professional'} · ${user.cefrLevel}`}</p></div>
         <div className="grid grid-cols-2 gap-3 text-center"><div className="rounded-2xl bg-white/10 px-5 py-3"><div className="text-2xl font-bold">{completedCount}</div><div className="text-[11px] text-slate-300">Bài test đã làm</div></div><div className="rounded-2xl bg-white/10 px-5 py-3"><div className="text-2xl font-bold">{shadows.length}</div><div className="text-[11px] text-slate-300">Lần shadowing</div></div></div>
       </div>
     </section>
 
-    {mode === 'home' && <div className="grid lg:grid-cols-3 gap-5">
+    {mode === 'home' && <div className="space-y-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6">
+        <div className="flex flex-wrap items-end justify-between gap-3"><div><div className={`text-xs font-extrabold tracking-widest ${user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}`}>{user.track === 'high_school' ? 'HIGH SCHOOL CURRICULUM' : 'PROFESSIONAL ENGLISH CURRICULUM'}</div><h2 className="mt-1 text-2xl font-bold text-slate-900">{user.track === 'high_school' ? 'School-topic listening library' : 'Workplace listening library'}</h2><p className="mt-1 text-sm text-slate-600">{user.track === 'high_school' ? 'Luyện nghe về trường học, tuổi trẻ, môi trường, khoa học và các chủ đề phổ thông.' : `Luyện nghe tình huống công việc, họp nhóm và ngôn ngữ theo lĩnh vực ${user.occupation || 'của bạn'}.`}</p></div><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{trackLessons.length} bài học</span></div>
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{trackLessons.slice(0,9).map(lesson=><button key={lesson.id} onClick={()=>openTrackLesson(lesson.id)} className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-md ${user.track === 'high_school' ? 'border-sky-100 hover:border-sky-300' : 'border-violet-100 hover:border-violet-300'}`}><div className="flex items-center justify-between gap-2"><span className={`text-[10px] font-extrabold uppercase tracking-wider ${user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}`}>{lesson.category}</span><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold">{lesson.level}</span></div><h3 className="mt-3 font-bold text-slate-900">{lesson.title}</h3><p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600">{lesson.summary}</p><div className="mt-4 flex items-center justify-between text-xs font-semibold text-slate-500"><span>{lesson.durationMinutes} phút · {lesson.comprehensionQuiz.length} câu hỏi</span><span className={user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}>Mở bài <ArrowRightIcon/></span></div></button>)}</div>
+        {trackLessons.length === 0 && <p className="mt-4 text-sm text-slate-500">Chưa có bài nghe cho lộ trình này.</p>}
+      </section>
+      <div className="grid lg:grid-cols-3 gap-5">
       <button onClick={startTest} className="lg:col-span-2 text-left rounded-3xl bg-white border border-slate-200 p-7 hover:border-emerald-400 hover:shadow-md transition">
         <div className="flex items-center justify-between"><span className="rounded-full bg-emerald-50 text-emerald-700 px-3 py-1 text-xs font-bold">MOCK TEST 01 · ORIGINAL CONTENT</span><Headphones className="text-emerald-600"/></div>
         <h2 className="mt-5 text-2xl font-bold">IELTS Listening Full Test</h2><p className="mt-2 text-sm text-slate-600">4 recordings · 40 questions · 30 minutes · one playback per part</p>
@@ -186,7 +227,17 @@ export const ListeningLabView: React.FC = () => {
         <h3 className="font-bold text-slate-900">Lịch sử IELTS Listening</h3>
         {tests.length===0 ? <p className="mt-3 text-sm text-slate-500">Bạn chưa hoàn thành bài test nào.</p> : <div className="mt-4 space-y-2">{tests.slice(0,5).map(t=><div key={t.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm"><span>{new Date(t.date).toLocaleString('vi-VN')}</span><span className="font-semibold">{t.correct}/40 · Band tham khảo {t.band.toFixed(1)}</span></div>)}</div>}
       </div>
+      </div>
     </div>}
+
+    {mode === 'track_lesson' && selectedLesson && <section className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8">
+      <button onClick={()=>{window.speechSynthesis?.cancel();setIsTrackAudioPlaying(false);setMode('home');}} className="text-sm font-semibold text-slate-500">← Quay lại thư viện nghe</button>
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-3"><div><div className={`text-xs font-extrabold tracking-widest ${user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}`}>{selectedLesson.category} · {selectedLesson.level}</div><h2 className="mt-1 text-2xl font-bold text-slate-900">{selectedLesson.title}</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">{selectedLesson.summary}</p></div><span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold">{selectedLesson.durationMinutes} phút</span></div>
+      {selectedLesson.learningObjectives?.length ? <div className="mt-5 rounded-2xl bg-slate-50 p-4"><b className="text-sm">Mục tiêu bài học</b><ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-600">{selectedLesson.learningObjectives.map(item=><li key={item}>{item}</li>)}</ul></div> : null}
+      <div className={`mt-5 rounded-2xl p-4 ${user.track === 'high_school' ? 'bg-sky-50' : 'bg-violet-50'}`}><div className="flex flex-wrap items-center justify-between gap-3"><div><b className="text-sm text-slate-900">Nghe bài học</b><p className="mt-1 text-xs text-slate-600">Audio được đọc từ script bài học bằng giọng đọc của trình duyệt.</p></div><button onClick={isTrackAudioPlaying ? ()=>{window.speechSynthesis?.cancel();setIsTrackAudioPlaying(false);} : playTrackLesson} className={`rounded-xl px-4 py-2.5 text-sm font-bold text-white ${user.track === 'high_school' ? 'bg-sky-600' : 'bg-violet-600'}`}>{isTrackAudioPlaying ? 'Dừng audio' : '▶ Phát bài nghe'}</button></div></div>
+      <details className="mt-4 rounded-2xl border border-slate-200 p-4"><summary className="cursor-pointer text-sm font-bold">Xem transcript song ngữ</summary><div className="mt-3 space-y-3">{selectedLesson.sentences.map(sentence=><div key={sentence.id} className="border-b border-slate-100 pb-3 last:border-0"><p className="text-sm font-semibold text-slate-800">{sentence.textEn}</p><p className="mt-1 text-xs text-slate-500">{sentence.textVi}</p>{sentence.phoneticFocus && <p className="mt-1 text-[11px] text-slate-400">Pronunciation: {sentence.phoneticFocus}</p>}</div>)}</div></details>
+      <div className="mt-6"><h3 className="text-lg font-bold text-slate-900">Kiểm tra khả năng nghe hiểu</h3><p className="mt-1 text-xs text-slate-500">Trả lời dựa trên nội dung audio, sau đó kiểm tra và xem giải thích.</p><div className="mt-4 space-y-4">{selectedLesson.comprehensionQuiz.map((question,index)=><div key={question.id || index} className="rounded-2xl border border-slate-200 p-4"><p className="text-sm font-semibold text-slate-800">{index+1}. {question.question}</p>{question.options?.length ? <div className="mt-3 grid gap-2 sm:grid-cols-2">{question.options.map(option=><button key={option} disabled={lessonSubmitted} onClick={()=>setLessonAnswers(v=>({...v,[index]:option}))} className={`rounded-xl border p-3 text-left text-xs ${lessonAnswers[index]===option?'border-slate-800 bg-slate-100 font-bold':'border-slate-200 hover:bg-slate-50'}`}>{option}</button>)}</div> : <input disabled={lessonSubmitted} value={lessonAnswers[index]||''} onChange={e=>setLessonAnswers(v=>({...v,[index]:e.target.value}))} className="mt-3 w-full rounded-xl border border-slate-300 p-3 text-sm" placeholder="Nhập câu trả lời..."/>}{lessonSubmitted && <div className="mt-3 rounded-xl bg-slate-50 p-3 text-xs"><b>Đáp án: {question.correctAnswer}</b><p className="mt-1 text-slate-600">{question.explanationVi}</p></div>}</div>)}</div><div className="mt-5 flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-slate-500">{lessonSubmitted ? `Kết quả: ${lessonCorrectCount}/${selectedLesson.comprehensionQuiz.length} câu đúng` : `${Object.keys(lessonAnswers).length}/${selectedLesson.comprehensionQuiz.length} câu đã trả lời`}</span><button disabled={lessonSubmitted || Object.keys(lessonAnswers).length !== selectedLesson.comprehensionQuiz.length} onClick={submitTrackLesson} className={`rounded-xl px-5 py-3 text-sm font-bold text-white disabled:opacity-40 ${user.track === 'high_school' ? 'bg-sky-600' : 'bg-violet-600'}`}>{lessonSubmitted ? 'Đã lưu kết quả' : 'Kiểm tra đáp án'}</button></div></div>
+    </section>}
 
     {mode === 'test' && <section className="rounded-3xl bg-white border border-slate-200 p-5 md:p-7">
       <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-xs font-bold tracking-widest text-emerald-700">IELTS LISTENING MOCK TEST 01</div><h2 className="mt-1 text-2xl font-bold">Part {activePart}: {part.title}</h2><p className="text-sm text-slate-500">{part.context} · {part.speaker}</p></div><div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold"><Clock3 size={16}/>{formatTime(secondsLeft)} <span className="text-[10px] text-slate-400">(30 phút)</span></div></div>

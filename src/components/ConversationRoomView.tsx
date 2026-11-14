@@ -170,6 +170,21 @@ export const ConversationRoomView: React.FC = () => {
 
   const activePersona =
     TUTOR_PERSONAS.find((p) => p.id === selectedPersonaId) || TUTOR_PERSONAS[0];
+  const isHighSchoolTrack = user.track === 'high_school';
+  const trackAccent = isHighSchoolTrack ? 'text-sky-700' : 'text-violet-700';
+  const trackSolid = isHighSchoolTrack ? 'bg-sky-700' : 'bg-violet-700';
+  const trackSoft = isHighSchoolTrack ? 'bg-sky-50 border-sky-200' : 'bg-violet-50 border-violet-200';
+  const availablePersonas = TUTOR_PERSONAS.filter(persona =>
+    isHighSchoolTrack
+      ? ['friendly_teacher', 'strict_teacher', 'native_partner', 'ielts_coach'].includes(persona.id)
+      : ['business_coach', 'strict_teacher', 'native_partner', 'ielts_coach'].includes(persona.id)
+  );
+  const availableModes = CONVERSATION_MODES.filter(mode =>
+    isHighSchoolTrack
+      ? ['everyday', 'school', 'free', 'ielts'].includes(mode.id)
+      : ['everyday', 'business', 'free', 'ielts', 'interview'].includes(mode.id)
+  );
+  const activeTrackRef = useRef(user.track);
 
   // Conversation turns
   const [turns, setTurns] = useState<ConversationTurnRecord[]>([
@@ -809,6 +824,14 @@ export const ConversationRoomView: React.FC = () => {
     }, 400);
   };
 
+  useEffect(() => {
+    if (activeTrackRef.current === user.track) return;
+    activeTrackRef.current = user.track;
+    const nextPersona = user.track === 'high_school' ? 'friendly_teacher' : 'business_coach';
+    const nextMode = user.track === 'high_school' ? 'school' : 'business';
+    startNewSession(nextPersona, nextMode);
+  }, [user.track]);
+
   // Extract all corrections across the current session
   const sessionCorrections = turns
     .filter((t) => t.correction && t.correction.hasMistake)
@@ -821,11 +844,16 @@ export const ConversationRoomView: React.FC = () => {
       {/* --------------------------------------------------------- */}
       {/* 1. ROOM CONTROLS & STATUS BAR                             */}
       {/* --------------------------------------------------------- */}
-      <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm p-4 md:p-5">
+      <div className={`rounded-2xl border shadow-sm p-4 md:p-5 ${trackSoft}`}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div><div className={`text-[10px] font-extrabold tracking-[.18em] ${trackAccent}`}>{isHighSchoolTrack ? 'HIGH SCHOOL AI CONVERSATION' : 'PROFESSIONAL AI CONVERSATION'}</div>
+          <p className="mt-1 text-xs text-slate-600">{isHighSchoolTrack ? `Teacher-led practice for ${user.grade || 'Grade 11'}: school life, learning, social topics and exam communication.` : `Workplace coaching for ${user.occupation || 'your profession'}: meetings, clients, project updates and interviews.`}</p></div>
+          <span className={`rounded-full px-3 py-1 text-[10px] font-bold text-white ${trackSolid}`}>{isHighSchoolTrack ? 'STUDENT MODE' : 'CAREER MODE'}</span>
+        </div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Persona & Mode Badge */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-2xl shadow-xs shrink-0">
+            <div className={`w-12 h-12 rounded-2xl ${trackSoft} border flex items-center justify-center text-2xl shadow-xs shrink-0`}>
               {activePersona.avatar}
             </div>
             <div>
@@ -833,7 +861,7 @@ export const ConversationRoomView: React.FC = () => {
                 <h2 className="text-base md:text-lg font-extrabold text-slate-900">
                   {activePersona.name}
                 </h2>
-                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded">
+                <span className={`text-[10px] font-bold ${trackAccent} ${trackSoft} border px-2 py-0.5 rounded`}>
                   {activePersona.badge}
                 </span>
                 <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
@@ -958,7 +986,7 @@ export const ConversationRoomView: React.FC = () => {
         <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
             <span className="text-slate-400 font-semibold mr-1 shrink-0">Tutor:</span>
-            {TUTOR_PERSONAS.map((persona) => {
+            {availablePersonas.map((persona) => {
               const isSelected = selectedPersonaId === persona.id;
               return (
                 <button
@@ -986,7 +1014,7 @@ export const ConversationRoomView: React.FC = () => {
               }
               className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 rounded-xl px-2.5 py-1.5 outline-none cursor-pointer"
             >
-              {CONVERSATION_MODES.map((mode) => (
+              {availableModes.map((mode) => (
                 <option key={mode.id} value={mode.id}>
                   {mode.name}
                 </option>
