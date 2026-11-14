@@ -66,6 +66,9 @@ export const ListeningLabView: React.FC = () => {
     saveRecords([record, ...tests].slice(0, 50), shadows);
     setSubmitted(true); setMode('result');
   };
+  useEffect(() => {
+    if (mode === 'test' && secondsLeft === 0 && !submitted) submitTest();
+  }, [secondsLeft, mode, submitted]);
   const result = tests[0];
   const startShadowRecognition = () => {
     const w = window as any;
