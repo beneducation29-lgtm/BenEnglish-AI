@@ -111,20 +111,8 @@ export const ListeningLabView: React.FC = () => {
     setTests(nextTests); setShadows(nextShadows);
     localStorage.setItem(storageKey, JSON.stringify({ tests: nextTests, shadows: nextShadows }));
   };
-  const speak = (text: string, rate = 1) => {
-    if (!('speechSynthesis' in window)) { setShadowMessage('Trình duyệt này chưa hỗ trợ đọc văn bản.'); return; }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-GB'; utterance.rate = rate;
-    if (mode === 'shadow') {
-      setActiveTranscriptWord(-1);
-      utterance.onboundary = (event) => {
-        const wordIndex = transcriptWords.findIndex(word => event.charIndex >= word.start && event.charIndex < word.end);
-        if (wordIndex >= 0) setActiveTranscriptWord(wordIndex);
-      };
-      utterance.onend = () => setActiveTranscriptWord(-1);
-    }
-    window.speechSynthesis.speak(utterance);
+  const speak = (_text: string, _rate = 1) => {
+    setShadowMessage('BenEnglish không tạo giọng đọc tổng hợp. Hãy chọn một recording người thật trong thư viện Authentic Listening phía trên; transcript nội bộ chỉ dùng để ôn tập văn bản.');
   };
   const openTrackLesson = (lessonId: string) => {
     setSelectedLessonId(lessonId);
@@ -134,19 +122,8 @@ export const ListeningLabView: React.FC = () => {
     recordListeningPlay(lessonId, 0);
   };
   const playTrackLesson = () => {
-    if (!selectedLesson || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const startedAt = Date.now();
-    const utterance = new SpeechSynthesisUtterance(selectedLesson.audioSampleText);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.92;
-    utterance.onend = () => {
-      addListeningSeconds(Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
-      setIsTrackAudioPlaying(false);
-    };
-    utterance.onerror = () => setIsTrackAudioPlaying(false);
-    setIsTrackAudioPlaying(true);
-    window.speechSynthesis.speak(utterance);
+    setIsTrackAudioPlaying(false);
+    setShadowMessage('Bài học mẫu này hiện chỉ có transcript, chưa có recording người thật được cấp phép. Hãy chọn nguồn audio/video thật ở thư viện phía trên.');
   };
   const submitTrackLesson = () => {
     if (!selectedLesson || lessonSubmitted) return;
@@ -159,10 +136,8 @@ export const ListeningLabView: React.FC = () => {
     setAnswers({}); setPlayed([]); setSubmitted(false); setSecondsLeft(30 * 60); setActivePart(1); setMode('test');
   };
   const playPart = (partId: number) => {
-    if (played.includes(partId)) return;
-    const selected = parts[partId - 1];
-    setPlayed(current => [...current, partId]);
-    speak(selected.transcript, 0.94);
+    setShadowMessage('Bản mock IELTS này chưa có file recording người thật; không phát giọng tổng hợp và không tính là đã nghe. Hãy dùng nguồn Authentic Listening phía trên để luyện nghe thật.');
+    setPlayed(current => current.filter(id => id !== partId));
   };
   const submitTest = () => {
     window.speechSynthesis?.cancel();
