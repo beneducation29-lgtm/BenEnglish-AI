@@ -32,6 +32,10 @@ export const HomeView: React.FC = () => {
     updateCefrLevel,
   } = useApp();
 
+  const isHighSchool = user.track === 'high_school';
+  const trackTheme = isHighSchool
+    ? { accent: 'text-sky-700', button: 'bg-sky-600 hover:bg-sky-700', soft: 'bg-sky-50', border: 'border-sky-200', hero: 'from-sky-50 via-white to-blue-50', visual: 'from-sky-400 via-blue-500 to-sky-600', eyebrow: 'GRADE-ALIGNED ENGLISH · GRADES 10–12', focus: 'School success, confident communication and exam readiness' }
+    : { accent: 'text-violet-700', button: 'bg-violet-600 hover:bg-violet-700', soft: 'bg-violet-50', border: 'border-violet-200', hero: 'from-violet-50 via-white to-fuchsia-50', visual: 'from-violet-500 via-purple-600 to-indigo-700', eyebrow: 'WORKPLACE COMMUNICATION · CAREER GROWTH', focus: 'Meetings, clients, projects and industry-specific communication' };
   const [coachPlan, setCoachPlan] = useState<CoachPlanData | null>(null);
   const [loadingPlan, setLoadingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
@@ -158,26 +162,27 @@ export const HomeView: React.FC = () => {
       <ContinuousAssessmentPanel user={user} />
 
       {/* AI-first hero: compact, warm and focused on listening + speaking */}
-      <section className="relative isolate overflow-hidden rounded-[2rem] border border-amber-100 bg-[#fff9e9] shadow-sm">
+      <section className={`relative isolate overflow-hidden rounded-[2rem] border ${trackTheme.border} bg-gradient-to-r ${trackTheme.hero} shadow-sm`}>
         <div className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-amber-200/50 blur-3xl" />
         <div className="grid min-h-[390px] lg:grid-cols-2">
           <div className="relative z-10 flex flex-col justify-center p-7 sm:p-10 lg:p-12">
-            <div className="mb-5 inline-flex w-fit items-center gap-2 rounded-full bg-amber-100 px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] text-amber-700">
-              <Sparkles className="h-4 w-4" /> AI English speaking coach
+            <div className={`mb-5 inline-flex w-fit items-center gap-2 rounded-full ${trackTheme.soft} px-4 py-2 text-xs font-extrabold uppercase tracking-[0.14em] ${trackTheme.accent}`}>
+              <Sparkles className="h-4 w-4" /> {trackTheme.eyebrow}
             </div>
             <h1 className="max-w-xl font-display text-4xl font-extrabold leading-[1.08] tracking-tight text-blue-700 sm:text-5xl lg:text-[3.35rem]">
-              Listen better.<br />Speak with <span className="text-amber-500">confidence.</span>
+              {isHighSchool ? <>Build strong foundations.<br />Speak with <span className="text-sky-600">confidence.</span></> : <>Communicate with impact.<br />Lead with <span className="text-violet-600">confidence.</span></>}
             </h1>
             <p className="mt-5 max-w-xl text-sm leading-7 text-slate-700 sm:text-base">
-              Practice real conversations, train your listening reflexes and get clear AI feedback.
-              A focused daily path for Vietnamese learners at school and at work.
+              {isHighSchool
+                ? `A guided ${user.grade || 'Grade 11'} learning path: understand school topics, strengthen grammar and vocabulary, practise speaking, and prepare for classroom and national assessments.`
+                : `A practical ${user.occupation || 'professional'} learning path: handle workplace conversations, meetings, client communication and role-specific English with precise AI feedback.`}
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <button onClick={() => setActiveTab('conversation')} className="inline-flex items-center justify-center gap-2 rounded-full bg-blue-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-blue-600/20 transition hover:-translate-y-0.5 hover:bg-blue-700">
-                <Mic className="h-4 w-4" /> Practice with AI <ArrowRight className="h-4 w-4" />
+              <button onClick={() => setActiveTab('conversation')} className={`inline-flex items-center justify-center gap-2 rounded-full ${trackTheme.button} px-6 py-3.5 text-sm font-bold text-white shadow-lg transition hover:-translate-y-0.5`}>
+                <Mic className="h-4 w-4" /> {isHighSchool ? 'Practise with Teacher Emma' : 'Practise workplace scenarios'} <ArrowRight className="h-4 w-4" />
               </button>
-              <button onClick={() => setActiveTab('listening')} className="inline-flex items-center justify-center gap-2 rounded-full border border-blue-300 bg-white px-6 py-3.5 text-sm font-bold text-blue-700 transition hover:bg-blue-50">
-                <Headphones className="h-4 w-4" /> Train listening
+              <button onClick={() => setActiveTab('listening')} className={`inline-flex items-center justify-center gap-2 rounded-full border ${trackTheme.border} bg-white px-6 py-3.5 text-sm font-bold ${trackTheme.accent} transition`}>
+                <Headphones className="h-4 w-4" /> {isHighSchool ? 'School-topic listening' : 'Workplace listening'}
               </button>
             </div>
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-xs font-semibold text-slate-600">
@@ -185,7 +190,7 @@ export const HomeView: React.FC = () => {
               <span className="inline-flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-emerald-600" /> Feedback from your real attempts</span>
             </div>
           </div>
-          <div className="relative flex min-h-[280px] items-center justify-center overflow-hidden bg-gradient-to-br from-amber-300 via-yellow-400 to-amber-500 p-6 sm:p-10">
+          <div className={`relative flex min-h-[280px] items-center justify-center overflow-hidden bg-gradient-to-br ${trackTheme.visual} p-6 sm:p-10`}>
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_center,white_1px,transparent_1px)] [background-size:28px_28px]" />
             <div className="relative flex w-full max-w-lg items-center justify-center gap-4 sm:gap-7">
               <div className="w-[46%] rotate-[-5deg] rounded-[1.8rem] border-[7px] border-slate-800 bg-white p-4 shadow-2xl">
@@ -206,8 +211,8 @@ export const HomeView: React.FC = () => {
                   <div className="flex h-16 w-16 items-center justify-center rounded-full bg-amber-400 text-slate-900 shadow-lg"><Volume2 className="h-8 w-8"/></div>
                 </div>
                 <div className="mt-4 rounded-xl bg-white/10 p-3">
-                  <div className="mb-2 text-[10px] font-bold text-amber-300">Your AI coach</div>
-                  <div className="text-[10px] leading-4 text-white">“Tell me about your day. What happened next?”</div>
+                  <div className="mb-2 text-[10px] font-bold text-white/80">{isHighSchool ? 'Teacher Emma' : 'Professional AI Coach'}</div>
+                  <div className="text-[10px] leading-4 text-white">{isHighSchool ? '“What did you learn in class today? Explain one new idea.”' : '“Give me a concise update on your current project.”'}</div>
                 </div>
                 <div className="mt-3 flex items-center justify-center gap-2 rounded-full bg-blue-500 py-2 text-[10px] font-bold text-white"><Mic className="h-3 w-3"/> Start speaking</div>
               </div>
@@ -221,10 +226,10 @@ export const HomeView: React.FC = () => {
       <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <div className="text-xs text-slate-500 font-medium">YOUR ACTIVE LEARNING TRACK</div>
+            <div className={`text-xs font-bold tracking-wider ${trackTheme.accent}`}>{trackTheme.eyebrow}</div>
             <h2 className="text-xl font-bold text-slate-900 mt-1 flex items-center gap-2">
-              {user.track === 'high_school' ? 'Track A: High School English' : 'Track B: Professional English'}
-              <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+              {user.track === 'high_school' ? 'High School English · Grades 10–12' : 'Professional English · Workplace & Industry'}
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded-md ${trackTheme.soft} ${trackTheme.accent} border ${trackTheme.border}`}>
                 Level {user.cefrLevel}
               </span>
             </h2>
@@ -309,11 +314,11 @@ export const HomeView: React.FC = () => {
               <Compass className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs font-semibold text-emerald-600 tracking-wide">
-                ADAPTIVE LEARNING COACH
+              <div className={`text-xs font-semibold tracking-wide ${trackTheme.accent}`}>
+                {isHighSchool ? 'YOUR SCHOOL LEARNING COACH' : 'YOUR WORKPLACE COMMUNICATION COACH'}
               </div>
               <h2 className="text-xl font-bold text-slate-900">
-                Personalized Training Regimen For Today
+                {isHighSchool ? 'Today’s Study Plan' : 'Today’s Professional Development Plan'}
               </h2>
             </div>
           </div>
@@ -397,8 +402,9 @@ export const HomeView: React.FC = () => {
               CORE LABS
             </div>
             <h2 className="text-2xl font-bold text-slate-900">
-              Choose Your Learning Activity
+              {isHighSchool ? 'Build your school English skills' : 'Strengthen your workplace English'}
             </h2>
+            <p className="mt-1 text-xs text-slate-500">{trackTheme.focus}</p>
           </div>
         </div>
 
@@ -416,7 +422,7 @@ export const HomeView: React.FC = () => {
                 Listening Lab
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Intensive listening, dictation typing test, comprehension quizzes, and sentence shadowing with speed control (0.5x–1.5x).
+                {isHighSchool ? 'Listen to school-life, science, environment and youth-topic passages with vocabulary support and comprehension checks.' : 'Train with office introductions, project updates, meetings and industry-related listening with practical phrase review.'}
               </p>
             </div>
             <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-600">
@@ -438,11 +444,11 @@ export const HomeView: React.FC = () => {
                 Speaking Lab
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Pronunciation coach, Read Aloud with WPM speed, and Free Speaking with detailed IELTS Band & CEFR rubric evaluation.
+                {isHighSchool ? 'Practise classroom discussions, presentations, describing experiences and clear pronunciation for school assessments.' : 'Practise concise updates, persuasive explanations, client-facing language and confident professional delivery.'}
               </p>
             </div>
             <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-600">
-              <span>Rubric Feedback</span>
+              <span>{isHighSchool ? 'School-ready feedback' : 'Workplace communication feedback'}</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
             </div>
           </div>
@@ -460,7 +466,7 @@ export const HomeView: React.FC = () => {
                 AI Voice Room
               </h3>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Speak directly with 5 tutor personalities across 6 conversation modes. Immediate gentle error correction and spoken responses.
+                {isHighSchool ? 'Talk with a patient teacher about lessons, school projects, hobbies and everyday student life, with clear explanations in Vietnamese.' : 'Work with a business coach on meetings, stakeholder updates, negotiations and interview conversations.'}
               </p>
             </div>
             <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-600">
