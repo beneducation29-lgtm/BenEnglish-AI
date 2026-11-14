@@ -69,6 +69,9 @@ export const SpeakingLabView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SpeakingTab>('dashboard');
   const [selectedCefr, setSelectedCefr] = useState<string>(user.placementAssessment?.skills.speaking.level || user.cefrLevel);
   const [selectedTrackFilter, setSelectedTrackFilter] = useState<string>(user.track);
+  const isHighSchoolTrack = user.track === 'high_school';
+  const trackAccent = isHighSchoolTrack ? 'text-sky-700' : 'text-violet-700';
+  const trackPanel = isHighSchoolTrack ? 'bg-sky-50 border-sky-200' : 'bg-violet-50 border-violet-200';
 
   // Mic permission status
   const [hasMicSupport] = useState<boolean>(isSpeechRecognitionSupported());
@@ -141,6 +144,17 @@ export const SpeakingLabView: React.FC = () => {
   const [selectedTopic, setSelectedTopic] = useState<FreeSpeakingTopic>(
     filteredTopics[0] || allFreeSpeakingTopics[0]
   );
+
+  useEffect(() => {
+    setSelectedTrackFilter(user.track);
+    setSelectedCefr(user.placementAssessment?.skills.speaking.level || user.cefrLevel);
+    const nextPassages = allReadAloudPassages.filter(p => p.track === user.track || p.track === 'both');
+    const nextTopics = allFreeSpeakingTopics.filter(t => t.track === user.track || t.track === 'both');
+    if (nextPassages.length) setSelectedPassage(nextPassages[0]);
+    if (nextTopics.length) setSelectedTopic(nextTopics[0]);
+    setFreeTranscript('');
+    setFreeEvalResult(null);
+  }, [user.track, user.grade, user.occupation]);
   const [isRecordingFree, setIsRecordingFree] = useState(false);
   const [freeTranscript, setFreeTranscript] = useState('');
   const [useAiTranscription, setUseAiTranscription] = useState(false);
@@ -584,18 +598,18 @@ export const SpeakingLabView: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold uppercase tracking-wider text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded-md border border-teal-200">
-                AI Speaking & Pronunciation Lab
+              <span className={`text-xs font-semibold uppercase tracking-wider ${trackAccent} ${trackPanel} px-2.5 py-0.5 rounded-md border`}>
+                {isHighSchoolTrack ? 'HIGH SCHOOL SPEAKING STUDIO' : 'PROFESSIONAL COMMUNICATION STUDIO'}
               </span>
               <span className="text-xs text-slate-500">
                 Track: {user.track === 'high_school' ? `High School (${user.grade})` : `Professional (${user.occupation})`}
               </span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
-              Master Natural Spoken English & Native Rhythm
+              {isHighSchoolTrack ? 'Speak clearly in class, presentations and everyday life' : 'Speak with clarity, confidence and professional impact'}
             </h1>
             <p className="text-sm text-slate-600 mt-1 max-w-3xl">
-              From exact IPA tongue placement to 130 WPM fluent reading cadence and IELTS Band 7.5+ impromptu speaking.
+              {isHighSchoolTrack ? `Practise school discussions, oral presentations, reading aloud and age-appropriate topics for ${user.grade || 'your grade'}.` : `Practise workplace updates, client conversations, presentations and role-specific communication for ${user.occupation || 'your profession'}.`}
             </p>
           </div>
 
@@ -618,18 +632,10 @@ export const SpeakingLabView: React.FC = () => {
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5">
-              <Compass className="w-3.5 h-3.5 text-slate-500" />
+            <div className={`flex items-center gap-1.5 text-xs ${trackPanel} border rounded-xl px-3 py-1.5`}>
+              <Compass className={`w-3.5 h-3.5 ${trackAccent}`} />
               <span className="text-slate-500 font-medium">Track:</span>
-              <select
-                value={selectedTrackFilter}
-                onChange={(e) => setSelectedTrackFilter(e.target.value)}
-                className="bg-transparent font-semibold text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="all">All Curricula</option>
-                <option value="high_school">High School</option>
-                <option value="professional">Professional</option>
-              </select>
+              <span className={`font-bold ${trackAccent}`}>{isHighSchoolTrack ? `High School · ${user.grade || 'Grade 11'}` : `Professional · ${user.occupation || 'General'}`}</span>
             </div>
           </div>
         </div>
@@ -653,7 +659,7 @@ export const SpeakingLabView: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as SpeakingTab)}
                 className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-sm'
+                    ? `${isHighSchoolTrack ? 'bg-sky-700' : 'bg-violet-700'} text-white shadow-sm`
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                 }`}
               >
