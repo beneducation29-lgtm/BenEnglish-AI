@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { READ_ALOUD_PASSAGES } from '../data/curriculumData';
+import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
 import { ReadAloudPassage } from '../types';
 import { audioEngine, isSpeechSynthesisSupported } from '../services/speech';
-import { lookupWordDefinition } from '../services/api';
+import { lookupWordDefinition, evaluateWriting, WritingAssessmentData } from '../services/api';
 import { BookOpen, PenLine, Volume2, Pause, Search, Save, CheckCircle2, Clock3, Sparkles, BookText } from 'lucide-react';
 
 type Mode = 'reading' | 'writing';
@@ -22,12 +23,32 @@ export const ReadingWritingView: React.FC = () => {
   const [lookupError, setLookupError] = useState('');
   const [draft, setDraft] = useState('');
   const [savedAt, setSavedAt] = useState('');
+  const [writingFeedback, setWritingFeedback] = useState<WritingAssessmentData | null>(null);
+  const [isAssessingWriting, setIsAssessingWriting] = useState(false);
+  const [writingError, setWritingError] = useState('');
+  const [readingAnswers, setReadingAnswers] = useState<Record<string, string>>({});
+  const [showReadingAnswers, setShowReadingAnswers] = useState(false);
 
-  const passages = useMemo(
-    () => READ_ALOUD_PASSAGES.filter((item) => item.track === 'both' || item.track === user.track),
-    [user.track]
+  const curriculumUnits = useMemo(
+    () => GRADE_CEFR_CURRICULUM.filter((unit) => unit.track === user.track && (user.track !== 'high_school' || !user.grade || unit.grade === user.grade)),
+    [user.track, user.grade]
   );
+  const passages = useMemo(() => [
+    ...READ_ALOUD_PASSAGES.filter((item) => item.track === 'both' || item.track === user.track),
+    ...curriculumUnits.map((unit) => ({
+      id: unit.id,
+      title: unit.title,
+      track: unit.track,
+      level: unit.level,
+      category: unit.theme,
+      text: unit.reading.passage,
+      sentences: (unit.reading.passage.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [unit.reading.passage]).map((text, index) => ({ id: unit.id + '-r-' + index, text: text.trim() })),
+      focusSounds: unit.vocabulary.map((item) => item.word),
+      targetWpm: unit.level === 'A1' || unit.level === 'A2' ? 90 : unit.level === 'B1' ? 115 : 135,
+    } as ReadAloudPassage)),
+  ], [user.track, curriculumUnits]);
   const passage: ReadAloudPassage = passages.find((item) => item.id === selectedId) || passages.find((item) => item.level === readingLevel) || passages[0] || READ_ALOUD_PASSAGES[0];
+  const activeUnit = curriculumUnits.find((unit) => unit.id === passage?.id);
   const storageKey = `benenglish_writing_draft_v1:${user.email || 'guest'}:${passage.id}`;
 
   useEffect(() => {
@@ -55,7 +76,7 @@ export const ReadingWritingView: React.FC = () => {
       return;
     }
     setIsPlaying(true);
-    audioEngine.speak(passage.text, {
+    audioEngine.speak(activeUnit?.listening.script || passage.text, {
       rate: 0.92,
       onEnd: () => setIsPlaying(false),
       onError: () => setIsPlaying(false),
@@ -88,9 +109,19 @@ export const ReadingWritingView: React.FC = () => {
     }
   };
 
-  const writingPrompt = user.track === 'high_school'
+  const writingPrompt = activeUnit?.writing.prompt || (user.track === 'high_school'
     ? `Write a short response about “${passage.title}”. Summarize the main idea, explain one important detail, and add your own opinion.`
-    : `Write a concise professional response inspired by “${passage.title}”. Summarize the key point, explain its business relevance, and recommend one action.`;
+    : `Write a concise professional response inspired by “${passage.title}”. Summarize the key point, explain its business relevance, and recommend one action.`);
+
+  const assessDraft = async () => {
+    if (wordCount < 8) { setWritingError('Please write at least 8 words so the tutor has enough evidence to assess.'); return; }
+    setIsAssessingWriting(true); setWritingError(''); setWritingFeedback(null);
+    try {
+      const feedback = await evaluateWriting({ prompt: writingPrompt, learnerResponse: draft, sourceText: passage.text, track: user.track, grade: user.grade, level: activeUnit?.level || readingLevel });
+      setWritingFeedback(feedback);
+    } catch (error) { setWritingError(error instanceof Error ? error.message : 'Could not assess this response.'); }
+    finally { setIsAssessingWriting(false); }
+  };
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 pb-14">
@@ -130,7 +161,7 @@ export const ReadingWritingView: React.FC = () => {
 
           <label className="mb-4 block text-xs font-semibold text-slate-600">
             Choose a passage
-            <select value={passage.id} onChange={(event) => { setSelectedId(event.target.value); setSelectedWord(''); setLookup(null); }} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-500">
+            <select value={passage.id} onChange={(event) => { setSelectedId(event.target.value); setSelectedWord(''); setLookup(null); setWritingFeedback(null); setReadingAnswers({}); setShowReadingAnswers(false); }} className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:border-emerald-500">
               {passages.map((item) => <option key={item.id} value={item.id}>{item.level} · {item.title}</option>)}
             </select>
           </label>
@@ -152,9 +183,27 @@ export const ReadingWritingView: React.FC = () => {
                   </span>
                 ))}
               </div>
+              {activeUnit && <div className="mt-5 space-y-3">
+                <section className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4">
+                  <div className="mb-2 flex items-center gap-2 text-sm font-bold text-sky-900"><Volume2 className="h-4 w-4" /> Listening · {activeUnit.level}</div>
+                  <p className="text-xs leading-5 text-slate-600">Listen to the original lesson script. This preview uses your device's speech-synthesis voice, not a recorded human speaker.</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">{activeUnit.listening.script}</p>
+                  <details className="mt-2"><summary className="cursor-pointer text-xs font-semibold text-sky-800">Listening comprehension question</summary><div className="mt-2 rounded-xl bg-white p-3 text-sm"><p className="font-semibold">{activeUnit.listening.questions[0].prompt}</p><p className="mt-2 text-xs text-slate-600">Answer: {activeUnit.listening.questions[0].answer}</p><p className="mt-1 text-xs text-slate-500">{activeUnit.listening.questions[0].explanation}</p></div></details>
+                </section>
+                <section className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4">
+                  <div className="mb-2 text-sm font-bold text-violet-900">Speaking · {activeUnit.level}</div>
+                  <p className="text-sm leading-6 text-slate-700">{activeUnit.speaking.prompt}</p>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-600">{activeUnit.speaking.followUps.map((question) => <li key={question}>{question}</li>)}</ul>
+                </section>
+                <section className="rounded-2xl border border-emerald-100 bg-white p-4">
+                  <div className="mb-2 text-sm font-bold text-emerald-900">Reading comprehension</div>
+                  {activeUnit.reading.questions.map((question) => <div key={question.id} className="mb-3 last:mb-0"><p className="text-sm font-semibold text-slate-800">{question.prompt}</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{question.options.map((option) => <label key={option} className="flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 p-2 text-xs text-slate-700"><input type="radio" name={question.id} value={option} checked={readingAnswers[question.id] === option} onChange={() => { setReadingAnswers((prev) => ({...prev,[question.id]:option})); setShowReadingAnswers(false); }} />{option}</label>)}</div>{showReadingAnswers && <p className="mt-2 text-xs text-slate-600">{readingAnswers[question.id] === question.answer ? 'Correct. ' : 'Correct answer: ' + question.answer + '. '}{question.explanation}</p>}</div>)}
+                  <button onClick={() => setShowReadingAnswers(true)} className="mt-2 rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white">Check reading answers</button>
+                </section>
+              </div>}
               <div className="mt-4 flex flex-wrap items-center gap-3">
                 <button onClick={playPassage} className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700">
-                  {isPlaying ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}{isPlaying ? 'Stop audio' : 'Listen to passage'}
+                  {isPlaying ? <Pause className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}{isPlaying ? 'Stop audio' : activeUnit ? 'Play listening script · device voice' : 'Listen to passage'}
                 </button>
                 <span className="flex items-center gap-1 text-xs text-slate-500"><Clock3 className="h-3.5 w-3.5" /> Target pace {passage.targetWpm} WPM</span>
               </div>
@@ -166,11 +215,14 @@ export const ReadingWritingView: React.FC = () => {
                 <p className="text-sm leading-6 text-slate-700">{writingPrompt}</p>
                 <p className="mt-2 text-xs text-slate-500">Suggested target: {user.cefrLevel === 'A1' || user.cefrLevel === 'A2' ? '50–80' : user.cefrLevel === 'B1' || user.cefrLevel === 'B2' ? '100–150' : '180–250'} words.</p>
               </div>
-              <textarea value={draft} onChange={(event) => setDraft(event.target.value)} rows={12} placeholder="Write your response here. Try to use 2–3 expressions from the passage..." className="w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
+              <textarea value={draft} onChange={(event) => { setDraft(event.target.value); setWritingFeedback(null); setWritingError(''); }} rows={12} placeholder="Write your response here. Try to use 2–3 expressions from the passage..." className="w-full resize-y rounded-2xl border border-slate-200 bg-white p-4 text-sm leading-7 text-slate-800 outline-none placeholder:text-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100" />
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-xs text-slate-500">{wordCount} words · Drafts are saved in this browser for your account.</span>
                 <button onClick={saveDraft} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"><Save className="h-4 w-4" /> Save draft</button>
               </div>
+              <div className="flex flex-wrap items-center gap-3"><button onClick={assessDraft} disabled={isAssessingWriting || wordCount < 8} className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"><Sparkles className="h-4 w-4" /> {isAssessingWriting ? 'Teacher is reviewing your writing…' : 'Get AI writing feedback'}</button><span className="text-xs text-slate-500">Teacher reviews your submitted text, not a sample answer.</span></div>
+              {writingError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{writingError}</p>}
+              {writingFeedback && <section className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4" aria-live="polite"><div><h3 className="font-bold text-slate-900">Your tutor’s feedback</h3><p className="mt-2 text-sm leading-6 text-slate-700">{writingFeedback.overallFeedback}</p></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[{label:'Task',value:writingFeedback.taskFulfilment},{label:'Organisation',value:writingFeedback.organisation},{label:'Vocabulary',value:writingFeedback.vocabulary},{label:'Grammar',value:writingFeedback.grammar}].map((item) => <div key={item.label} className="rounded-xl bg-white p-3"><p className="text-[11px] text-slate-500">{item.label}</p><p className="text-lg font-extrabold text-emerald-700">{item.value}/5</p></div>)}</div>{writingFeedback.strengths.length>0 && <div><h4 className="text-sm font-bold text-slate-800">What you did well</h4><ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">{writingFeedback.strengths.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}{writingFeedback.corrections.length>0 && <div><h4 className="text-sm font-bold text-slate-800">Corrections from your actual text</h4><div className="mt-2 space-y-2">{writingFeedback.corrections.map((item,index)=><div key={index} className="rounded-xl bg-white p-3 text-sm"><p className="text-rose-700 line-through">{item.original}</p><p className="mt-1 font-semibold text-emerald-700">{item.improved}</p><p className="mt-1 text-xs leading-5 text-slate-600">{item.explanationVi}</p></div>)}</div></div>}<div><h4 className="text-sm font-bold text-slate-800">Your next steps</h4><ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">{writingFeedback.nextSteps.map((item,index)=><li key={index}>{item}</li>)}</ul></div>{writingFeedback.improvedSampleAnswer && <details className="rounded-xl bg-white p-3"><summary className="cursor-pointer text-sm font-bold text-slate-800">View an improved model answer</summary><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{writingFeedback.improvedSampleAnswer}</p><p className="mt-2 text-[11px] text-slate-500">A separate learning model based on your ideas — not your original submission.</p></details>}</section>}
               {savedAt && <p className="flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Saved at {savedAt}</p>}
               <div className="rounded-2xl border border-slate-200 p-4">
                 <h3 className="mb-2 text-sm font-bold text-slate-800">Before you finish</h3>
