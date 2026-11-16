@@ -1,0 +1,26 @@
+name: Quality checks
+
+on:
+  push:
+    branches:
+      - feat/production-grade-cefr-ai-tutor
+  pull_request:
+    branches:
+      - feat/loora-inspired-learning-rebuild
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+      - name: TypeScript check
+        run: bun run lint
+      - name: Production build
+        run: bun run build
