@@ -124,7 +124,19 @@ export default function BenEnglishExperience() {
     loadVoices(); window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
     return () => { window.speechSynthesis.removeEventListener('voiceschanged', loadVoices); window.speechSynthesis.cancel(); };
   }, []);
-  useEffect(() => { if (section !== 'tutor' && 'speechSynthesis' in window) { window.speechSynthesis.cancel(); setIsSpeakingCoach(false); } }, [section]);
+  useEffect(() => {
+    if (section !== 'tutor') {
+      if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); setIsSpeakingCoach(false); }
+      if (recognitionRef.current) {
+        submitVoiceOnEndRef.current = false;
+        try { recognitionRef.current.abort(); } catch { recognitionRef.current = null; }
+        setIsListeningLearner(false);
+      }
+    }
+  }, [section]);
+  useEffect(() => () => {
+    if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch { /* already stopped */ } }
+  }, []);
   useEffect(() => { const refresh = () => { try { setSkillProgress(JSON.parse(localStorage.getItem('benenglish-skill-progress-v1') || '{}')); } catch { setSkillProgress({}); } }; window.addEventListener('benenglish-skill-progress-updated', refresh); return () => window.removeEventListener('benenglish-skill-progress-updated', refresh); }, []);
   useEffect(() => {
     setQuizChoice(null);
