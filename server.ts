@@ -69,7 +69,7 @@ app.post('/api/gemini/conversation', async (req: Request, res: Response): Promis
 
     const learnerMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
     const safeList = (value: unknown) => Array.isArray(value)
-      ? value.filter((item): item is string => typeof item === 'string' && item.trim()).slice(0, 4).map(item => item.trim().slice(0, 180))
+      ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).slice(0, 4).map(item => item.trim().slice(0, 180))
       : [];
     const learnerPriorities = safeList(learnerMemory.priorities);
     const recentSessionNotes = safeList(learnerMemory.recentSessionNotes);
