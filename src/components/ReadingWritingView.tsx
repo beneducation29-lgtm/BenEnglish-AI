@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import { READ_ALOUD_PASSAGES } from '../data/curriculumData';
 import { ReadAloudPassage } from '../types';
 import { audioEngine, isSpeechSynthesisSupported } from '../services/speech';
-import { lookupWordDefinition } from '../services/api';
+import { lookupWordDefinition, evaluateWriting, WritingAssessmentData } from '../services/api';
 import { BookOpen, PenLine, Volume2, Pause, Search, Save, CheckCircle2, Clock3, Sparkles, BookText } from 'lucide-react';
 
 type Mode = 'reading' | 'writing';
@@ -22,6 +22,9 @@ export const ReadingWritingView: React.FC = () => {
   const [lookupError, setLookupError] = useState('');
   const [draft, setDraft] = useState('');
   const [savedAt, setSavedAt] = useState('');
+  const [writingFeedback, setWritingFeedback] = useState<WritingAssessmentData | null>(null);
+  const [isAssessingWriting, setIsAssessingWriting] = useState(false);
+  const [writingError, setWritingError] = useState('');
 
   const passages = useMemo(
     () => READ_ALOUD_PASSAGES.filter((item) => item.track === 'both' || item.track === user.track),
@@ -77,6 +80,16 @@ export const ReadingWritingView: React.FC = () => {
     } finally {
       setLookupLoading(false);
     }
+  };
+
+  const assessDraft = async () => {
+    if (wordCount < 8) { setWritingError('Please write at least 8 words so the tutor has enough evidence to assess.'); return; }
+    setIsAssessingWriting(true); setWritingError(''); setWritingFeedback(null);
+    try {
+      const feedback = await evaluateWriting({ prompt: writingPrompt, learnerResponse: draft, sourceText: passage.text, track: user.track, grade: user.grade, level: user.placementAssessment?.skills.reading.level || user.cefrLevel });
+      setWritingFeedback(feedback);
+    } catch (error) { setWritingError(error instanceof Error ? error.message : 'Could not assess this response.'); }
+    finally { setIsAssessingWriting(false); }
   };
 
   const saveDraft = () => {
@@ -171,6 +184,9 @@ export const ReadingWritingView: React.FC = () => {
                 <span className="text-xs text-slate-500">{wordCount} words · Drafts are saved in this browser for your account.</span>
                 <button onClick={saveDraft} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-700"><Save className="h-4 w-4" /> Save draft</button>
               </div>
+              <div className="flex flex-wrap items-center gap-3"><button onClick={assessDraft} disabled={isAssessingWriting || wordCount < 8} className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"><Sparkles className="h-4 w-4" /> {isAssessingWriting ? 'Teacher is reviewing your writing…' : 'Get AI writing feedback'}</button><span className="text-xs text-slate-500">Feedback is based on your submitted text.</span></div>
+              {writingError && <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{writingError}</p>}
+              {writingFeedback && <section className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4" aria-live="polite"><div><h3 className="font-bold text-slate-900">Your tutor’s feedback</h3><p className="mt-2 text-sm leading-6 text-slate-700">{writingFeedback.overallFeedback}</p></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[{label:'Task',value:writingFeedback.taskFulfilment},{label:'Organisation',value:writingFeedback.organisation},{label:'Vocabulary',value:writingFeedback.vocabulary},{label:'Grammar',value:writingFeedback.grammar}].map(item => <div key={item.label} className="rounded-xl bg-white p-3"><p className="text-[11px] text-slate-500">{item.label}</p><p className="text-lg font-extrabold text-emerald-700">{item.value}/5</p></div>)}</div>{writingFeedback.strengths.length>0 && <div><h4 className="text-sm font-bold text-slate-800">What you did well</h4><ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">{writingFeedback.strengths.map((item,index)=><li key={index}>{item}</li>)}</ul></div>}{writingFeedback.corrections.length>0 && <div><h4 className="text-sm font-bold text-slate-800">Corrections from your actual text</h4><div className="mt-2 space-y-2">{writingFeedback.corrections.map((item,index)=><div key={index} className="rounded-xl bg-white p-3 text-sm"><p className="text-rose-700 line-through">{item.original}</p><p className="mt-1 font-semibold text-emerald-700">{item.improved}</p><p className="mt-1 text-xs leading-5 text-slate-600">{item.explanationVi}</p></div>)}</div></div>}<div><h4 className="text-sm font-bold text-slate-800">Your next steps</h4><ul className="mt-1 list-disc space-y-1 pl-5 text-sm text-slate-700">{writingFeedback.nextSteps.map((item,index)=><li key={index}>{item}</li>)}</ul></div>{writingFeedback.improvedSampleAnswer && <details className="rounded-xl bg-white p-3"><summary className="cursor-pointer text-sm font-bold text-slate-800">View an improved model answer</summary><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{writingFeedback.improvedSampleAnswer}</p><p className="mt-2 text-[11px] text-slate-500">Learning model based on your ideas — not your original submission.</p></details>}</section>}
               {savedAt && <p className="flex items-center gap-1 text-xs text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Saved at {savedAt}</p>}
               <div className="rounded-2xl border border-slate-200 p-4">
                 <h3 className="mb-2 text-sm font-bold text-slate-800">Before you finish</h3>
