@@ -3,6 +3,16 @@ import { Activity, AudioLines, CheckCircle2, CircleAlert, Mic, MicOff, Play, Rot
 import { analyzePronunciationAudio, PronunciationAudioCoachData } from '../services/api';
 
 type Props = { track: string; level: string; contextLabel: string };
+type PronunciationProgressEntry = {
+  id: number;
+  createdAt: number;
+  audioAssessment: 'assessable' | 'not_assessable';
+  transcript: string;
+  audioSummary: string;
+  soundTargets: PronunciationAudioCoachData['soundTargets'];
+  modelSentence: string;
+  strengths: string[];
+};
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -28,11 +38,53 @@ export default function PronunciationCoach({ track, level, contextLabel }: Props
   const [report, setReport] = useState<PronunciationAudioCoachData | null>(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [progressEntries, setProgressEntries] = useState<PronunciationProgressEntry[]>([]);
+  const progressStorageKey = `benenglish-pronunciation-progress-v1:${track}:${level}:${contextLabel}`;
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(progressStorageKey) || '[]');
+      setProgressEntries(Array.isArray(saved) ? saved.slice(0, 40) : []);
+    } catch {
+      setProgressEntries([]);
+    }
+  }, [progressStorageKey]);
+
+  const saveProgressEntry = (result: PronunciationAudioCoachData) => {
+    const entry: PronunciationProgressEntry = {
+      id: Date.now(),
+      createdAt: Date.now(),
+      audioAssessment: result.audioAssessment,
+      transcript: result.transcript.slice(0, 500),
+      audioSummary: result.audioSummary.slice(0, 500),
+      soundTargets: result.soundTargets.slice(0, 4),
+      modelSentence: result.modelSentence.slice(0, 300),
+      strengths: result.strengths.slice(0, 3),
+    };
+    setProgressEntries(previous => {
+      const next = [entry, ...previous].slice(0, 40);
+      try { localStorage.setItem(progressStorageKey, JSON.stringify(next)); } catch {
+        setNotice('This browser could not save progress. Your current coaching report is still available.');
+      }
+      return next;
+    });
+  };
+
+  const assessableEntries = progressEntries.filter(entry => entry.audioAssessment === 'assessable');
+  const soundFrequency = assessableEntries.flatMap(entry => entry.soundTargets).reduce<Record<string, { count: number; word: string; ipa: string; tip: string }>>((totals, target) => {
+    const key = (target.ipa || target.word).toLowerCase().trim();
+    if (!key) return totals;
+    if (!totals[key]) totals[key] = { count: 0, word: target.word, ipa: target.ipa, tip: target.practiceTipVi };
+    totals[key].count += 1;
+    if (target.practiceTipVi) totals[key].tip = target.practiceTipVi;
+    return totals;
+  }, {});
+  const recurringSoundTargets = Object.values(soundFrequency).sort((a, b) => b.count - a.count).slice(0, 3);
 
   const releaseMicrophone = () => {
     streamRef.current?.getTracks().forEach(trackItem => trackItem.stop());
@@ -174,6 +226,29 @@ export default function PronunciationCoach({ track, level, contextLabel }: Props
         </ul>
         <p className="mt-4 rounded-xl bg-amber-50 p-3 text-xs leading-5 text-amber-800">Pronunciation feedback is based on the uploaded recording, not just speech-to-text. If audio quality is insufficient, the coach will say so instead of inventing a score.</p>
       </div>
+    </div>
+
+    <div className="mt-5 rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4 sm:p-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><div className="text-xs font-extrabold tracking-wider text-indigo-700">YOUR PRONUNCIATION PROGRESS</div><h3 className="mt-1 text-lg font-extrabold text-slate-900">A practice plan that remembers</h3></div>
+        <span className="rounded-full bg-white px-3 py-1.5 text-xs font-bold text-indigo-700">{assessableEntries.length} audio-reviewed {assessableEntries.length === 1 ? 'attempt' : 'attempts'}</span>
+      </div>
+      <p className="mt-1 text-xs leading-5 text-slate-600">Progress is saved in this browser for this learning track and level. Audio recordings are not saved in your progress history.</p>
+      {recurringSoundTargets.length > 0 ? <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        {recurringSoundTargets.map((target,index)=><div key={target.ipa || target.word} className="rounded-xl bg-white p-3">
+          <div className="flex items-center justify-between"><span className="text-[10px] font-extrabold tracking-wider text-indigo-600">{index === 0 ? 'TOP FOCUS' : 'ALSO PRACTISE'}</span><span className="text-[10px] font-bold text-slate-400">{target.count}× noted</span></div>
+          <div className="mt-2 text-base font-extrabold text-slate-900">{target.word} <span className="font-medium text-indigo-600">{target.ipa}</span></div>
+          <p className="mt-1 text-xs leading-5 text-slate-600">{target.tip}</p>
+          <p className="mt-2 text-[11px] font-semibold text-indigo-700">{track === 'professional' ? 'Workplace speaking drill' : 'School & everyday English drill'} · {level}</p>
+        </div>)}
+      </div> : <div className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">{assessableEntries.length === 0 ? 'Complete an audio assessment to discover which sounds deserve more practice. Unclear recordings are not counted as pronunciation evidence.' : 'No recurring sound target has appeared yet. Keep practising varied sentences to build a useful pattern.'}</div>}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-extrabold text-slate-700">RECENT PRACTICE</div><span className="text-[11px] text-slate-500">Up to 40 summaries stored locally</span></div>
+      {progressEntries.length > 0 ? <div className="mt-2 space-y-2">
+        {progressEntries.slice(0,5).map(entry=><div key={entry.id} className="flex flex-wrap items-start justify-between gap-2 rounded-xl bg-white px-3 py-2.5">
+          <div className="min-w-0 flex-1"><div className="text-xs font-bold text-slate-800">{entry.soundTargets.length ? entry.soundTargets.map(target=>target.word).join(' · ') : entry.audioAssessment === 'not_assessable' ? 'Audio needs a clearer recording' : 'Speaking practice'}</div><p className="mt-1 truncate text-xs text-slate-500">{entry.transcript || entry.audioSummary}</p></div>
+          <div className="shrink-0 text-right"><div className={'text-[10px] font-extrabold ' + (entry.audioAssessment === 'assessable' ? 'text-emerald-700' : 'text-amber-700')}>{entry.audioAssessment === 'assessable' ? 'REVIEWED' : 'NOT ASSESSABLE'}</div><time className="text-[10px] text-slate-400">{new Date(entry.createdAt).toLocaleDateString()}</time></div>
+        </div>)}
+      </div> : <p className="mt-2 text-xs text-slate-500">Your completed sessions will appear here.</p>}
     </div>
 
     {error && <div role="alert" className="mt-4 flex items-start gap-2 rounded-xl bg-rose-50 p-3 text-sm text-rose-700"><CircleAlert size={17} className="mt-0.5 shrink-0"/>{error}</div>}
