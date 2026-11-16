@@ -97,6 +97,11 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
     setExamSubmitted(false);
   }, [unit.id]);
 
+  useEffect(() => () => {
+    if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch { /* already stopped */ } }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }, []);
+
   const markComplete = (skill: Skill) => setProgress(previous => ({
     ...previous,
     [key]: Array.from(new Set([...(previous[key] || []), skill])),
@@ -270,10 +275,16 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
 
   return <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><p className="text-xs font-extrabold tracking-[.18em] text-indigo-600">DEEP PRACTICE STUDIO</p><h2 className="mt-2 text-2xl font-extrabold">Build each skill, one clear step at a time.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Bài luyện được liên kết trực tiếp với chủ đề, khối lớp và CEFR hiện tại. Tiến độ của Studio được lưu riêng trên trình duyệt này.</p></div>
+      <div><p className="text-xs font-extrabold tracking-[.18em] text-indigo-600">DEEP PRACTICE STUDIO</p><h2 className="mt-2 text-2xl font-extrabold">{unit.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{unit.theme}. Bài học được chia thành các bước hiểu nội dung, ghi nhớ chủ động và vận dụng theo CEFR {unit.level}.</p></div>
       <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right"><div className="text-2xl font-black text-slate-900">{completed.length}/7</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">skills practised</div></div>
     </div>
     <div className="mt-5 flex gap-2 overflow-x-auto pb-2">{skillTabs.map(tab => <button key={tab.id} onClick={() => setActiveSkill(tab.id)} className={'shrink-0 rounded-xl border px-3 py-2 text-left ' + (activeSkill === tab.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600')}><span className="block text-xs font-extrabold">{tab.label}</span><span className={'mt-1 block text-[10px] ' + (activeSkill === tab.id ? 'text-white/65' : 'text-slate-400')}>{completed.includes(tab.id) ? '✓ Practised' : tab.sub}</span></button>)}</div>
+
+    <div className="mt-5 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 sm:grid-cols-3">
+      <div><p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600">Bài học hiện tại</p><h3 className="mt-1 text-base font-extrabold text-slate-900">{unit.title}</h3><p className="mt-1 text-xs text-slate-600">{unit.theme} · {track === 'high_school' ? grade : 'Professional English'} · CEFR {unit.level}</p></div>
+      <div><p className="text-xs font-extrabold text-indigo-900">Mục tiêu</p><p className="mt-1 text-xs leading-5 text-slate-600">Hiểu ý chính, nhận ra từ vựng trọng tâm và dùng chúng để diễn đạt ý kiến của chính bạn.</p></div>
+      <div><p className="text-xs font-extrabold text-indigo-900">Lộ trình 4 bước</p><p className="mt-1 text-xs leading-5 text-slate-600">Nghe / đọc lấy ý → kiểm tra bằng chứng → chủ động nhớ từ → tự nói hoặc viết và sửa lỗi.</p></div>
+    </div>
 
     {activeSkill === 'listening' && <div className="mt-5 rounded-2xl bg-sky-50 p-5"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-extrabold text-sky-950">01 · Listening comprehension</h3><span className="text-xs font-bold text-sky-700">Preview voice · not human audio</span></div><p className="mt-3 text-sm leading-7 text-slate-700">{showListeningScript ? unit.listening.script : 'Hãy nghe trước, chưa đọc transcript. Tập trung vào người nói, chủ đề và các từ khóa chỉ thời gian / nguyên nhân / kết quả.'}</p><div className="mt-3 flex flex-wrap items-center gap-2"><button onClick={playListening} className="rounded-xl bg-sky-700 px-4 py-2.5 text-xs font-bold text-white">▶ Nghe bài ({listeningPlays} lần)</button><label className="flex items-center gap-2 text-xs text-sky-900">Tốc độ <select value={listeningSpeed} onChange={event=>setListeningSpeed(Number(event.target.value))} className="rounded-lg border border-sky-200 bg-white px-2 py-1"><option value={0.78}>Chậm 0.78×</option><option value={0.9}>Vừa 0.9×</option><option value={1}>Tự nhiên 1×</option></select></label><button onClick={()=>setShowListeningScript(value=>!value)} className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-800">{showListeningScript ? 'Ẩn transcript' : 'Mở transcript'}</button></div>{renderQuestion('listening')}<p className="mt-3 text-xs leading-5 text-slate-500">Chiến lược: nghe lần 1 nắm ý chính; nghe lần 2 ghi từ khóa; chỉ xem đáp án sau khi đã chọn.</p></div>}
 
