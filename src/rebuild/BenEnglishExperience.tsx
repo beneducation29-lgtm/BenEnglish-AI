@@ -5,6 +5,7 @@ import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
 import { EXPANDED_LESSON_BANK } from '../data/lessonBankExpansion';
 import DeepPracticeHub from './DeepPracticeHub';
 import PronunciationCoach from './PronunciationCoach';
+import { recordedBlobToWavBase64 } from '../utils/recordedAudio';
 import {
   ArrowRight, AudioLines, BookOpen, BriefcaseBusiness, Check, ChevronRight,
   Clock3, Flame, GraduationCap, Headphones, MessageCircle,
@@ -91,6 +92,7 @@ export default function BenEnglishExperience() {
   const speakingRecognitionRef = useRef<any>(null);
   const speakingStreamRef = useRef<MediaStream | null>(null);
   const speakingChunksRef = useRef<Blob[]>([]);
+  const speakingAudioBlobRef = useRef<Blob | null>(null);
   const speakingStartedAtRef = useRef(0);
   const speakingDurationRef = useRef(0);
   const speakingFinalTranscriptRef = useRef('');
@@ -361,13 +363,13 @@ export default function BenEnglishExperience() {
 
   const startSpeakingAssessment = async () => {
     if (isRecordingSpeaking || isAssessingSpeaking) return;
-    setSpeakingError(''); setSpeakingFeedback(null); setSpeakingTranscript(''); speakingFinalTranscriptRef.current = ''; setSpeakingSeconds(0); speakingChunksRef.current = [];
+    setSpeakingError(''); setSpeakingFeedback(null); setSpeakingTranscript(''); speakingFinalTranscriptRef.current = ''; setSpeakingSeconds(0); speakingChunksRef.current = []; speakingAudioBlobRef.current = null;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       speakingStreamRef.current = stream;
       const recorder = new MediaRecorder(stream); speakingRecorderRef.current = recorder;
       recorder.ondataavailable = event => { if (event.data.size) speakingChunksRef.current.push(event.data); };
-      recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); setSpeakingAudioUrl(previous => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(blob); }); speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; };
+      recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); speakingAudioBlobRef.current = blob; setSpeakingAudioUrl(previous => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(blob); }); speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; };
       recorder.start(250); speakingStartedAtRef.current = Date.now(); setIsRecordingSpeaking(true);
       const w = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }; const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
       if (Recognition) { const recognition = new Recognition(); speakingRecognitionRef.current = recognition; recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true; recognition.onresult = (event: any) => { let interim = ''; const startIndex = Number.isInteger(event.resultIndex) ? event.resultIndex : 0; for (let i=startIndex;i<event.results.length;i+=1) { const result = event.results[i]; const text = result[0]?.transcript?.trim() || ''; if (!text) continue; if (result.isFinal) speakingFinalTranscriptRef.current = [speakingFinalTranscriptRef.current, text].filter(Boolean).join(' '); else interim = [interim, text].filter(Boolean).join(' '); } setSpeakingTranscript([speakingFinalTranscriptRef.current, interim].filter(Boolean).join(' ').trim()); }; recognition.onerror = () => setSpeakingError('Không nhận dạng được lời nói tự động. Bạn vẫn có thể nhập hoặc chỉnh sửa bản chép lời.'); recognition.start(); }
@@ -379,9 +381,17 @@ export default function BenEnglishExperience() {
     const transcript = speakingTranscript.trim(); if (transcript.split(/\s+/).filter(Boolean).length < 8) { setSpeakingError('Hãy nói hoặc nhập ít nhất 8 từ để có đủ dữ liệu đánh giá.'); return; }
     setIsAssessingSpeaking(true); setSpeakingError('');
     try {
-      const result = await evaluateSpeaking({ topic: isSchool ? 'Describe a subject you enjoy and explain how it may help your future.' : 'Describe a recent work challenge, the action you took and the outcome.', userTranscript: transcript, durationSeconds: speakingDurationRef.current || speakingSeconds || undefined, track: learner.track, level: learner.level });
-      setSpeakingFeedback(result); const errors = (result.grammarCorrections || []).map(item => item.original + ' → ' + item.correction); setLearnerMemory(current => mergeLearnerMemory(current, errors, result.strengths || []));
-      setAssessmentHistory(current => [...current, { skill: 'speaking', correct: result.rubricScores.relevanceContent >= 3 && result.rubricScores.fluencyCoherence >= 3, unitId: 'speaking-assessment', at: Date.now(), topic: isSchool ? 'School speaking assessment' : 'Professional speaking assessment' }].slice(-300));
+      const recordedBlob = speakingAudioBlobRef.current;
+      let audioBase64: string | undefined;
+      if (recordedBlob) {
+        if ((speakingDurationRef.current || speakingSeconds) > 45) throw new Error('Bản ghi dài hơn 45 giây. Hãy ghi âm câu trả lời ngắn hơn để phân tích phát âm chính xác và ổn định.');
+        try { audioBase64 = await recordedBlobToWavBase64(recordedBlob); }
+        catch (audioError) { throw new Error(audioError instanceof Error ? audioError.message : 'Không thể xử lý bản ghi âm. Hãy ghi âm lại bằng Chrome hoặc Edge.'); }
+        if (audioBase64.length > 2_100_000) throw new Error('Bản ghi quá lớn. Hãy ghi âm câu trả lời ngắn hơn 45 giây rồi thử lại.');
+      }
+      const result = await evaluateSpeaking({ topic: isSchool ? 'Describe a subject you enjoy and explain how it may help your future.' : 'Describe a recent work challenge, the action you took and the outcome.', userTranscript: transcript, durationSeconds: speakingDurationRef.current || speakingSeconds || undefined, track: learner.track, level: learner.level, audioBase64, audioMimeType: audioBase64 ? 'audio/wav' : undefined });
+      setSpeakingFeedback(result); const errors = [ ...(result.grammarCorrections || []).map(item => item.original + ' → ' + item.correction), ...(result.pronunciationAssessment?.feedback || []).map(item => 'Pronunciation: ' + item.heard + ' → ' + item.suggested + ' (' + item.explanation + ')') ]; setLearnerMemory(current => mergeLearnerMemory(current, errors, result.strengths || []));
+      setAssessmentHistory(current => [...current, { skill: 'speaking', correct: result.rubricScores.relevanceContent >= 3 && result.rubricScores.fluencyCoherence >= 3 && (result.rubricScores.pronunciation === undefined || result.rubricScores.pronunciation >= 3), unitId: 'speaking-assessment', at: Date.now(), topic: isSchool ? 'School speaking assessment' : 'Professional speaking assessment' }].slice(-300));
     } catch (error) { setSpeakingError(error instanceof Error ? error.message : 'Không thể chấm phần nói lúc này. Bản chép lời vẫn được giữ lại.'); } finally { setIsAssessingSpeaking(false); }
   };
   const assessWritingDraft = async () => {
@@ -696,8 +706,8 @@ export default function BenEnglishExperience() {
               <textarea value={speakingTranscript} onChange={event=>setSpeakingTranscript(event.target.value)} rows={4} placeholder="Recognised transcript appears here. You can edit it before assessment…" className="mt-3 w-full rounded-xl border border-sky-100 bg-white px-3 py-3 text-sm leading-6 outline-none focus:border-sky-400"/>
               {speakingError && <p role="alert" className="mt-2 text-xs text-rose-700">{speakingError}</p>}
               <button disabled={isRecordingSpeaking||isAssessingSpeaking||speakingTranscript.trim().split(/\s+/).filter(Boolean).length<8} onClick={submitSpeakingAssessment} className="mt-3 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-40">{isAssessingSpeaking?"Assessing speaking…":"Assess my speaking"}</button>
-              <p className="mt-2 text-[11px] leading-5 text-slate-500">AI scores fluency/coherence, grammar, vocabulary and task relevance from the transcript. The current endpoint does not analyse raw audio, so it does not fabricate an acoustic pronunciation score.</p>
-              {speakingFeedback && <div className="mt-4 rounded-xl bg-white p-4"><div className="flex items-center justify-between"><strong className="text-sm">AI speaking report</strong><Pill>{speakingFeedback.cefrEstimate} · indicative</Pill></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{Object.entries(speakingFeedback.rubricScores).map(([key,value])=><div key={key} className="rounded-lg bg-slate-50 p-3"><div className="text-[10px] capitalize text-slate-500">{key.replace(/([A-Z])/g," $1")}</div><div className="text-lg font-extrabold">{value}/5</div></div>)}</div><p className="mt-3 text-sm leading-6 text-slate-700">{speakingFeedback.strengths.join(" · ")}</p>{speakingFeedback.areasToImprove.map((item,index)=><p key={index} className="mt-2 text-xs leading-5 text-amber-800">• {item}</p>)}{speakingFeedback.grammarCorrections.map((item,index)=><div key={index} className="mt-2 rounded-lg bg-slate-50 p-3 text-xs"><span className="text-rose-700 line-through">{item.original}</span><p className="mt-1 font-bold text-emerald-700">{item.correction}</p><p className="mt-1 text-slate-600">{item.vietnameseNote}</p></div>)}</div>}
+              <p className="mt-2 text-[11px] leading-5 text-slate-500">Khi có bản ghi âm, AI phân tích thêm độ rõ, âm đầu/cuối, nguyên âm, trọng âm và ngữ điệu. Nếu chỉ nhập transcript, hệ thống sẽ không tự tạo điểm phát âm.</p>
+              {speakingFeedback && <div className="mt-4 rounded-xl bg-white p-4"><div className="flex items-center justify-between"><strong className="text-sm">AI speaking report</strong><Pill>{speakingFeedback.cefrEstimate} · indicative</Pill></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">{Object.entries(speakingFeedback.rubricScores).map(([key,value])=><div key={key} className="rounded-lg bg-slate-50 p-3"><div className="text-[10px] capitalize text-slate-500">{key.replace(/([A-Z])/g," $1")}</div><div className="text-lg font-extrabold">{value}/5</div></div>)}</div>{speakingFeedback.pronunciationAssessment && <div className="mt-3 rounded-xl border border-sky-100 bg-sky-50/60 p-3"><strong className="text-xs text-sky-900">Acoustic pronunciation review</strong><div className="mt-2 grid grid-cols-3 gap-2">{[{label:"Intelligibility",value:speakingFeedback.pronunciationAssessment.intelligibility},{label:"Sounds",value:speakingFeedback.pronunciationAssessment.segmentalAccuracy},{label:"Stress & intonation",value:speakingFeedback.pronunciationAssessment.stressAndIntonation}].map(item=><div key={item.label} className="rounded-lg bg-white p-2"><div className="text-[10px] text-slate-500">{item.label}</div><div className="text-lg font-extrabold">{item.value}/5</div></div>)}</div>{speakingFeedback.pronunciationAssessment.feedback.map((item,index)=><div key={index} className="mt-2 rounded-lg bg-white p-3 text-xs"><span className="text-rose-700">{item.heard}</span><span className="mx-2 text-slate-400">→</span><strong className="text-emerald-700">{item.suggested}</strong><p className="mt-1 text-slate-600">{item.explanation}</p></div>)}</div>}<p className="mt-3 text-sm leading-6 text-slate-700">{speakingFeedback.strengths.join(" · ")}</p>{speakingFeedback.areasToImprove.map((item,index)=><p key={index} className="mt-2 text-xs leading-5 text-amber-800">• {item}</p>)}{speakingFeedback.grammarCorrections.map((item,index)=><div key={index} className="mt-2 rounded-lg bg-slate-50 p-3 text-xs"><span className="text-rose-700 line-through">{item.original}</span><p className="mt-1 font-bold text-emerald-700">{item.correction}</p><p className="mt-1 text-slate-600">{item.vietnameseNote}</p></div>)}</div>}
             </div>
             <div className="mt-5 flex flex-wrap gap-2"><button onClick={()=>{update({level:suggestedPlacementLevel});setSection('learn');}} className={`rounded-xl px-4 py-3 text-sm font-bold text-white ${track.color}`}>Use this starting level</button><button onClick={()=>{setPlacementAnswers({});setPlacementSubmitted(false);}} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">Retake test</button></div>
           </div>}
