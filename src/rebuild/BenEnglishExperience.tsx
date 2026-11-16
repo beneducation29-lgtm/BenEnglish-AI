@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowRight, AudioLines, BookOpen, BriefcaseBusiness, Check, ChevronRight,
-  CircleHelp, Clock3, Flame, GraduationCap, Headphones, MessageCircle,
-  Mic2, Play, Plus, Sparkles, Target, TrendingUp, Trophy, Volume2, X
+  Clock3, Flame, GraduationCap, Headphones, MessageCircle,
+  Mic2, Sparkles, Target, TrendingUp, Trophy
 } from 'lucide-react';
 
 type Track = 'high_school' | 'professional';
@@ -50,7 +50,6 @@ export default function BenEnglishExperience() {
   });
   const [section, setSection] = useState<Section>('today');
   const [onboardingStep, setOnboardingStep] = useState(0);
-  const [showSession, setShowSession] = useState(false);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{ role: 'coach' | 'learner'; text: string }[]>([]);
   const track = trackCopy[learner.track];
