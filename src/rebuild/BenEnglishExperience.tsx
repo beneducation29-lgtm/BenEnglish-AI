@@ -52,8 +52,39 @@ export default function BenEnglishExperience() {
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [message, setMessage] = useState('');
   const [messages, setMessages] = useState<{ role: 'coach' | 'learner'; text: string }[]>([]);
+  const [quizChoice, setQuizChoice] = useState<number | null>(null);
+  const [quizChecked, setQuizChecked] = useState(false);
+  const [quizIndex, setQuizIndex] = useState(0);
   const track = trackCopy[learner.track];
   const isSchool = learner.track === 'high_school';
+  const schoolGrade = learner.grade === 'Grade 10' ? 10 : learner.grade === 'Grade 11' ? 11 : 12;
+  const schoolTier = learner.level === 'A1' || learner.level === 'A2' ? 'foundation' : learner.level === 'B2' || learner.level === 'C1' ? 'stretch' : 'core';
+  const schoolQuiz = schoolGrade === 10
+    ? (schoolTier === 'foundation'
+      ? [{q:'Choose the correct sentence.',options:['She go to school by bus.','She goes to school by bus.','She going to school by bus.'],answer:1,why:'With he / she / it in the present simple, add -s or -es to the verb.'},{q:'Complete: We are interested ___ learning about climate change.',options:['on','at','in'],answer:2,why:'The correct collocation is interested in + noun or V-ing.'}]
+      : schoolTier === 'stretch'
+      ? [{q:'Choose the sentence with the closest meaning: “Although it was raining, they continued the match.”',options:['It was raining, so they stopped the match.','Despite the rain, they continued the match.','Because of the rain, they continued the match.'],answer:1,why:'Although + clause can be rewritten as despite + noun phrase.'},{q:'Choose the best completion: If students ___ more regularly, they would feel more confident.',options:['practise','practised','will practise'],answer:1,why:'This is a second conditional: If + past simple, would + base verb.'}]
+      : [{q:'Choose the correct form: My brother usually ___ his homework after dinner.',options:['do','does','is do'],answer:1,why:'Use does with the third-person singular subject “my brother”.'},{q:'Choose the best word: Public transport can reduce air ___.',options:['pollution','population','permission'],answer:0,why:'Pollution means harmful substances in the environment.'}])
+    : schoolGrade === 11
+    ? (schoolTier === 'foundation'
+      ? [{q:'Complete: I have lived here ___ 2020.',options:['for','since','during'],answer:1,why:'Use since with a starting point in time; use for with a duration.'},{q:'Choose the correct relative pronoun: A teacher is someone ___ helps students learn.',options:['who','where','when'],answer:0,why:'Use who to refer to a person.'}]
+      : schoolTier === 'stretch'
+      ? [{q:'Choose the best connector: The solution is affordable; ___, it may take longer to implement.',options:['therefore','however','for example'],answer:1,why:'However introduces a contrast between two ideas.'},{q:'Choose the correct form: The new policy is expected ___ next month.',options:['to introduce','to be introduced','introducing'],answer:1,why:'The policy receives the action, so use the passive infinitive.'}]
+      : [{q:'Complete: If we use less plastic, we ___ waste.',options:['reduce','reduced','will reduce'],answer:2,why:'First conditional: If + present simple, will + base verb.'},{q:'Choose the correct phrase: She is responsible ___ organising the event.',options:['for','to','with'],answer:0,why:'The fixed phrase is responsible for + noun or V-ing.'}])
+    : (schoolTier === 'foundation'
+      ? [{q:'Choose the correct sentence.',options:['I have never visited Singapore.','I never have visit Singapore.','I has never visited Singapore.'],answer:0,why:'Present perfect: have/has + past participle.'},{q:'Complete: The more you practise, the ___ you become.',options:['confident','more confident','most confident'],answer:1,why:'Use the comparative pattern: the more…, the more…'}]
+      : schoolTier === 'stretch'
+      ? [{q:'Choose the best completion: Not only ___ the deadline, but she also improved the final report.',options:['she met','did she meet','she did meet'],answer:1,why:'After “Not only” at the beginning, use subject–auxiliary inversion.'},{q:'Choose the closest meaning: “The campaign was so successful that it was extended.”',options:['The campaign was too successful to extend.','Such was the campaign’s success that it was extended.','The campaign was successful unless it was extended.'],answer:1,why:'Such + be + noun phrase can express a result with that.'}]
+      : [{q:'Choose the correct reported speech: “I am preparing for the exam,” he said.',options:['He said he is preparing for the exam.','He said he was preparing for the exam.','He said I was preparing for the exam.'],answer:1,why:'In standard reported speech, present continuous usually shifts to past continuous.'},{q:'Choose the best word: The evidence strongly ___ the need for change.',options:['suggests','avoids','prevents'],answer:0,why:'Suggests means indicates or gives a reason to believe something.'}]);
+  const professionalQuiz = ({
+    A1:[{q:'Choose the correct workplace introduction.',options:['I work as a designer.','I working designer.','I am work designer.'],answer:0,why:'Use “I work as a…” to describe your job.'},{q:'Complete: Could you ___ that again, please?',options:['repeat','repeats','repeating'],answer:0,why:'After could, use the base form of the verb.'}],
+    A2:[{q:'Choose the most polite request.',options:['Send me the file now.','Could you send me the file, please?','You must sending the file.'],answer:1,why:'Could you…? makes a request more polite.'},{q:'Complete: I have worked here ___ three years.',options:['since','for','from'],answer:1,why:'Use for with a period of time.'}],
+    B1:[{q:'Choose the best phrase for a progress update.',options:['We finished already maybe.','We have completed the first stage and are testing the next one.','We completing stage one.'],answer:1,why:'A concise update states completed work and the current next step.'},{q:'Choose the correct phrase: I look forward to ___ from you.',options:['hear','hearing','heard'],answer:1,why:'Look forward to is followed by a noun or gerund (-ing).'}],
+    B2:[{q:'Choose the most diplomatic way to disagree in a meeting.',options:['That idea is wrong.','I see your point; could we also consider another option?','No, do it my way.'],answer:1,why:'Acknowledge the other view, then introduce an alternative respectfully.'},{q:'Complete: Had we received the data earlier, we ___ the report yesterday.',options:['would finish','would have finished','will have finished'],answer:1,why:'This is a third conditional describing an unreal past result.'}],
+    C1:[{q:'Choose the clearest executive summary sentence.',options:['There are many things that we did and some things remain.','We delivered the pilot; the remaining risk is supplier readiness.','The pilot, which was something we did, has things left.'],answer:1,why:'Strong executive communication is concise and foregrounds outcome and risk.'},{q:'Choose the best phrase to qualify a recommendation.',options:['This will definitely solve every issue.','The evidence suggests this option is likely to reduce delays.','There is no possible downside.'],answer:1,why:'Qualified language communicates evidence and avoids overstating certainty.'}]
+  } as Record<string,{q:string;options:string[];answer:number;why:string}[]>)[learner.level] || [{q:'Choose the clearest sentence for your current level.',options:['I can explain my idea clearly.','I can explaining my idea clear.','I explaining clearly idea.'],answer:0,why:'Use a complete subject + verb + object structure.'}];
+  const quizItems = isSchool ? schoolQuiz : professionalQuiz;
+  const currentQuiz = quizItems[quizIndex % quizItems.length];
 
   useEffect(() => { localStorage.setItem('benenglish-v2-profile', JSON.stringify(learner)); }, [learner]);
   const update = (patch: Partial<Learner>) => setLearner(prev => ({ ...prev, ...patch }));
@@ -145,6 +176,19 @@ export default function BenEnglishExperience() {
                 {n:'06',title:'Interviews & negotiation',desc:'Explain achievements and negotiate respectfully.',out:'Answer a behavioural question'}
               ]).map(m=><article key={m.n} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70"><div className="flex items-center justify-between"><span className={`text-xs font-extrabold ${track.ink}`}>MODULE {m.n}</span><span className="text-[10px] font-bold text-slate-400">10–15 MIN</span></div><h3 className="mt-3 font-extrabold">{m.title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{m.desc}</p><div className={`mt-4 rounded-xl px-3 py-2 text-xs font-bold ${track.soft} ${track.ink}`}>Outcome: {m.out}</div></article>)}
             </div>
+          </section>
+
+          <section className="mt-8 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>LEVEL-MATCHED PRACTICE</p><h2 className="mt-2 text-2xl font-extrabold">One question at the right challenge.</h2></div><div className="flex gap-2"><Pill>{isSchool ? learner.grade : 'Professional'}</Pill><Pill>CEFR {learner.level}</Pill></div></div>
+            <p className="mt-2 text-sm leading-6 text-slate-500">{isSchool ? 'Bài tập được chọn theo cả khối lớp và trình độ bạn tự khai báo. Lớp học quyết định mạch kiến thức; CEFR điều chỉnh độ khó câu hỏi.' : 'Bài tập được chọn trực tiếp theo CEFR để tăng dần độ chính xác, độ tinh tế và khả năng dùng tiếng Anh trong công việc.'}</p>
+            <div className="mt-5 rounded-2xl bg-slate-50 p-5">
+              <div className="text-xs font-bold text-slate-400">QUESTION {(quizIndex % quizItems.length)+1} OF {quizItems.length}</div>
+              <h3 className="mt-3 text-base font-extrabold leading-7">{currentQuiz.q}</h3>
+              <div className="mt-4 grid gap-2">{currentQuiz.options.map((option,i)=><button key={option} disabled={quizChecked} onClick={()=>setQuizChoice(i)} className={`rounded-xl border px-4 py-3 text-left text-sm font-semibold transition ${quizChecked && i===currentQuiz.answer ? 'border-emerald-400 bg-emerald-50 text-emerald-800' : quizChoice===i ? `border-current ${track.soft} ${track.ink}` : 'border-slate-200 bg-white hover:border-slate-300'} ${quizChecked && quizChoice===i && i!==currentQuiz.answer ? 'border-rose-300 bg-rose-50 text-rose-700' : ''}`}>{String.fromCharCode(65+i)}. {option}</button>)}</div>
+              {quizChecked && <div className={`mt-4 rounded-xl p-4 text-sm leading-6 ${quizChoice===currentQuiz.answer?'bg-emerald-50 text-emerald-900':'bg-amber-50 text-amber-900'}`}><strong>{quizChoice===currentQuiz.answer?'Correct. Well done!':'Not quite — learn from this.'}</strong><p className="mt-1">{currentQuiz.why}</p></div>}
+              <div className="mt-5 flex flex-wrap gap-2">{!quizChecked ? <button disabled={quizChoice===null} onClick={()=>setQuizChecked(true)} className={`rounded-xl px-5 py-3 text-sm font-extrabold text-white disabled:cursor-not-allowed disabled:opacity-40 ${track.color}`}>Check answer</button> : <button onClick={()=>{setQuizIndex(i=>i+1);setQuizChoice(null);setQuizChecked(false);}} className={`rounded-xl px-5 py-3 text-sm font-extrabold text-white ${track.color}`}>Next question <ArrowRight size={14} className="ml-1 inline"/></button>}<button onClick={()=>{setQuizChoice(null);setQuizChecked(false);setQuizIndex(0);}} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-500">Reset practice</button></div>
+            </div>
+            <p className="mt-3 text-xs text-slate-400">Đây là bài luyện tập mẫu theo hồ sơ hiện tại, chưa phải bài kiểm tra xếp lớp hoặc điểm đánh giá năng lực chính thức.</p>
           </section>
 
           <section className="mt-8 grid gap-4 lg:grid-cols-2">
