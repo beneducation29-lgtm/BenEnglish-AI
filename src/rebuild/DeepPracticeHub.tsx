@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import type { GradeCefrLessonUnit } from '../data/gradeCefrCurriculum';
 import { evaluateSpeaking, evaluateWriting, sendConversationMessage } from '../services/api';
 
@@ -39,6 +39,13 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
   const [speakingTranscript, setSpeakingTranscript] = useState('');
   const [speakingBusy, setSpeakingBusy] = useState(false);
   const [speakingRecording, setSpeakingRecording] = useState(false);
+  const [speakingInterim, setSpeakingInterim] = useState('');
+  const recognitionRef = useRef<any>(null);
+  const finalTranscriptRef = useRef('');
+  const [listeningSpeed, setListeningSpeed] = useState(0.9);
+  const [listeningPlays, setListeningPlays] = useState(0);
+  const [showListeningScript, setShowListeningScript] = useState(false);
+  const [vocabSentence, setVocabSentence] = useState('');
   const [speakingError, setSpeakingError] = useState('');
   const [speakingResult, setSpeakingResult] = useState<SpeakingResult | null>(null);
   const [grammarDraft, setGrammarDraft] = useState('');
@@ -75,6 +82,13 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
     setWritingResult(null);
     setWritingError('');
     setSpeakingTranscript('');
+    setSpeakingInterim('');
+    finalTranscriptRef.current = '';
+    if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch { /* already stopped */ } recognitionRef.current = null; }
+    setSpeakingRecording(false);
+    setListeningPlays(0);
+    setShowListeningScript(false);
+    setVocabSentence('');
     setSpeakingResult(null);
     setSpeakingError('');
     setGrammarDraft('');
@@ -82,6 +96,11 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
     setExamAnswers({});
     setExamSubmitted(false);
   }, [unit.id]);
+
+  useEffect(() => () => {
+    if (recognitionRef.current) { try { recognitionRef.current.abort(); } catch { /* already stopped */ } }
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+  }, []);
 
   const markComplete = (skill: Skill) => setProgress(previous => ({
     ...previous,
@@ -96,7 +115,8 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(unit.listening.script);
     utterance.lang = 'en-US';
-    utterance.rate = 0.92;
+    utterance.rate = listeningSpeed;
+    utterance.onend = () => setListeningPlays(count => count + 1);
     window.speechSynthesis.speak(utterance);
   };
 
@@ -129,37 +149,67 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
   const startSpeaking = () => {
     const Recognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!Recognition) {
-      setSpeakingError('Speech recognition is not available in this browser. You can type your spoken answer below and request feedback.');
+      setSpeakingError('Trình duyệt chưa hỗ trợ nhận diện giọng nói. Bạn có thể nhập câu trả lời bên dưới hoặc dùng Chrome/Edge mới nhất.');
       return;
     }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch { /* previous session ended */ }
+      recognitionRef.current = null;
+    }
     setSpeakingError('');
+    setSpeakingTranscript('');
+    setSpeakingInterim('');
+    finalTranscriptRef.current = '';
     const recognition = new Recognition();
     recognition.lang = 'en-US';
     recognition.interimResults = true;
     recognition.continuous = true;
+    recognition.maxAlternatives = 1;
     recognition.onresult = (event: any) => {
-      let transcript = '';
-      for (let index = 0; index < event.results.length; index += 1) transcript += event.results[index][0].transcript + ' ';
-      setSpeakingTranscript(transcript.trim());
+      let interim = '';
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const text = String(result?.[0]?.transcript || '').trim();
+        if (!text) continue;
+        if (result.isFinal) {
+          finalTranscriptRef.current = [finalTranscriptRef.current, text].filter(Boolean).join(' ').trim();
+        } else {
+          interim = [interim, text].filter(Boolean).join(' ');
+        }
+      }
+      setSpeakingTranscript(finalTranscriptRef.current);
+      setSpeakingInterim(interim);
     };
     recognition.onerror = (event: any) => {
-      setSpeakingError('Microphone recognition: ' + String(event.error || 'could not start'));
+      const reason = String(event.error || 'unknown');
+      setSpeakingError(reason === 'not-allowed' || reason === 'service-not-allowed'
+        ? 'Micro đang bị chặn quyền truy cập. Hãy cho phép Microphone trong trình duyệt rồi thử lại.'
+        : reason === 'no-speech'
+          ? 'Chưa nhận được tiếng nói. Hãy kiểm tra micro và nói rõ hơn.'
+          : 'Nhận diện đã tạm dừng. Phần văn bản đã nhận được vẫn được giữ lại.');
       setSpeakingRecording(false);
     };
-    recognition.onend = () => setSpeakingRecording(false);
+    recognition.onend = () => {
+      setSpeakingRecording(false);
+      recognitionRef.current = null;
+      setSpeakingTranscript(finalTranscriptRef.current.trim());
+      setSpeakingInterim('');
+    };
+    recognitionRef.current = recognition;
     try {
       recognition.start();
       setSpeakingRecording(true);
-      (window as any).__benEnglishRecognition = recognition;
     } catch {
-      setSpeakingError('The microphone could not start. Check browser permission and try again.');
+      recognitionRef.current = null;
       setSpeakingRecording(false);
+      setSpeakingError('Không thể khởi động micro. Hãy kiểm tra quyền truy cập và thử lại.');
     }
   };
 
   const stopSpeaking = () => {
-    try { (window as any).__benEnglishRecognition?.stop(); } catch { /* already stopped */ }
-    setSpeakingRecording(false);
+    const recognition = recognitionRef.current;
+    if (!recognition) { setSpeakingRecording(false); return; }
+    try { recognition.stop(); } catch { setSpeakingRecording(false); }
   };
 
   const assessSpeaking = async () => {
@@ -225,20 +275,26 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
 
   return <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
     <div className="flex flex-wrap items-start justify-between gap-3">
-      <div><p className="text-xs font-extrabold tracking-[.18em] text-indigo-600">DEEP PRACTICE STUDIO</p><h2 className="mt-2 text-2xl font-extrabold">Build each skill, one clear step at a time.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Bài luyện được liên kết trực tiếp với chủ đề, khối lớp và CEFR hiện tại. Tiến độ của Studio được lưu riêng trên trình duyệt này.</p></div>
+      <div><p className="text-xs font-extrabold tracking-[.18em] text-indigo-600">DEEP PRACTICE STUDIO</p><h2 className="mt-2 text-2xl font-extrabold">{unit.title}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{unit.theme}. Bài học được chia thành các bước hiểu nội dung, ghi nhớ chủ động và vận dụng theo CEFR {unit.level}.</p></div>
       <div className="rounded-2xl bg-slate-50 px-4 py-3 text-right"><div className="text-2xl font-black text-slate-900">{completed.length}/7</div><div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">skills practised</div></div>
     </div>
     <div className="mt-5 flex gap-2 overflow-x-auto pb-2">{skillTabs.map(tab => <button key={tab.id} onClick={() => setActiveSkill(tab.id)} className={'shrink-0 rounded-xl border px-3 py-2 text-left ' + (activeSkill === tab.id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-600')}><span className="block text-xs font-extrabold">{tab.label}</span><span className={'mt-1 block text-[10px] ' + (activeSkill === tab.id ? 'text-white/65' : 'text-slate-400')}>{completed.includes(tab.id) ? '✓ Practised' : tab.sub}</span></button>)}</div>
 
-    {activeSkill === 'listening' && <div className="mt-5 rounded-2xl bg-sky-50 p-5"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-extrabold text-sky-950">01 · Listening comprehension</h3><span className="text-xs font-bold text-sky-700">Preview voice · not human audio</span></div><p className="mt-3 text-sm leading-7 text-slate-700">{unit.listening.script}</p><button onClick={playListening} className="mt-3 rounded-xl bg-sky-700 px-4 py-2.5 text-xs font-bold text-white">Play listening preview</button>{renderQuestion('listening')}<p className="mt-3 text-xs leading-5 text-slate-500">Chiến lược: nghe lần 1 nắm ý chính; nghe lần 2 ghi từ khóa; chỉ xem đáp án sau khi đã chọn.</p></div>}
+    <div className="mt-5 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4 sm:grid-cols-3">
+      <div><p className="text-[10px] font-extrabold uppercase tracking-wider text-indigo-600">Bài học hiện tại</p><h3 className="mt-1 text-base font-extrabold text-slate-900">{unit.title}</h3><p className="mt-1 text-xs text-slate-600">{unit.theme} · {track === 'high_school' ? grade : 'Professional English'} · CEFR {unit.level}</p></div>
+      <div><p className="text-xs font-extrabold text-indigo-900">Mục tiêu</p><p className="mt-1 text-xs leading-5 text-slate-600">Hiểu ý chính, nhận ra từ vựng trọng tâm và dùng chúng để diễn đạt ý kiến của chính bạn.</p></div>
+      <div><p className="text-xs font-extrabold text-indigo-900">Lộ trình 4 bước</p><p className="mt-1 text-xs leading-5 text-slate-600">Nghe / đọc lấy ý → kiểm tra bằng chứng → chủ động nhớ từ → tự nói hoặc viết và sửa lỗi.</p></div>
+    </div>
+
+    {activeSkill === 'listening' && <div className="mt-5 rounded-2xl bg-sky-50 p-5"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="text-lg font-extrabold text-sky-950">01 · Listening comprehension</h3><span className="text-xs font-bold text-sky-700">Preview voice · not human audio</span></div><p className="mt-3 text-sm leading-7 text-slate-700">{showListeningScript ? unit.listening.script : 'Hãy nghe trước, chưa đọc transcript. Tập trung vào người nói, chủ đề và các từ khóa chỉ thời gian / nguyên nhân / kết quả.'}</p><div className="mt-3 flex flex-wrap items-center gap-2"><button onClick={playListening} className="rounded-xl bg-sky-700 px-4 py-2.5 text-xs font-bold text-white">▶ Nghe bài ({listeningPlays} lần)</button><label className="flex items-center gap-2 text-xs text-sky-900">Tốc độ <select value={listeningSpeed} onChange={event=>setListeningSpeed(Number(event.target.value))} className="rounded-lg border border-sky-200 bg-white px-2 py-1"><option value={0.78}>Chậm 0.78×</option><option value={0.9}>Vừa 0.9×</option><option value={1}>Tự nhiên 1×</option></select></label><button onClick={()=>setShowListeningScript(value=>!value)} className="rounded-lg border border-sky-200 bg-white px-3 py-2 text-xs font-bold text-sky-800">{showListeningScript ? 'Ẩn transcript' : 'Mở transcript'}</button></div>{renderQuestion('listening')}<p className="mt-3 text-xs leading-5 text-slate-500">Chiến lược: nghe lần 1 nắm ý chính; nghe lần 2 ghi từ khóa; chỉ xem đáp án sau khi đã chọn.</p></div>}
 
     {activeSkill === 'reading' && <div className="mt-5 rounded-2xl bg-indigo-50 p-5"><h3 className="text-lg font-extrabold text-indigo-950">02 · Reading for meaning</h3><p className="mt-3 whitespace-pre-line text-sm leading-7 text-slate-700">{unit.reading.passage}</p>{renderQuestion('reading')}<div className="mt-3 rounded-xl bg-white/80 p-3 text-xs leading-5 text-slate-600">Đọc câu hỏi trước, tìm từ khóa trong đoạn, xác định câu chứa bằng chứng rồi mới chọn đáp án. Không suy luận vượt quá nội dung bài.</div></div>}
 
     {activeSkill === 'writing' && <div className="mt-5 rounded-2xl bg-emerald-50 p-5"><h3 className="text-lg font-extrabold text-emerald-950">03 · Writing workshop</h3><p className="mt-2 text-sm text-slate-700">{unit.writing.prompt}</p><div className="mt-3 grid gap-2 sm:grid-cols-2">{unit.writing.checklist.map(item => <div key={item} className="rounded-xl bg-white p-3 text-xs text-slate-600">□ {item}</div>)}</div><textarea value={writingDraft} onChange={event => setWritingDraft(event.target.value)} rows={6} placeholder="Write your answer here…" className="mt-4 w-full rounded-xl border border-emerald-200 bg-white p-3 text-sm leading-6 outline-none focus:border-emerald-500"/><div className="mt-2 flex flex-wrap items-center justify-between gap-2"><span className="text-xs text-slate-500">{writingDraft.trim().split(/\\s+/).filter(Boolean).length} words · CEFR {unit.level}</span><button disabled={writingBusy} onClick={assessWriting} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{writingBusy ? 'Reviewing…' : 'Get AI writing feedback'}</button></div>{writingError && <p role="alert" className="mt-3 text-sm text-rose-700">{writingError}</p>}{writingResult && <div className="mt-4 space-y-3 rounded-xl bg-white p-4"><p className="text-sm leading-6 text-slate-700">{writingResult.overallFeedback}</p><div className="grid grid-cols-4 gap-2">{[['Task',writingResult.taskFulfilment],['Flow',writingResult.organisation],['Words',writingResult.vocabulary],['Grammar',writingResult.grammar]].map(([label,score])=><div key={String(label)} className="rounded-lg bg-emerald-50 p-2"><div className="text-[10px] text-slate-500">{label}</div><div className="text-lg font-black text-emerald-800">{score}/5</div></div>)}</div>{writingResult.corrections.map((item,index)=><div key={index} className="rounded-lg bg-slate-50 p-3 text-xs"><p className="text-rose-700 line-through">{item.original}</p><p className="mt-1 font-bold text-emerald-700">{item.improved}</p><p className="mt-1 text-slate-600">{item.explanationVi}</p></div>)}{writingResult.nextSteps.map(item=><p key={item} className="text-xs text-slate-600">→ {item}</p>)}<details className="rounded-lg bg-slate-50 p-3"><summary className="cursor-pointer text-xs font-bold">Model answer</summary><p className="mt-2 whitespace-pre-line text-sm leading-6">{writingResult.improvedSampleAnswer}</p></details></div>}</div>}
 
-    {activeSkill === 'speaking' && <div className="mt-5 rounded-2xl bg-violet-50 p-5"><h3 className="text-lg font-extrabold text-violet-950">04 · Speaking coach</h3><p className="mt-2 text-sm leading-6 text-slate-700">{unit.speaking.prompt}</p><div className="mt-3 space-y-2">{unit.speaking.followUps.map(item=><p key={item} className="rounded-xl bg-white p-3 text-xs text-slate-600">{item}</p>)}</div><div className="mt-4 flex flex-wrap gap-2"><button onClick={speakingRecording ? stopSpeaking : startSpeaking} className={'rounded-xl px-4 py-2.5 text-xs font-bold text-white ' + (speakingRecording ? 'bg-rose-600' : 'bg-violet-700')}>{speakingRecording ? 'Stop recording' : 'Start microphone'}</button><span className="self-center text-xs text-slate-500">Speech-to-text transcript is assessed; this is not acoustic phoneme scoring.</span></div><textarea value={speakingTranscript} onChange={event => setSpeakingTranscript(event.target.value)} rows={4} placeholder="Your recognised or typed answer appears here…" className="mt-3 w-full rounded-xl border border-violet-200 bg-white p-3 text-sm leading-6"/><button disabled={speakingBusy} onClick={assessSpeaking} className="mt-2 rounded-xl bg-violet-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{speakingBusy ? 'Evaluating…' : 'Evaluate my speaking response'}</button>{speakingError && <p role="alert" className="mt-3 text-sm text-rose-700">{speakingError}</p>}{speakingResult && <div className="mt-4 space-y-3 rounded-xl bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">CEFR estimate: {speakingResult.cefrEstimate}</strong><span className="text-xs font-bold text-violet-700">Practice band {speakingResult.overallBandEstimate}</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{Object.entries(speakingResult.rubricScores).map(([label,score])=><div key={label} className="rounded-lg bg-violet-50 p-2"><div className="text-[10px] text-slate-500">{label.replace(/([A-Z])/g,' $1')}</div><div className="font-black">{score}/9</div></div>)}</div>{speakingResult.strengths.map(item=><p key={item} className="text-xs text-emerald-700">+ {item}</p>)}{speakingResult.areasToImprove.map(item=><p key={item} className="text-xs text-amber-800">→ {item}</p>)}{speakingResult.grammarCorrections.map(item=><div key={item.original} className="rounded-lg bg-slate-50 p-3 text-xs"><span className="text-rose-700 line-through">{item.original}</span><p className="mt-1 font-bold text-emerald-700">{item.correction}</p><p className="mt-1 text-slate-600">{item.vietnameseNote}</p></div>)}<details className="rounded-lg bg-slate-50 p-3"><summary className="cursor-pointer text-xs font-bold">Suggested stronger answer</summary><p className="mt-2 text-sm leading-6">{speakingResult.improvedSampleAnswer}</p></details></div>}</div>}
+    {activeSkill === 'speaking' && <div className="mt-5 rounded-2xl bg-violet-50 p-5"><h3 className="text-lg font-extrabold text-violet-950">04 · Speaking coach</h3><p className="mt-2 text-sm leading-6 text-slate-700">{unit.speaking.prompt}</p><div className="mt-3 space-y-2">{unit.speaking.followUps.map(item=><p key={item} className="rounded-xl bg-white p-3 text-xs text-slate-600">{item}</p>)}</div><div className="mt-4 flex flex-wrap gap-2"><button onClick={speakingRecording ? stopSpeaking : startSpeaking} className={'rounded-xl px-4 py-2.5 text-xs font-bold text-white ' + (speakingRecording ? 'bg-rose-600' : 'bg-violet-700')}>{speakingRecording ? 'Kết thúc ghi âm' : 'Bắt đầu nói'}</button><span className="self-center text-xs text-slate-500">Bạn chủ động kết thúc, xem lại transcript rồi mới gửi đánh giá.</span></div>{speakingRecording && <p role="status" className="mt-2 rounded-lg bg-white p-3 text-xs text-violet-800">Đang nghe… cứ nói tự nhiên, chưa gửi tự động.</p>}{speakingInterim && <p className="mt-2 rounded-lg bg-violet-100 p-3 text-sm italic text-violet-800">Đang nhận diện: {speakingInterim}</p>}<textarea value={speakingTranscript} onChange={event => { setSpeakingTranscript(event.target.value); finalTranscriptRef.current = event.target.value; }} rows={4} placeholder="Transcript sẽ xuất hiện ở đây. Bạn có thể sửa trước khi gửi…" className="mt-3 w-full rounded-xl border border-violet-200 bg-white p-3 text-sm leading-6"/><button disabled={speakingBusy||speakingRecording||speakingTranscript.trim().split(/\s+/).filter(Boolean).length<5} onClick={assessSpeaking} className="mt-2 rounded-xl bg-violet-700 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{speakingBusy ? 'Evaluating…' : 'Evaluate my speaking response'}</button>{speakingError && <p role="alert" className="mt-3 text-sm text-rose-700">{speakingError}</p>}{speakingResult && <div className="mt-4 space-y-3 rounded-xl bg-white p-4"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-sm">CEFR estimate: {speakingResult.cefrEstimate}</strong><span className="text-xs font-bold text-violet-700">Practice band {speakingResult.overallBandEstimate}</span></div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{Object.entries(speakingResult.rubricScores).map(([label,score])=><div key={label} className="rounded-lg bg-violet-50 p-2"><div className="text-[10px] text-slate-500">{label.replace(/([A-Z])/g,' $1')}</div><div className="font-black">{score}/9</div></div>)}</div>{speakingResult.strengths.map(item=><p key={item} className="text-xs text-emerald-700">+ {item}</p>)}{speakingResult.areasToImprove.map(item=><p key={item} className="text-xs text-amber-800">→ {item}</p>)}{speakingResult.grammarCorrections.map(item=><div key={item.original} className="rounded-lg bg-slate-50 p-3 text-xs"><span className="text-rose-700 line-through">{item.original}</span><p className="mt-1 font-bold text-emerald-700">{item.correction}</p><p className="mt-1 text-slate-600">{item.vietnameseNote}</p></div>)}<details className="rounded-lg bg-slate-50 p-3"><summary className="cursor-pointer text-xs font-bold">Suggested stronger answer</summary><p className="mt-2 text-sm leading-6">{speakingResult.improvedSampleAnswer}</p></details></div>}</div>}
 
-    {activeSkill === 'vocabulary' && <div className="mt-5 rounded-2xl bg-amber-50 p-5"><h3 className="text-lg font-extrabold text-amber-950">05 · Vocabulary retrieval</h3><p className="mt-2 text-sm text-slate-600">Hãy tự nhớ nghĩa trước khi mở đáp án. Sau đó đọc ví dụ thành tiếng và tự đặt câu mới.</p>{activeVocabulary ? <div className="mt-4 rounded-2xl bg-white p-5"><div className="text-xs font-bold uppercase tracking-wider text-slate-400">Word {vocabIndex+1} of {unit.vocabulary.length}</div><div className="mt-3 text-2xl font-black text-slate-900">{activeVocabulary.word}</div><button onClick={()=>setShowVocabMeaning(value=>!value)} className="mt-3 rounded-xl border border-amber-200 px-4 py-2 text-xs font-bold text-amber-900">{showVocabMeaning ? 'Hide meaning' : 'Reveal meaning'}</button>{showVocabMeaning && <div className="mt-3 rounded-xl bg-amber-50 p-3"><p className="text-sm font-bold">{activeVocabulary.meaningVi}</p><p className="mt-1 text-sm text-slate-600">{activeVocabulary.example}</p></div>}<button onClick={()=>{setVocabIndex(index=>index+1);setShowVocabMeaning(false);if(vocabIndex+1>=unit.vocabulary.length)markComplete('vocabulary');}} className="mt-3 block rounded-xl bg-amber-700 px-4 py-2.5 text-xs font-bold text-white">Next word</button></div> : <p className="mt-3 text-sm">No vocabulary item has been added to this unit yet.</p>}</div>}
+    {activeSkill === 'vocabulary' && <div className="mt-5 rounded-2xl bg-amber-50 p-5"><h3 className="text-lg font-extrabold text-amber-950">05 · Vocabulary retrieval</h3><p className="mt-2 text-sm text-slate-600">Hãy tự nhớ nghĩa trước khi mở đáp án. Sau đó đọc ví dụ thành tiếng và tự đặt câu mới.</p>{activeVocabulary ? <div className="mt-4 rounded-2xl bg-white p-5"><div className="text-xs font-bold uppercase tracking-wider text-slate-400">Word {vocabIndex+1} of {unit.vocabulary.length}</div><div className="mt-3 text-2xl font-black text-slate-900">{activeVocabulary.word}</div><button onClick={()=>setShowVocabMeaning(value=>!value)} className="mt-3 rounded-xl border border-amber-200 px-4 py-2 text-xs font-bold text-amber-900">{showVocabMeaning ? 'Hide meaning' : 'Reveal meaning'}</button>{showVocabMeaning && <div className="mt-3 rounded-xl bg-amber-50 p-3"><p className="text-sm font-bold">{activeVocabulary.meaningVi}</p><p className="mt-1 text-sm text-slate-600">{activeVocabulary.example}</p><button onClick={()=>{if('speechSynthesis' in window){window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(activeVocabulary.example);utterance.lang='en-US';utterance.rate=0.88;window.speechSynthesis.speak(utterance);}}} className="mt-2 rounded-lg bg-white px-3 py-2 text-xs font-bold text-amber-800">🔊 Nghe câu ví dụ</button><label className="mt-4 block text-xs font-bold text-slate-600">Tự đặt một câu với từ này<textarea value={vocabSentence} onChange={event=>setVocabSentence(event.target.value)} rows={2} placeholder={'Write your own sentence with “'+activeVocabulary.word+'”…'} className="mt-2 w-full rounded-lg border border-amber-200 p-3 text-sm font-normal"/></label></div>}<div className="mt-3 flex flex-wrap gap-2"><button disabled={vocabSentence.trim().split(/\s+/).filter(Boolean).length<4} onClick={()=>{if('speechSynthesis' in window){const utterance=new SpeechSynthesisUtterance(vocabSentence);utterance.lang='en-US';window.speechSynthesis.speak(utterance);}}} className="rounded-xl border border-amber-200 px-3 py-2 text-xs font-bold text-amber-900 disabled:opacity-40">🔊 Nghe câu của tôi</button><button onClick={()=>{setVocabIndex(index=>index+1);setShowVocabMeaning(false);setVocabSentence('');if(vocabIndex+1>=unit.vocabulary.length)markComplete('vocabulary');}} className="rounded-xl bg-amber-700 px-4 py-2.5 text-xs font-bold text-white">Từ tiếp theo</button></div></div> : <p className="mt-3 text-sm">No vocabulary item has been added to this unit yet.</p>}</div>}
 
     {activeSkill === 'grammar' && <div className="mt-5 rounded-2xl bg-cyan-50 p-5"><h3 className="text-lg font-extrabold text-cyan-950">06 · Grammar clinic</h3><p className="mt-2 text-sm text-slate-700">Focus: {unit.grammarFocus.join(' · ')}</p><p className="mt-3 text-sm text-slate-600">Viết một câu của riêng bạn có sử dụng một cấu trúc trong bài. AI sẽ kiểm tra cách dùng, giải thích lỗi và đưa bài luyện tiếp theo.</p><textarea value={grammarDraft} onChange={event=>setGrammarDraft(event.target.value)} rows={3} placeholder="Write one original sentence…" className="mt-3 w-full rounded-xl border border-cyan-200 bg-white p-3 text-sm"/><button onClick={reviewGrammar} disabled={grammarBusy||grammarDraft.trim().length<8} className="mt-2 rounded-xl bg-cyan-800 px-4 py-2.5 text-xs font-bold text-white disabled:opacity-50">{grammarBusy?'Checking…':'Ask AI to check my sentence'}</button>{grammarFeedback && <div className="mt-3 whitespace-pre-wrap rounded-xl bg-white p-4 text-sm leading-6 text-slate-700">{grammarFeedback}</div>}</div>}
 

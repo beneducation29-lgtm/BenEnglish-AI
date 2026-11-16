@@ -67,6 +67,29 @@ app.post('/api/gemini/conversation', async (req: Request, res: Response): Promis
       interview: 'Job interview practice with behavioral, situational, and competency questions.',
     };
 
+    const learnerMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
+    const safeList = (value: unknown) => Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).slice(0, 4).map(item => item.trim().slice(0, 180))
+      : [];
+    const learnerPriorities = safeList(learnerMemory.priorities);
+    const recentSessionNotes = safeList(learnerMemory.recentSessionNotes);
+    const recurringErrors = safeList(learnerMemory.recurringErrors);
+
+    const learnerMessage = typeof message === 'string' ? message.trim().slice(0, 1200) : '';
+    if (!learnerMessage) {
+      res.status(400).json({ success: false, error: 'Please send a short message before starting the conversation.' });
+      return;
+    }
+
+    // Bound conversation context so long sessions cannot turn each reply into an oversized request.
+    const recentHistory = Array.isArray(history)
+      ? history.slice(-6).filter((turn: any) => turn && typeof turn.content === 'string' && turn.content.trim())
+          .map((turn: any) => ({
+            role: turn.role === 'user' ? 'user' : 'model',
+            parts: [{ text: turn.content.trim().slice(-700) }],
+          }))
+      : [];
+
     const systemInstruction = `
 You are the interactive AI voice conversation partner for BenEnglish AI.
 Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_teacher}
@@ -84,32 +107,48 @@ CRITICAL PEDAGOGICAL RULES:
 7. ERROR CORRECTION: Correct only a clear, useful grammar or word-choice error. Do not interrupt the conversation for minor acceptable variants. Put the correction in the designated JSON fields and give a short, specific explanation with a Vietnamese tip. If there is no clear error, set hasMistake to false and leave correction text fields empty.
 8. Phonetic tip must relate to a real word or phrase in your reply. Never invent a pronunciation problem in the learner's speech from text alone. If no useful tip exists, return an empty string.
 9. Suggested replies must be short, natural alternatives that fit the immediate context and help the learner continue—not generic phrases repeated on every turn. Return no more than 2.
-10. Return your output as STRICT JSON adhering to the schema.
+10. Make every turn teach one small, memorable thing when it fits naturally: a useful collocation, a more natural alternative, or a short pronunciation/intonation cue. Do not overload the learner with a vocabulary list.
+11. Keep the learner speaking: respond to the exact meaning of their last turn, then invite one specific next action or question. Build on the details they have already shared; do not reset the topic.
+12. Adapt the complexity of sentence length, vocabulary and grammar to the stated CEFR level. For A1-A2 use short, high-frequency language and one idea at a time; for B1-B2 add useful linking and precise expressions; for C1 use nuance and register without becoming needlessly academic.
+13. If a recurring error is supplied, watch for it and explain it only when it appears again in the learner's actual words. Never invent a learner mistake or claim that the learner used a phrase they did not use.
+14. For High School English, keep examples suitable for Grades 10-12 and connect naturally to school curriculum, daily life, science, environment, culture and future study. For Professional English, use realistic workplace scenarios, tactful language and clear outcomes.
+15. Return your output as STRICT JSON adhering to the schema.
 `;
 
+    const contextNotes = [
+      learnerPriorities.length ? 'Learner priorities: ' + learnerPriorities.join('; ') : '',
+      recentSessionNotes.length ? 'Recent learning notes: ' + recentSessionNotes.join('; ') : '',
+      recurringErrors.length ? 'Recurring error watchlist (correct only if it appears in this turn): ' + recurringErrors.join('; ') : '',
+    ].filter(Boolean).join('\n');
+    const learnerTurn = contextNotes
+      ? '[Private learning context for the tutor; do not repeat this list to the learner]\n' + contextNotes + '\n\nLearner says: ' + learnerMessage
+      : learnerMessage;
     const formattedContents = [
-      ...history.map((turn: { role: string; content: string }) => ({
-        role: turn.role === 'user' ? 'user' : 'model',
-        parts: [{ text: turn.content }],
-      })),
+      ...recentHistory,
       {
         role: 'user',
-        parts: [
-          {
-            text: message || "Hello! Let's start our conversation practice.",
-          },
-        ],
+        parts: [{ text: learnerTurn }],
       },
     ];
 
-    const response = await ai.models.generateContent({
+    // Use a bounded timeout and disable the SDK's long default retry backoff for this
+    // interactive turn. The learner can retry from the UI without losing the turn.
+    const conversationAi = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        timeout: 18000,
+        headers: { 'User-Agent': 'aistudio-build' },
+        retryOptions: { attempts: 1 },
+      },
+    });
+    const response = await conversationAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: formattedContents,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
-        temperature: 0.75,
-        maxOutputTokens: 500,
+        temperature: 0.65,
+        maxOutputTokens: 320,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -145,10 +184,22 @@ CRITICAL PEDAGOGICAL RULES:
     const parsed = JSON.parse(response.text || '{}');
     res.json({ success: true, data: parsed });
   } catch (error: any) {
-    console.error('Conversation error:', error);
-    res.status(500).json({
+    const detail = String(error?.message || 'Failed to generate conversation response');
+    const deadlineExceeded = /DEADLINE_EXCEEDED|deadline|timed?\s*out|timeout/i.test(detail)
+      || Number(error?.code) === 504 || Number(error?.status) === 504;
+    console.error('Conversation error:', {
+      message: detail.slice(0, 500),
+      code: error?.code,
+      status: error?.status,
+      deadlineExceeded,
+    });
+    res.status(deadlineExceeded ? 504 : 502).json({
       success: false,
-      error: error.message || 'Failed to generate conversation response',
+      code: deadlineExceeded ? 'AI_DEADLINE_EXCEEDED' : 'AI_UPSTREAM_ERROR',
+      retryable: true,
+      error: deadlineExceeded
+        ? 'The AI tutor is taking longer than usual. Your message is preserved; please try again in a moment.'
+        : 'The AI tutor is temporarily unavailable. Your message is preserved; please retry shortly.',
     });
   }
 });
