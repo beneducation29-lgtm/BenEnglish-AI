@@ -262,6 +262,107 @@ Return strict JSON matching the schema.
   }
 });
 
+// Audio-first Pronunciation Coach: analyse the uploaded recording itself, not ASR text as a proxy for sound quality.
+app.post('/api/gemini/pronunciation-audio-coach', async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(503).json({ success: false, error: 'Audio coaching is not configured. Add GEMINI_API_KEY on the server and redeploy.' });
+      return;
+    }
+    const { audioBase64, mimeType, targetText = '', track = 'high_school', level = 'A2' } = req.body || {};
+    if (typeof audioBase64 !== 'string' || audioBase64.length < 1000 || audioBase64.length > 8_000_000) {
+      res.status(400).json({ success: false, error: 'The recording is empty or too large. Please record a shorter answer (up to 30 seconds).' });
+      return;
+    }
+    const safeMime = typeof mimeType === 'string' ? mimeType.toLowerCase().split(';')[0] : '';
+    if (!/^audio\/(webm|mp4|mpeg|wav|x-wav|ogg|aac)$/.test(safeMime)) {
+      res.status(415).json({ success: false, error: 'This audio format is not supported. Please record again using a supported browser audio format.' });
+      return;
+    }
+    const safeTarget = typeof targetText === 'string' ? targetText.slice(0, 1200).trim() : '';
+    const safeTrack = track === 'professional' ? 'professional' : 'high_school';
+    const safeLevel = typeof level === 'string' && /^(A1|A2|B1|B2|C1|C2)$/.test(level) ? level : 'A2';
+
+    const trackGuidance = safeTrack === 'high_school'
+      ? 'The learner is studying high-school English in Vietnam. Keep explanations age-appropriate and connect vocabulary to school, daily life, science, environment, culture and future study.'
+      : 'The learner is studying Professional English. Prioritise precise workplace language, natural collocations, diplomacy, clarity and register.';
+    const systemInstruction = `
+You are BenEnglish AI's senior English Pronunciation and Speaking Coach for Vietnamese learners.
+The attached input contains the learner's ACTUAL MICROPHONE AUDIO. Listen to the audio directly.
+Learner track: ${safeTrack}; CEFR target: ${safeLevel}.
+${trackGuidance}
+
+CRITICAL EVIDENCE RULES:
+1. Assess sound production ONLY from acoustic evidence in the audio. Do not use a speech-to-text transcript as a substitute for listening.
+2. If the recording is silent, clipped, noisy, too short, unclear, or the relevant sound cannot be judged, set audioAssessment to "not_assessable", explain why, and return no soundTargets. Never guess.
+3. Do not produce numeric pronunciation scores, accent scores, fluency scores, or confidence percentages. Describe only specific audible evidence and its limitations.
+4. Do not claim to assess exact phoneme placement unless the recording gives enough evidence. Distinguish a possible speech-recognition mismatch from a clearly audible sound.
+5. Grammar and vocabulary feedback is a separate transcript/language analysis. Mark only clear errors; do not call acceptable variants wrong.
+6. Do not infer the learner's identity, age, location or personal attributes from their voice.
+7. For Vietnamese learners, check possible final consonant omissions, /θ/ vs /s/ or /t/, /ʃ/ vs /s/, /iː/ vs /ɪ/, /æ/ vs /e/, consonant clusters and lexical stress only when actually audible.
+8. Keep soundTargets to at most 4 high-value targets. Include IPA only when confident. Explain mouth/tongue/action in Vietnamese, then give one practical drill.
+9. Provide a natural model sentence preserving the learner's intended meaning. It should be suitable for their track and ${safeLevel}.
+10. Respond in Vietnamese for explanations; English for corrected phrases, examples and model sentences.
+${safeTarget ? 'Target sentence supplied by learner: ' + safeTarget : 'No target sentence supplied. Analyse this as free speaking.'}
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: 'Listen to this learner recording. First transcribe what is actually audible. Then provide evidence-based audio pronunciation coaching and separate transcript-based grammar/vocabulary feedback. If audio evidence is insufficient, say so clearly.' },
+          { inlineData: { mimeType: safeMime, data: audioBase64 } },
+        ],
+      }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        temperature: 0.2,
+        maxOutputTokens: 1300,
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            audioAssessment: { type: Type.STRING, enum: ['assessable', 'not_assessable'] },
+            transcript: { type: Type.STRING },
+            audioSummary: { type: Type.STRING },
+            soundTargets: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
+              word: { type: Type.STRING }, ipa: { type: Type.STRING }, observation: { type: Type.STRING }, practiceTipVi: { type: Type.STRING },
+            }, required: ['word', 'ipa', 'observation', 'practiceTipVi'] } },
+            grammarCorrections: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
+              original: { type: Type.STRING }, correction: { type: Type.STRING }, explanationVi: { type: Type.STRING },
+            }, required: ['original', 'correction', 'explanationVi'] } },
+            vocabularyUpgrades: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
+              original: { type: Type.STRING }, upgrade: { type: Type.STRING }, whyVi: { type: Type.STRING }, example: { type: Type.STRING },
+            }, required: ['original', 'upgrade', 'whyVi', 'example'] } },
+            modelSentence: { type: Type.STRING },
+            repeatTaskVi: { type: Type.STRING },
+            strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ['audioAssessment', 'transcript', 'audioSummary', 'soundTargets', 'grammarCorrections', 'vocabularyUpgrades', 'modelSentence', 'repeatTaskVi', 'strengths'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    const assessable = parsed.audioAssessment === 'assessable';
+    res.status(200).json({ success: true, data: {
+      audioAssessment: assessable ? 'assessable' : 'not_assessable',
+      transcript: typeof parsed.transcript === 'string' ? parsed.transcript.slice(0, 1800) : '',
+      audioSummary: typeof parsed.audioSummary === 'string' ? parsed.audioSummary.slice(0, 1200) : 'The audio could not be assessed reliably.',
+      soundTargets: assessable && Array.isArray(parsed.soundTargets) ? parsed.soundTargets.slice(0, 4) : [],
+      grammarCorrections: Array.isArray(parsed.grammarCorrections) ? parsed.grammarCorrections.slice(0, 5) : [],
+      vocabularyUpgrades: Array.isArray(parsed.vocabularyUpgrades) ? parsed.vocabularyUpgrades.slice(0, 5) : [],
+      modelSentence: typeof parsed.modelSentence === 'string' ? parsed.modelSentence.slice(0, 500) : '',
+      repeatTaskVi: typeof parsed.repeatTaskVi === 'string' ? parsed.repeatTaskVi.slice(0, 600) : '',
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 4) : [],
+    }});
+  } catch (error: any) {
+    console.error('Audio pronunciation coach failed:', error?.message || error);
+    res.status(502).json({ success: false, error: 'Audio analysis is temporarily unavailable. Your recording remains on this page; please try again.' });
+  }
+});
+
 // 2. Pronunciation Coach & Sound Analysis
 app.post('/api/gemini/pronunciation-coach', async (req: Request, res: Response): Promise<void> => {
   try {
