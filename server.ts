@@ -67,6 +67,14 @@ app.post('/api/gemini/conversation', async (req: Request, res: Response): Promis
       interview: 'Job interview practice with behavioral, situational, and competency questions.',
     };
 
+    const learnerMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
+    const safeList = (value: unknown) => Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string' && item.trim()).slice(0, 4).map(item => item.trim().slice(0, 180))
+      : [];
+    const learnerPriorities = safeList(learnerMemory.priorities);
+    const recentSessionNotes = safeList(learnerMemory.recentSessionNotes);
+    const recurringErrors = safeList(learnerMemory.recurringErrors);
+
     const learnerMessage = typeof message === 'string' ? message.trim().slice(0, 1200) : '';
     if (!learnerMessage) {
       res.status(400).json({ success: false, error: 'Please send a short message before starting the conversation.' });
@@ -99,11 +107,22 @@ CRITICAL PEDAGOGICAL RULES:
 7. ERROR CORRECTION: Correct only a clear, useful grammar or word-choice error. Do not interrupt the conversation for minor acceptable variants. Put the correction in the designated JSON fields and give a short, specific explanation with a Vietnamese tip. If there is no clear error, set hasMistake to false and leave correction text fields empty.
 8. Phonetic tip must relate to a real word or phrase in your reply. Never invent a pronunciation problem in the learner's speech from text alone. If no useful tip exists, return an empty string.
 9. Suggested replies must be short, natural alternatives that fit the immediate context and help the learner continue—not generic phrases repeated on every turn. Return no more than 2.
-10. Return your output as STRICT JSON adhering to the schema.
+10. Make every turn teach one small, memorable thing when it fits naturally: a useful collocation, a more natural alternative, or a short pronunciation/intonation cue. Do not overload the learner with a vocabulary list.
+11. Keep the learner speaking: respond to the exact meaning of their last turn, then invite one specific next action or question. Build on the details they have already shared; do not reset the topic.
+12. Adapt the complexity of sentence length, vocabulary and grammar to the stated CEFR level. For A1-A2 use short, high-frequency language and one idea at a time; for B1-B2 add useful linking and precise expressions; for C1 use nuance and register without becoming needlessly academic.
+13. If a recurring error is supplied, watch for it and explain it only when it appears again in the learner's actual words. Never invent a learner mistake or claim that the learner used a phrase they did not use.
+14. For High School English, keep examples suitable for Grades 10-12 and connect naturally to school curriculum, daily life, science, environment, culture and future study. For Professional English, use realistic workplace scenarios, tactful language and clear outcomes.
+15. Return your output as STRICT JSON adhering to the schema.
 `;
 
+    const contextNotes = [
+      learnerPriorities.length ? 'Learner priorities: ' + learnerPriorities.join('; ') : '',
+      recentSessionNotes.length ? 'Recent learning notes: ' + recentSessionNotes.join('; ') : '',
+      recurringErrors.length ? 'Recurring error watchlist (correct only if it appears in this turn): ' + recurringErrors.join('; ') : '',
+    ].filter(Boolean).join('\n');
     const formattedContents = [
       ...recentHistory,
+      ...(contextNotes ? [{ role: 'user', parts: [{ text: '[Private learning context for the tutor; do not repeat this list to the learner]\n' + contextNotes }] }] : []),
       {
         role: 'user',
         parts: [{ text: learnerMessage }],
