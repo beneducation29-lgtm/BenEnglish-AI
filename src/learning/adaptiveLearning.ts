@@ -1,7 +1,7 @@
 export type LearningSkill = 'grammar' | 'vocabulary' | 'pragmatics' | 'listening' | 'reading' | 'speaking' | 'writing';
 
 export interface LearningEvidence {
-  skill: LearningSkill;
+  skill: LearningSkill | string;
   correct: boolean;
   topic?: string;
   unitId?: string;
