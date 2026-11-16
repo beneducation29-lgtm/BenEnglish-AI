@@ -451,6 +451,8 @@ export async function evaluatePlacementSpeaking(payload: {
 
 export interface WritingAssessmentData {
   overallFeedback: string;
+  cefrEstimate?: string;
+  cefrRationale?: string;
   taskFulfilment: number;
   organisation: number;
   vocabulary: number;
