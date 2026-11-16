@@ -74,6 +74,14 @@ export interface SpeakingEvalData {
     grammaticalAccuracy: number;
     fluencyCoherence: number;
     relevanceContent: number;
+    pronunciation?: number;
+  };
+  audioEvidenceAvailable?: boolean;
+  pronunciationAssessment?: {
+    intelligibility: number;
+    segmentalAccuracy: number;
+    stressAndIntonation: number;
+    feedback: { heard: string; suggested: string; explanation: string }[];
   };
   strengths: string[];
   areasToImprove: string[];
@@ -218,17 +226,22 @@ export async function evaluateSpeaking(payload: {
   durationSeconds?: number;
   track: string;
   level: string;
+  audioBase64?: string;
+  audioMimeType?: 'audio/wav';
 }): Promise<SpeakingEvalData> {
   const res = await fetch('/api/gemini/speaking-eval', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to evaluate speaking response');
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.error || raw.slice(0, 180) || `Speaking assessment failed (HTTP ${res.status})`);
   }
-  return data.data;
+  return data.data as SpeakingEvalData;
 }
 
 export async function sendRoleplayMessage(payload: {
