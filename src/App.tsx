@@ -7,6 +7,7 @@ import React from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/Header';
 import { HomeView } from './components/HomeView';
+import { LessonBankView } from './components/LessonBankView';
 import { ListeningLabView } from './components/ListeningLabView';
 import { SpeakingLabView } from './components/SpeakingLabView';
 import { ReadingWritingView } from './components/ReadingWritingView';
@@ -25,7 +26,7 @@ const MainContent: React.FC = () => {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8">
-      {activeTab === 'home' && <HomeView />}
+      {activeTab === 'home' && <><LessonBankView /><HomeView /></>}
       {activeTab === 'listening' && <ListeningLabView />}
       {activeTab === 'speaking' && <SpeakingLabView />}
       {activeTab === 'reading-writing' && <ReadingWritingView />}
