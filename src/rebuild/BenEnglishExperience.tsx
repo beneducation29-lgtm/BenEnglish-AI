@@ -111,6 +111,82 @@ export default function BenEnglishExperience() {
           </div>
 
           <section className="mt-7">
+            <div className="flex items-end justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR COURSE MAP</p><h2 className="mt-2 text-2xl font-extrabold">{isSchool ? `Grade ${learner.grade.replace('Grade ', '')} learning path` : 'Workplace communication path'}</h2></div><Pill>{isSchool ? 'School curriculum' : 'CEFR-based practice'}</Pill></div>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{isSchool ? 'Các chủ đề dưới đây là khung ôn luyện theo năng lực và chủ điểm thường gặp ở bậc THPT; giáo viên có thể điều chỉnh theo bộ sách trường đang học.' : 'Học theo tình huống công việc thực tế. Mỗi chủ đề kết hợp cụm từ, cấu trúc lịch sự và một nhiệm vụ giao tiếp có đầu ra rõ ràng.'}</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {(isSchool ? [
+                {n:'01',title:'People & relationships',desc:'Describe people, relationships and everyday experiences.',out:'Write a short profile'},
+                {n:'02',title:'Education & future plans',desc:'Talk about learning choices, goals and future careers.',out:'Explain a study plan'},
+                {n:'03',title:'Environment & community',desc:'Discuss local issues and practical solutions.',out:'Give an opinion with reasons'},
+                {n:'04',title:'Technology & communication',desc:'Explain how technology changes daily life.',out:'Compare advantages and risks'},
+                {n:'05',title:'Culture & global issues',desc:'Share views about culture, travel and global citizenship.',out:'Summarise a short text'},
+                {n:'06',title:'Exam skills & revision',desc:'Practise reading, cloze tests, sentence ordering and error correction.',out:'Complete a timed mini test'}
+              ] : [
+                {n:'01',title:'Introductions & networking',desc:'Introduce your role, experience and company clearly.',out:'Deliver a 30-second introduction'},
+                {n:'02',title:'Meetings & updates',desc:'Share progress, blockers and next steps concisely.',out:'Give a one-minute project update'},
+                {n:'03',title:'Professional email',desc:'Write clear requests, replies and follow-ups.',out:'Draft a short action email'},
+                {n:'04',title:'Presentations',desc:'Structure a message and highlight key evidence.',out:'Present one recommendation'},
+                {n:'05',title:'Problem-solving',desc:'Clarify issues, suggest options and agree actions.',out:'Lead a short solution discussion'},
+                {n:'06',title:'Interviews & negotiation',desc:'Explain achievements and negotiate respectfully.',out:'Answer a behavioural question'}
+              ]).map(m=><article key={m.n} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70"><div className="flex items-center justify-between"><span className={`text-xs font-extrabold ${track.ink}`}>MODULE {m.n}</span><span className="text-[10px] font-bold text-slate-400">10–15 MIN</span></div><h3 className="mt-3 font-extrabold">{m.title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{m.desc}</p><div className={`mt-4 rounded-xl px-3 py-2 text-xs font-bold ${track.soft} ${track.ink}`}>Outcome: {m.out}</div></article>)}
+            </div>
+          </section>
+
+          <section className="mt-8 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
+              <p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>{isSchool ? 'VOCABULARY IN CONTEXT' : 'WORKPLACE PHRASE BANK'}</p>
+              <h2 className="mt-2 text-xl font-extrabold">{isSchool ? 'Useful words for Grade 10–12' : 'Phrases you can use at work'}</h2>
+              <div className="mt-4 space-y-3">
+                {(isSchool ? [
+                  ['achieve','đạt được','Students can achieve their goals with regular practice.'],
+                  ['environment','môi trường','We should protect the environment.'],
+                  ['opportunity','cơ hội','Volunteering is a good opportunity to learn.'],
+                  ['responsible for','chịu trách nhiệm về','We are responsible for our choices.'],
+                  ['take part in','tham gia','Many students take part in school activities.']
+                ] : [
+                  ['Could you clarify…?','Bạn có thể làm rõ…?','Could you clarify the deadline for this task?'],
+                  ['I’m responsible for…','Tôi phụ trách…','I’m responsible for the monthly report.'],
+                  ['The main priority is…','Ưu tiên chính là…','The main priority is improving customer response time.'],
+                  ['We’re on track.','Chúng ta đang đúng tiến độ.','We’re on track to finish by Friday.'],
+                  ['I’ll follow up on…','Tôi sẽ tiếp tục xử lý/theo dõi…','I’ll follow up on the supplier’s reply.']
+                ]).map(([term,meaning,example])=><div key={term} className="border-b border-slate-100 pb-3 last:border-0"><div className="flex flex-wrap items-baseline justify-between gap-2"><strong className="text-sm">{term}</strong><span className="text-xs text-slate-400">{meaning}</span></div><p className="mt-1 text-xs italic leading-5 text-slate-500">{example}</p></div>)}
+              </div>
+            </div>
+            <div className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70">
+              <p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>GRAMMAR THAT HELPS YOU SPEAK</p>
+              <h2 className="mt-2 text-xl font-extrabold">{isSchool ? 'Core sentence patterns' : 'Clear and polite communication'}</h2>
+              <div className="mt-4 space-y-4">
+                {(isSchool ? [
+                  ['Present perfect','S + have/has + past participle','I have studied English for three years.','Nói về trải nghiệm hoặc việc bắt đầu trong quá khứ còn liên quan hiện tại.'],
+                  ['First conditional','If + present simple, will + verb','If we work together, we will finish on time.','Diễn tả điều kiện có thể xảy ra ở hiện tại/tương lai.'],
+                  ['Relative clauses','who / which / that','A volunteer is someone who helps others.','Bổ sung thông tin cho người hoặc vật.']
+                ] : [
+                  ['Polite requests','Could you + verb…? / Would you mind + V-ing…?','Could you send me the updated file?','Yêu cầu lịch sự, phù hợp khi làm việc với đồng nghiệp/khách hàng.'],
+                  ['Progress update','We have + past participle…','We have completed the first stage.','Báo cáo kết quả đã đạt được đến hiện tại.'],
+                  ['Diplomatic language','It might be worth + V-ing…','It might be worth reviewing the timeline.','Đề xuất nhẹ nhàng, tránh nghe quá trực tiếp.']
+                ]).map(([name,pattern,example,note])=><div key={name}><div className="text-sm font-extrabold">{name}</div><div className={`mt-1 text-xs font-bold ${track.ink}`}>{pattern}</div><p className="mt-1 text-sm">{example}</p><p className="mt-1 text-xs leading-5 text-slate-400">{note}</p></div>)}
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-8 rounded-3xl bg-slate-950 p-6 text-white sm:p-7">
+            <p className="text-xs font-extrabold tracking-[.18em] text-amber-300">READ, THINK & PRODUCE</p>
+            <h2 className="mt-2 text-2xl font-extrabold">{isSchool ? 'A short reading: Small actions matter' : 'A workplace reading: A useful project update'}</h2>
+            <p className="mt-4 text-sm leading-7 text-slate-200">{isSchool ? 'Our school started a small project to reduce plastic waste. Students bring reusable bottles and sort rubbish after lunch. At first, only a few students joined. After the class shared photos and explained the benefits, more students became interested. The project shows that simple actions can make a difference when people work together.' : 'The product team has finished the first stage of the website update. The new layout is ready, but the mobile checkout still needs testing. The team will review the main issues this afternoon and share a revised timeline tomorrow. The project is still on track, provided that the payment test is completed by Thursday.'}</p>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-2xl bg-white/10 p-4"><div className="text-xs font-extrabold text-white/60">CHECK YOUR UNDERSTANDING</div><p className="mt-2 text-sm font-semibold">{isSchool ? 'Why did more students join the project?' : 'What is the main blocker, and what is the next action?'}</p><p className="mt-2 text-xs text-white/60">{isSchool ? 'Answer in one complete sentence.' : 'Answer in two concise sentences.'}</p></div>
+              <div className="rounded-2xl bg-white/10 p-4"><div className="text-xs font-extrabold text-white/60">YOUR OUTPUT TASK</div><p className="mt-2 text-sm font-semibold">{isSchool ? 'Write 3 sentences about one action that can improve your school or community.' : 'Give a 45-second spoken update: progress, one blocker and the next step.'}</p><p className="mt-2 text-xs text-white/60">Focus on clear meaning before using difficult vocabulary.</p></div>
+            </div>
+          </section>
+
+          <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6">
+            <p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>WRITING & SPEAKING CHALLENGE</p>
+            <h2 className="mt-2 text-xl font-extrabold">{isSchool ? 'Build a clear paragraph' : 'Turn an idea into a professional message'}</h2>
+            <div className="mt-3 text-sm leading-6 text-slate-500">{isSchool ? 'Dùng cấu trúc: topic sentence → two supporting details → closing sentence. Chủ đề: “One skill I want to develop this year”.' : 'Dùng cấu trúc: purpose → key detail → requested action → polite close. Nhiệm vụ: viết email ngắn để xin dời một cuộc họp và đề xuất hai khung giờ thay thế.'}</div>
+            <button onClick={()=>setSection('tutor')} className={`mt-5 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-extrabold text-white ${track.color}`}>Practise this with {track.coach} <ArrowRight size={15}/></button>
+          </section>
+
+          <section className="mt-7">
             <div className="flex items-end justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>TODAY'S LESSON</p><h2 className="mt-2 text-2xl font-extrabold">{isSchool ? 'Meet someone new' : 'Make a clear first impression'}</h2></div><Pill>{isSchool ? 'A1 · Beginner' : 'A2 · Pre-intermediate'}</Pill></div>
             <div className="mt-4 rounded-3xl bg-white p-5 shadow-sm ring-1 ring-slate-200/70 sm:p-7">
               <div className="flex flex-wrap items-center justify-between gap-3"><div><div className="text-sm font-extrabold">{isSchool ? 'VOA Learning English · Lesson 1' : 'British Council · Changing a meeting time'}</div><p className="mt-1 text-xs text-slate-400">Giọng người thật · {isSchool ? 'American English' : 'British / international English'}</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${track.soft} ${track.ink}`}>{isSchool ? 'School & everyday life' : 'Workplace communication'}</span></div>
