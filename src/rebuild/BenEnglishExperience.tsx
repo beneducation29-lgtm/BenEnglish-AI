@@ -369,14 +369,14 @@ export default function BenEnglishExperience() {
       speakingStreamRef.current = stream;
       const recorder = new MediaRecorder(stream); speakingRecorderRef.current = recorder;
       recorder.ondataavailable = event => { if (event.data.size) speakingChunksRef.current.push(event.data); };
-      recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); speakingAudioBlobRef.current = blob; setSpeakingAudioUrl(previous => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(blob); }); speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; };
+      recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); speakingAudioBlobRef.current = blob; setSpeakingAudioUrl(previous => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(blob); }); speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; setIsRecordingSpeaking(false); };
       recorder.start(250); speakingStartedAtRef.current = Date.now(); setIsRecordingSpeaking(true);
       const w = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }; const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
       if (Recognition) { const recognition = new Recognition(); speakingRecognitionRef.current = recognition; recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true; recognition.onresult = (event: any) => { let interim = ''; const startIndex = Number.isInteger(event.resultIndex) ? event.resultIndex : 0; for (let i=startIndex;i<event.results.length;i+=1) { const result = event.results[i]; const text = result[0]?.transcript?.trim() || ''; if (!text) continue; if (result.isFinal) speakingFinalTranscriptRef.current = [speakingFinalTranscriptRef.current, text].filter(Boolean).join(' '); else interim = [interim, text].filter(Boolean).join(' '); } setSpeakingTranscript([speakingFinalTranscriptRef.current, interim].filter(Boolean).join(' ').trim()); }; recognition.onerror = () => setSpeakingError('Không nhận dạng được lời nói tự động. Bạn vẫn có thể nhập hoặc chỉnh sửa bản chép lời.'); recognition.start(); }
       else setSpeakingError('Trình duyệt không hỗ trợ nhận dạng giọng nói; bản ghi âm vẫn chạy. Hãy nhập bản chép lời để chấm nội dung.');
     } catch (error) { setSpeakingError(error instanceof Error ? error.message : 'Không thể mở microphone. Hãy kiểm tra quyền truy cập micro.'); setIsRecordingSpeaking(false); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; }
   };
-  const stopSpeakingAssessment = () => { if (!isRecordingSpeaking) return; setIsRecordingSpeaking(false); try { speakingRecognitionRef.current?.stop?.(); } catch {} speakingRecognitionRef.current = null; try { if (speakingRecorderRef.current?.state !== 'inactive') speakingRecorderRef.current?.stop(); } catch {} };
+  const stopSpeakingAssessment = () => { if (!isRecordingSpeaking) return; try { speakingRecognitionRef.current?.stop?.(); } catch {} speakingRecognitionRef.current = null; try { if (speakingRecorderRef.current?.state !== 'inactive') speakingRecorderRef.current?.stop(); } catch {} };
   const submitSpeakingAssessment = async () => {
     const transcript = speakingTranscript.trim(); if (transcript.split(/\s+/).filter(Boolean).length < 8) { setSpeakingError('Hãy nói hoặc nhập ít nhất 8 từ để có đủ dữ liệu đánh giá.'); return; }
     setIsAssessingSpeaking(true); setSpeakingError('');
@@ -395,7 +395,7 @@ export default function BenEnglishExperience() {
     } catch (error) { setSpeakingError(error instanceof Error ? error.message : 'Không thể chấm phần nói lúc này. Bản chép lời vẫn được giữ lại.'); } finally { setIsAssessingSpeaking(false); }
   };
   const assessWritingDraft = async () => {
-    if (writingDraft.trim().split(/\\s+/).filter(Boolean).length < 8) {
+    if (writingDraft.trim().split(/\s+/).filter(Boolean).length < 8) {
       setWritingError('Please write at least 8 words before requesting feedback.');
       return;
     }
