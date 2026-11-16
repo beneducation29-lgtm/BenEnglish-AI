@@ -45,7 +45,7 @@ export default async function handler(req: any, res: any) {
 
   const ai = new GoogleGenAI({
     apiKey,
-    httpOptions: { timeout: 20000, retryOptions: { attempts: 1 } },
+    httpOptions: { timeout: 30000, retryOptions: { attempts: 1 } },
   });
   const request = {
     contents: [{
@@ -77,7 +77,7 @@ Offer useful vocabulary upgrades that fit the learner's track and level. improve
 Return valid JSON only.`,
       responseMimeType: 'application/json',
       temperature: 0.2,
-      maxOutputTokens: 1100,
+      maxOutputTokens: 1300,
       responseSchema: {
         type: Type.OBJECT,
         properties: {
