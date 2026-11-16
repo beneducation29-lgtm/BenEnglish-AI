@@ -68,6 +68,7 @@ export default function BenEnglishExperience() {
   const [readingResponse, setReadingResponse] = useState('');
   const [writingDraft, setWritingDraft] = useState('');
   const [reviewChecks, setReviewChecks] = useState<boolean[]>([false, false, false]);
+  const [skillProgress, setSkillProgress] = useState<Record<string, string[]>>(() => { try { return JSON.parse(localStorage.getItem('benenglish-skill-progress-v1') || '{}'); } catch { return {}; } });
   const track = trackCopy[learner.track];
   const isSchool = learner.track === 'high_school';
   const schoolGrade = learner.grade === 'Grade 10' ? 10 : learner.grade === 'Grade 11' ? 11 : 12;
@@ -100,8 +101,12 @@ export default function BenEnglishExperience() {
   } as Record<string,{q:string;options:string[];answer:number;why:string}[]>)[learner.level] || [{q:'Choose the clearest sentence for your current level.',options:['I can explain my idea clearly.','I can explaining my idea clear.','I explaining clearly idea.'],answer:0,why:'Use a complete subject + verb + object structure.'}];
   const quizItems = isSchool ? schoolQuiz : professionalQuiz;
   const currentQuiz = quizItems[quizIndex % quizItems.length];
+  const skillLabels = [{ id: 'listening', label: 'Listening comprehension' }, { id: 'reading', label: 'Reading comprehension' }, { id: 'writing', label: 'Writing accuracy' }, { id: 'speaking', label: 'Speaking performance' }, { id: 'vocabulary', label: 'Vocabulary retrieval' }, { id: 'grammar', label: 'Grammar application' }, { id: 'exam', label: 'Mixed-skill checkpoint' }];
+  const completedSkillCount = Object.values(skillProgress).reduce((total, skills) => total + skills.length, 0);
+  const practisedUnitCount = Object.values(skillProgress).filter(skills => skills.length > 0).length;
 
   useEffect(() => { localStorage.setItem('benenglish-v2-profile', JSON.stringify(learner)); }, [learner]);
+  useEffect(() => { const refresh = () => { try { setSkillProgress(JSON.parse(localStorage.getItem('benenglish-skill-progress-v1') || '{}')); } catch { setSkillProgress({}); } }; window.addEventListener('benenglish-skill-progress-updated', refresh); return () => window.removeEventListener('benenglish-skill-progress-updated', refresh); }, []);
   useEffect(() => {
     setQuizChoice(null);
     setQuizChecked(false);
@@ -405,7 +410,28 @@ export default function BenEnglishExperience() {
             </div>
           </section>
         </div>}
-        {section === 'progress' && <section className="rounded-[2rem] bg-white p-7 shadow-sm ring-1 ring-slate-200/70 sm:p-9"><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR LEARNING JOURNEY</p><h1 className="mt-2 text-3xl font-extrabold">Progress that means something.</h1><p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">Your dashboard will measure real evidence from speaking, listening, reading and writing — not made-up scores.</p><div className="mt-7 grid gap-3 sm:grid-cols-2">{['Speaking confidence','Listening comprehension','Vocabulary in context','Grammar accuracy'].map((s,i)=><div key={s} className="rounded-2xl bg-slate-50 p-5"><div className="text-sm font-bold">{s}</div><div className="mt-2 text-xs text-slate-400">{i===0?'Awaiting first speaking sample':'Not assessed yet'}</div><div className="mt-4 h-1.5 rounded-full bg-slate-200"/></div>)}</div><button onClick={()=>setSection('tutor')} className="mt-7 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white">Start your first practice</button></section>}
+        {section === 'progress' && <section className="rounded-[2rem] bg-white p-7 shadow-sm ring-1 ring-slate-200/70 sm:p-9">
+          <p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR LEARNING JOURNEY</p>
+          <h1 className="mt-2 text-3xl font-extrabold">Progress that means something.</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">Thống kê số hoạt động bạn thực sự hoàn thành trong Deep Practice Studio. Không tự tạo điểm CEFR hoặc phần trăm năng lực khi chưa có đủ bài đánh giá.</p>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-slate-950 p-5 text-white"><div className="text-3xl font-black">{completedSkillCount}</div><div className="mt-1 text-xs text-white/65">Skill activities completed</div></div>
+            <div className="rounded-2xl bg-slate-50 p-5"><div className="text-3xl font-black text-slate-900">{practisedUnitCount}</div><div className="mt-1 text-xs text-slate-500">Lesson units practised</div></div>
+          </div>
+          <h2 className="mt-7 text-lg font-extrabold">Practice by skill</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {skillLabels.map(item => {
+              const count = Object.values(skillProgress).filter(skills => skills.includes(item.id)).length;
+              return <div key={item.id} className="rounded-2xl border border-slate-100 p-4">
+                <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold">{item.label}</span><span className="text-xs font-extrabold text-slate-500">{count} units</span></div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${track.color}`} style={{ width: `${Math.min(100, count / Math.max(1, curriculumUnits.length) * 100)}%` }}/></div>
+                <p className="mt-2 text-[11px] text-slate-400">{count ? 'Recorded practice in this browser' : 'No completed activity recorded yet'}</p>
+              </div>;
+            })}
+          </div>
+          <p className="mt-4 text-xs leading-5 text-slate-400">Tiến độ Deep Practice hiện được lưu trên trình duyệt đang sử dụng; chưa đồng bộ giữa các thiết bị hoặc tài khoản. Các đánh giá AI và lịch sử học cũ vẫn được giữ nguyên.</p>
+          <button onClick={()=>setSection('learn')} className={`mt-7 rounded-2xl px-5 py-3 text-sm font-bold text-white ${track.color}`}>Continue your lesson</button>
+        </section>}
         <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">{([{id:'today',label:'Today',icon:Target},{id:'tutor',label:'Tutor',icon:MessageCircle},{id:'learn',label:'Learn',icon:BookOpen},{id:'progress',label:'Progress',icon:TrendingUp}] as const).map(item=><button key={item.id} onClick={()=>setSection(item.id)} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-bold ${section===item.id?track.ink:'text-slate-400'}`}><item.icon size={19}/>{item.label}</button>)}</nav>
       </main>
     </div>
