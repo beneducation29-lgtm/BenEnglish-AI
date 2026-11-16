@@ -443,3 +443,34 @@ export async function evaluatePlacementSpeaking(payload: {
   }
   return data.data;
 }
+
+
+export interface WritingAssessmentData {
+  overallFeedback: string;
+  taskFulfilment: number;
+  organisation: number;
+  vocabulary: number;
+  grammar: number;
+  strengths: string[];
+  corrections: { original: string; improved: string; explanationVi: string }[];
+  nextSteps: string[];
+  improvedSampleAnswer: string;
+}
+
+export async function evaluateWriting(payload: {
+  prompt: string; learnerResponse: string; sourceText?: string;
+  track: string; grade?: string; level: string;
+}): Promise<WritingAssessmentData> {
+  const res = await fetch('/api/gemini/evaluate-writing', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success || !data.data) {
+    const detail = typeof data?.error === 'string' ? data.error : raw.slice(0, 180);
+    throw new Error('Writing assessment returned HTTP ' + res.status + ': ' + (detail || 'Please try again.'));
+  }
+  return data.data as WritingAssessmentData;
+}
