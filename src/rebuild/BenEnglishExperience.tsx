@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { sendConversationMessage, evaluateWriting, WritingAssessmentData } from '../services/api';
 import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
+import { EXPANDED_LESSON_BANK } from '../data/lessonBankExpansion';
 import DeepPracticeHub from './DeepPracticeHub';
 import PronunciationCoach from './PronunciationCoach';
 import {
@@ -85,8 +86,8 @@ export default function BenEnglishExperience() {
   const track = trackCopy[learner.track];
   const isSchool = learner.track === 'high_school';
   const schoolGrade = learner.grade === 'Grade 10' ? 10 : learner.grade === 'Grade 11' ? 11 : 12;
-  const curriculumUnits = GRADE_CEFR_CURRICULUM.filter(unit => unit.track === learner.track && (learner.track !== 'high_school' || unit.grade === learner.grade));
-  const activeCurriculum = curriculumUnits.find(unit => unit.level === curriculumLevel) || curriculumUnits.find(unit => unit.level === learner.level) || curriculumUnits[0];
+  const curriculumUnits = [...GRADE_CEFR_CURRICULUM, ...EXPANDED_LESSON_BANK].filter(unit => unit.track === learner.track && (learner.track !== 'high_school' || unit.grade === learner.grade));
+  const activeCurriculum = curriculumUnits.find(unit => unit.id === curriculumLevel) || curriculumUnits.find(unit => unit.level === learner.level) || curriculumUnits[0];
   const schoolTier = learner.level === 'A1' || learner.level === 'A2' ? 'foundation' : learner.level === 'B2' || learner.level === 'C1' ? 'stretch' : 'core';
   const schoolQuiz = schoolGrade === 10
     ? (schoolTier === 'foundation'
@@ -388,7 +389,7 @@ export default function BenEnglishExperience() {
           </div>
 
           {activeCurriculum && <section className="mt-7 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-7">
-            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR GRADE + CEFR LESSON</p><h2 className="mt-2 text-2xl font-extrabold">{activeCurriculum.title}</h2><p className="mt-1 text-sm text-slate-500">{activeCurriculum.theme}</p></div><label className="text-xs font-bold text-slate-500">CEFR level<select value={activeCurriculum.level} onChange={e=>{setCurriculumLevel(e.target.value);setWritingFeedback(null);}} className="mt-1 block rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-extrabold text-slate-800">{curriculumUnits.map(unit=><option key={unit.id} value={unit.level}>{unit.level}</option>)}</select></label></div>
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR GRADE + CEFR LESSON</p><h2 className="mt-2 text-2xl font-extrabold">{activeCurriculum.title}</h2><p className="mt-1 text-sm text-slate-500">{activeCurriculum.theme}</p></div><label className="text-xs font-bold text-slate-500">Choose a lesson<select value={activeCurriculum.id} onChange={e=>{setCurriculumLevel(e.target.value);setWritingFeedback(null);setWritingError("");setWritingDraft("");}} className="mt-1 block max-w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-extrabold text-slate-800">{curriculumUnits.map(unit=><option key={unit.id} value={unit.id}>{unit.level} · {unit.title}</option>)}</select></label></div>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
               <article className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-sky-900"><Headphones size={17}/> 01 · Listening</div><p className="mt-2 text-xs leading-5 text-slate-600">Original lesson script. Device speech synthesis is a preview voice, not a recorded human speaker.</p><p className="mt-3 text-sm leading-6 text-slate-800">{activeCurriculum.listening.script}</p><button onClick={()=>{if('speechSynthesis' in window){window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(activeCurriculum.listening.script);utterance.lang='en-US';window.speechSynthesis.speak(utterance);}}} className="mt-3 rounded-xl bg-sky-700 px-3 py-2 text-xs font-bold text-white">Play device voice preview</button><details className="mt-3 rounded-xl bg-white p-3"><summary className="cursor-pointer text-xs font-bold text-sky-900">{activeCurriculum.listening.questions[0].prompt}</summary><p className="mt-2 text-xs text-slate-700">Answer: {activeCurriculum.listening.questions[0].answer}</p><p className="mt-1 text-xs text-slate-500">{activeCurriculum.listening.questions[0].explanation}</p></details></article>
               <article className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-indigo-900"><BookOpen size={17}/> 02 · Reading</div><p className="mt-3 text-sm leading-7 text-slate-800">{activeCurriculum.reading.passage}</p><details className="mt-3 rounded-xl bg-white p-3"><summary className="cursor-pointer text-xs font-bold text-indigo-900">{activeCurriculum.reading.questions[0].prompt}</summary><p className="mt-2 text-xs text-slate-700">Answer: {activeCurriculum.reading.questions[0].answer}</p><p className="mt-1 text-xs text-slate-500">{activeCurriculum.reading.questions[0].explanation}</p></details></article>
