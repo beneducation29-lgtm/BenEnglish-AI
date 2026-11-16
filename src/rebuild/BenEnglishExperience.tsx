@@ -130,13 +130,13 @@ export default function BenEnglishExperience() {
         mode: isSchool ? 'school' : 'business',
         track: learner.track,
         userLevel: ['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2',
-        occupation: learner.role,
+        occupation: isSchool ? learner.grade : learner.role,
         grade: learner.grade,
         learnerMemory: { priorities: [learner.goal], recentSessionNotes: [], recurringErrors: [] },
       });
       setMessages(prev => [...prev, {
         role: 'coach',
-        text: response.replyText + (response.phoneticTip ? '\\n\\nPronunciation tip: ' + response.phoneticTip : ''),
+        text: response.replyText + (response.phoneticTip ? '\n\nPronunciation tip: ' + response.phoneticTip : ''),
         correction: response.correction?.hasMistake ? response.correction : undefined,
       }]);
       setFailedTutorMessage('');
