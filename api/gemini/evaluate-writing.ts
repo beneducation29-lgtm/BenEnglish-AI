@@ -41,6 +41,7 @@ EVIDENCE RULES:
 - Assess only the submitted learner response. Never pretend a model answer is the learner's writing.
 - The overall feedback must refer to at least one specific idea or exact phrase actually present in the response.
 - Score task fulfilment, organisation/coherence, vocabulary and grammar from 0 to 5. These are formative scores, not official CEFR certification.
+- Estimate the writing-only CEFR level (A1–C2) from the submitted evidence and target level. Return a concise rationale tied to vocabulary range, grammatical control, cohesion and task fulfilment. If the sample is too short or weak to distinguish a level, return "Insufficient evidence" rather than guessing. This is a formative writing estimate, not a full CEFR result.
 - Return at most 5 corrections. Every "original" must be an exact contiguous substring copied verbatim from the learner response. If no genuine error exists, return no corrections.
 - Explain each correction briefly in Vietnamese and preserve the intended meaning.
 - Give up to 3 actionable next steps matched to the learner's target CEFR.
@@ -67,6 +68,8 @@ Return strict JSON only.
           type: Type.OBJECT,
           properties: {
             overallFeedback: { type: Type.STRING },
+            cefrEstimate: { type: Type.STRING },
+            cefrRationale: { type: Type.STRING },
             taskFulfilment: { type: Type.INTEGER },
             organisation: { type: Type.INTEGER },
             vocabulary: { type: Type.INTEGER },
@@ -78,7 +81,7 @@ Return strict JSON only.
             nextSteps: { type: Type.ARRAY, items: { type: Type.STRING } },
             improvedSampleAnswer: { type: Type.STRING },
           },
-          required: ['overallFeedback','taskFulfilment','organisation','vocabulary','grammar','strengths','corrections','nextSteps','improvedSampleAnswer'],
+          required: ['overallFeedback','cefrEstimate','cefrRationale','taskFulfilment','organisation','vocabulary','grammar','strengths','corrections','nextSteps','improvedSampleAnswer'],
         },
       },
     });
