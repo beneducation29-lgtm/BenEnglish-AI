@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from 'react';
+import { sendConversationMessage, evaluateWriting, WritingAssessmentData } from '../services/api';
+import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
+import DeepPracticeHub from './DeepPracticeHub';
 import {
   ArrowRight, AudioLines, BookOpen, BriefcaseBusiness, Check, ChevronRight,
   Clock3, Flame, GraduationCap, Headphones, MessageCircle,
@@ -51,16 +54,26 @@ export default function BenEnglishExperience() {
   const [section, setSection] = useState<Section>('today');
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{ role: 'coach' | 'learner'; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: 'coach' | 'learner'; text: string; correction?: { original: string; improved: string; explanation: string; vietnameseTip: string } }[]>([]);
+  const [isTutorLoading, setIsTutorLoading] = useState(false);
+  const [tutorError, setTutorError] = useState('');
+  const [failedTutorMessage, setFailedTutorMessage] = useState('');
+  const [curriculumLevel, setCurriculumLevel] = useState('');
+  const [writingFeedback, setWritingFeedback] = useState<WritingAssessmentData | null>(null);
+  const [isAssessingWriting, setIsAssessingWriting] = useState(false);
+  const [writingError, setWritingError] = useState('');
   const [quizChoice, setQuizChoice] = useState<number | null>(null);
   const [quizChecked, setQuizChecked] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
   const [readingResponse, setReadingResponse] = useState('');
   const [writingDraft, setWritingDraft] = useState('');
   const [reviewChecks, setReviewChecks] = useState<boolean[]>([false, false, false]);
+  const [skillProgress, setSkillProgress] = useState<Record<string, string[]>>(() => { try { return JSON.parse(localStorage.getItem('benenglish-skill-progress-v1') || '{}'); } catch { return {}; } });
   const track = trackCopy[learner.track];
   const isSchool = learner.track === 'high_school';
   const schoolGrade = learner.grade === 'Grade 10' ? 10 : learner.grade === 'Grade 11' ? 11 : 12;
+  const curriculumUnits = GRADE_CEFR_CURRICULUM.filter(unit => unit.track === learner.track && (learner.track !== 'high_school' || unit.grade === learner.grade));
+  const activeCurriculum = curriculumUnits.find(unit => unit.level === curriculumLevel) || curriculumUnits.find(unit => unit.level === learner.level) || curriculumUnits[0];
   const schoolTier = learner.level === 'A1' || learner.level === 'A2' ? 'foundation' : learner.level === 'B2' || learner.level === 'C1' ? 'stretch' : 'core';
   const schoolQuiz = schoolGrade === 10
     ? (schoolTier === 'foundation'
@@ -88,8 +101,12 @@ export default function BenEnglishExperience() {
   } as Record<string,{q:string;options:string[];answer:number;why:string}[]>)[learner.level] || [{q:'Choose the clearest sentence for your current level.',options:['I can explain my idea clearly.','I can explaining my idea clear.','I explaining clearly idea.'],answer:0,why:'Use a complete subject + verb + object structure.'}];
   const quizItems = isSchool ? schoolQuiz : professionalQuiz;
   const currentQuiz = quizItems[quizIndex % quizItems.length];
+  const skillLabels = [{ id: 'listening', label: 'Listening comprehension' }, { id: 'reading', label: 'Reading comprehension' }, { id: 'writing', label: 'Writing accuracy' }, { id: 'speaking', label: 'Speaking performance' }, { id: 'vocabulary', label: 'Vocabulary retrieval' }, { id: 'grammar', label: 'Grammar application' }, { id: 'exam', label: 'Mixed-skill checkpoint' }];
+  const completedSkillCount = Object.values(skillProgress).reduce((total, skills) => total + skills.length, 0);
+  const practisedUnitCount = Object.values(skillProgress).filter(skills => skills.length > 0).length;
 
   useEffect(() => { localStorage.setItem('benenglish-v2-profile', JSON.stringify(learner)); }, [learner]);
+  useEffect(() => { const refresh = () => { try { setSkillProgress(JSON.parse(localStorage.getItem('benenglish-skill-progress-v1') || '{}')); } catch { setSkillProgress({}); } }; window.addEventListener('benenglish-skill-progress-updated', refresh); return () => window.removeEventListener('benenglish-skill-progress-updated', refresh); }, []);
   useEffect(() => {
     setQuizChoice(null);
     setQuizChecked(false);
@@ -97,14 +114,69 @@ export default function BenEnglishExperience() {
     setReadingResponse('');
     setWritingDraft('');
     setReviewChecks([false, false, false]);
+    setCurriculumLevel('');
+    setWritingFeedback(null);
+    setWritingError('');
   }, [learner.track, learner.grade, learner.level]);
   const update = (patch: Partial<Learner>) => setLearner(prev => ({ ...prev, ...patch }));
   const completeOnboarding = () => { update({ onboarded: true }); setSection('today'); };
-  const sendMessage = () => {
-    const text = message.trim();
-    if (!text) return;
-    setMessages(prev => [...prev, { role: 'learner', text }, { role: 'coach', text: 'Thanks for sharing. In your next speaking session, your tutor will respond to your ideas, help you express them more naturally and highlight one useful improvement.' }]);
+  const sendMessage = async (retryText?: string) => {
+    const text = (retryText ?? message).trim();
+    if (!text || isTutorLoading) return;
+    const history = messages.slice(-8).map(turn => ({ role: turn.role === 'learner' ? 'user' : 'assistant', content: turn.text }));
+    setMessages(prev => [...prev, { role: 'learner', text }]);
     setMessage('');
+    setTutorError('');
+    setIsTutorLoading(true);
+    try {
+      const response = await sendConversationMessage({
+        message: text,
+        history,
+        tutorPersona: isSchool ? 'friendly_teacher' : 'business_coach',
+        mode: isSchool ? 'school' : 'business',
+        track: learner.track,
+        userLevel: ['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2',
+        occupation: isSchool ? learner.grade : learner.role,
+        grade: learner.grade,
+        learnerMemory: { priorities: [learner.goal], recentSessionNotes: [], recurringErrors: [] },
+      });
+      setMessages(prev => [...prev, {
+        role: 'coach',
+        text: response.replyText + (response.phoneticTip ? '\n\nPronunciation tip: ' + response.phoneticTip : ''),
+        correction: response.correction?.hasMistake ? response.correction : undefined,
+      }]);
+      setFailedTutorMessage('');
+    } catch (error) {
+      setFailedTutorMessage(text);
+      setTutorError(error instanceof Error ? error.message : 'The AI tutor could not respond. Your message is preserved; please retry.');
+    } finally {
+      setIsTutorLoading(false);
+    }
+  };
+
+  const assessWritingDraft = async () => {
+    if (writingDraft.trim().split(/\\s+/).filter(Boolean).length < 8) {
+      setWritingError('Please write at least 8 words before requesting feedback.');
+      return;
+    }
+    setIsAssessingWriting(true);
+    setWritingError('');
+    setWritingFeedback(null);
+    try {
+      const feedback = await evaluateWriting({
+        prompt: activeCurriculum?.writing.prompt || (isSchool ? 'Write a paragraph about a skill you want to develop.' : 'Write a concise professional message with a clear action.'),
+        learnerResponse: writingDraft,
+        sourceText: activeCurriculum?.reading.passage || '',
+        track: learner.track,
+        grade: learner.grade,
+        level: activeCurriculum?.level || (['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2'),
+      });
+      setWritingFeedback(feedback);
+    } catch (error) {
+      setWritingError(error instanceof Error ? error.message : 'Could not assess this draft.');
+    } finally {
+      setIsAssessingWriting(false);
+    }
   };
 
   if (!learner.onboarded) {
@@ -158,7 +230,7 @@ export default function BenEnglishExperience() {
               ]).map(s=><button key={s.title} onClick={()=>setMessage(s.prompt)} className="rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300"><div className="text-sm font-extrabold">{s.title}</div><p className="mt-1 text-xs leading-5 text-slate-500">{s.desc}</p><span className={`mt-2 inline-flex text-[11px] font-bold ${track.ink}`}>Use this starter →</span></button>)}
             </div>
           </div>
-          <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[.8fr_1.2fr]"><div className="rounded-3xl bg-slate-50 p-6"><div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-white text-4xl shadow-sm">👩‍🏫</div><h2 className="mt-4 text-center text-xl font-extrabold">{track.coach}</h2><p className="mt-1 text-center text-xs text-slate-400">Personal AI English tutor</p><div className="mt-6 space-y-3 text-sm text-slate-600"><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Natural conversation practice</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Corrections after you speak</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Practice matched to your level</div></div><div className="mt-6 rounded-2xl bg-white p-4 text-xs leading-5 text-slate-500">Voice conversation integration is the next implementation milestone. This preview currently demonstrates the redesigned tutor workspace.</div></div><div className="flex min-h-[390px] flex-col rounded-3xl border border-slate-200 p-4 sm:p-5"><div className="flex items-center justify-between border-b border-slate-100 pb-3"><div className="font-extrabold">Practice conversation</div><Pill>CEFR {learner.level}</Pill></div><div className="flex-1 space-y-4 overflow-y-auto py-5">{messages.length === 0 && <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Hi{learner.name ? ` ${learner.name}` : ''}! I'm {track.coach}. Let's practise: <strong>{track.today.toLowerCase()}</strong>. What would you like to tell me about it?</div>}{messages.map((m,i)=><div key={i} className={`max-w-[90%] rounded-2xl p-4 text-sm leading-6 ${m.role === 'learner' ? 'ml-auto bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700'}`}>{m.text}</div>)}</div><div className="flex gap-2"><input value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendMessage()} placeholder="Write what you would say..." className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-300"/><button onClick={sendMessage} className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white">Send</button></div></div></div></section>}
+          <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[.8fr_1.2fr]"><div className="rounded-3xl bg-slate-50 p-6"><div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-white text-4xl shadow-sm">👩‍🏫</div><h2 className="mt-4 text-center text-xl font-extrabold">{track.coach}</h2><p className="mt-1 text-center text-xs text-slate-400">Personal AI English tutor</p><div className="mt-6 space-y-3 text-sm text-slate-600"><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Natural conversation practice</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Corrections after you speak</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Practice matched to your level</div></div><div className="mt-6 rounded-2xl bg-white p-4 text-xs leading-5 text-slate-500">Voice conversation integration is the next implementation milestone. This preview currently demonstrates the redesigned tutor workspace.</div></div><div className="flex min-h-[390px] flex-col rounded-3xl border border-slate-200 p-4 sm:p-5"><div className="flex items-center justify-between border-b border-slate-100 pb-3"><div className="font-extrabold">Practice conversation</div><Pill>CEFR {learner.level}</Pill></div><div className="flex-1 space-y-4 overflow-y-auto py-5">{messages.length === 0 && <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Hi{learner.name ? ` ${learner.name}` : ''}! I'm {track.coach}. Let's practise: <strong>{track.today.toLowerCase()}</strong>. What would you like to tell me about it?</div>}{messages.map((m,i)=><div key={i} className={`max-w-[90%] rounded-2xl p-4 text-sm leading-6 ${m.role === 'learner' ? 'ml-auto bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700'}`}><div className="whitespace-pre-wrap">{m.text}</div>{m.correction && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><div className="font-extrabold">A useful correction</div><p className="mt-1 line-through opacity-70">{m.correction.original}</p><p className="font-bold">{m.correction.improved}</p><p className="mt-1">{m.correction.explanation}</p><p className="mt-1 text-amber-800">{m.correction.vietnameseTip}</p></div>}</div>)}</div>{isTutorLoading && <div className="mb-3 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">Teacher is reading your answer and preparing a response…</div>}{tutorError && <div role="alert" className="mb-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{tutorError}<button onClick={()=>sendMessage(failedTutorMessage)} className="ml-2 font-extrabold underline">Retry</button></div>}<div className="flex gap-2"><input value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!isTutorLoading&&sendMessage()} placeholder="Write what you would say..." className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-300"/><button disabled={isTutorLoading||!message.trim()} onClick={()=>sendMessage()} className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white disabled:opacity-40">{isTutorLoading?'…':'Send'}</button></div></div></div></section>}
         {section === 'learn' && <div>
           <div className={`rounded-[2rem] bg-gradient-to-br ${track.gradient} p-7 text-white sm:p-9`}>
             <Pill active>SHORT, REAL-WORLD LESSONS</Pill>
@@ -166,6 +238,19 @@ export default function BenEnglishExperience() {
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/75">Mỗi bài chỉ tập trung vào một tình huống, một nhóm từ và một điểm phát âm. Nghe người thật trước, xem hướng dẫn sau, rồi tự nói lại.</p>
             <div className="mt-6 flex flex-wrap gap-2"><Pill active>Human-recorded audio</Pill><Pill active>Pronunciation</Pill><Pill active>Stress & intonation</Pill></div>
           </div>
+
+          {activeCurriculum && <section className="mt-7 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200/70 sm:p-7">
+            <div className="flex flex-wrap items-center justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR GRADE + CEFR LESSON</p><h2 className="mt-2 text-2xl font-extrabold">{activeCurriculum.title}</h2><p className="mt-1 text-sm text-slate-500">{activeCurriculum.theme}</p></div><label className="text-xs font-bold text-slate-500">CEFR level<select value={activeCurriculum.level} onChange={e=>{setCurriculumLevel(e.target.value);setWritingFeedback(null);}} className="mt-1 block rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-extrabold text-slate-800">{curriculumUnits.map(unit=><option key={unit.id} value={unit.level}>{unit.level}</option>)}</select></label></div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <article className="rounded-2xl border border-sky-100 bg-sky-50/60 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-sky-900"><Headphones size={17}/> 01 · Listening</div><p className="mt-2 text-xs leading-5 text-slate-600">Original lesson script. Device speech synthesis is a preview voice, not a recorded human speaker.</p><p className="mt-3 text-sm leading-6 text-slate-800">{activeCurriculum.listening.script}</p><button onClick={()=>{if('speechSynthesis' in window){window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(activeCurriculum.listening.script);utterance.lang='en-US';window.speechSynthesis.speak(utterance);}}} className="mt-3 rounded-xl bg-sky-700 px-3 py-2 text-xs font-bold text-white">Play device voice preview</button><details className="mt-3 rounded-xl bg-white p-3"><summary className="cursor-pointer text-xs font-bold text-sky-900">{activeCurriculum.listening.questions[0].prompt}</summary><p className="mt-2 text-xs text-slate-700">Answer: {activeCurriculum.listening.questions[0].answer}</p><p className="mt-1 text-xs text-slate-500">{activeCurriculum.listening.questions[0].explanation}</p></details></article>
+              <article className="rounded-2xl border border-indigo-100 bg-indigo-50/60 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-indigo-900"><BookOpen size={17}/> 02 · Reading</div><p className="mt-3 text-sm leading-7 text-slate-800">{activeCurriculum.reading.passage}</p><details className="mt-3 rounded-xl bg-white p-3"><summary className="cursor-pointer text-xs font-bold text-indigo-900">{activeCurriculum.reading.questions[0].prompt}</summary><p className="mt-2 text-xs text-slate-700">Answer: {activeCurriculum.reading.questions[0].answer}</p><p className="mt-1 text-xs text-slate-500">{activeCurriculum.reading.questions[0].explanation}</p></details></article>
+              <article className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-emerald-900"><BookOpen size={17}/> 03 · Writing</div><p className="mt-3 text-sm leading-6 text-slate-800">{activeCurriculum.writing.prompt}</p><div className="mt-3 flex flex-wrap gap-2">{activeCurriculum.writing.checklist.map(item=><Pill key={item}>{item}</Pill>)}</div><div className="mt-3 text-xs text-slate-600">Your draft below is assessed against this exact task and reading context.</div></article>
+              <article className="rounded-2xl border border-violet-100 bg-violet-50/60 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-violet-900"><Mic2 size={17}/> 04 · Speaking</div><p className="mt-3 text-sm leading-6 text-slate-800">{activeCurriculum.speaking.prompt}</p><div className="mt-3 space-y-2">{activeCurriculum.speaking.followUps.map((question,index)=><p key={question} className="rounded-xl bg-white p-3 text-xs text-slate-700"><strong>Follow-up {index+1}:</strong> {question}</p>)}</div><p className="mt-2 text-[11px] text-slate-500">Suggested speaking time: {activeCurriculum.speaking.targetMinutes} minute(s)</p></article>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">{activeCurriculum.vocabulary.map(item=><div key={item.word} className="rounded-xl bg-slate-50 px-3 py-2 text-xs"><strong>{item.word}</strong><span className="ml-2 text-slate-500">{item.meaningVi}</span><p className="mt-1 text-slate-500">{item.example}</p></div>)}</div>
+            <div className="mt-3 text-xs text-slate-500">Grammar focus: {activeCurriculum.grammarFocus.join(' · ')}</div>
+          </section>}
+          {activeCurriculum && <DeepPracticeHub unit={activeCurriculum} track={learner.track} grade={learner.grade} level={learner.level} />}
 
           <section className="mt-7">
             <div className="flex items-end justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR COURSE MAP</p><h2 className="mt-2 text-2xl font-extrabold">{isSchool ? `Grade ${learner.grade.replace('Grade ', '')} learning path` : 'Workplace communication path'}</h2></div><Pill>{isSchool ? 'School curriculum' : 'CEFR-based practice'}</Pill></div>
@@ -259,9 +344,12 @@ export default function BenEnglishExperience() {
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6">
             <p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>WRITING & SPEAKING CHALLENGE</p>
             <h2 className="mt-2 text-xl font-extrabold">{isSchool ? 'Build a clear paragraph' : 'Turn an idea into a professional message'}</h2>
-            <div className="mt-3 text-sm leading-6 text-slate-500">{isSchool ? `Dùng cấu trúc: topic sentence → two supporting details → closing sentence. Chủ đề: “One skill I want to develop this year”. Mục tiêu gợi ý: ${schoolGrade === 10 ? '60–80' : schoolGrade === 11 ? '80–100' : '100–120'} từ.` : `Dùng cấu trúc: purpose → key detail → requested action → polite close. Viết email ngắn để xin dời một cuộc họp và đề xuất hai khung giờ thay thế. Mục tiêu: ${learner.level === 'A1' || learner.level === 'A2' ? '40–60' : learner.level === 'B1' ? '80–100' : learner.level === 'B2' ? '120–150' : '160–200'} từ.`}</div>
+            <div className="mt-3 text-sm leading-6 text-slate-500">{activeCurriculum?.writing.prompt || (isSchool ? 'Write a clear paragraph about a skill you want to develop.' : 'Write a concise professional email with a clear action.')}</div>
             <textarea value={writingDraft} onChange={e=>setWritingDraft(e.target.value)} rows={5} placeholder={isSchool ? 'Write your paragraph here…' : 'Draft your professional email here…'} className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none focus:border-indigo-400" />
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400"><span>{writingDraft.trim().split(/\s+/).filter(Boolean).length} words</span><span>{isSchool ? `${learner.grade} · CEFR ${learner.level}` : `Professional · CEFR ${learner.level}`}</span></div>
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400"><span>{writingDraft.trim().split(/\s+/).filter(Boolean).length} words</span><span>{isSchool ? `${learner.grade} · CEFR ${activeCurriculum?.level || learner.level}` : `Professional · CEFR ${activeCurriculum?.level || learner.level}`}</span></div>
+            <div className="mt-3 flex flex-wrap items-center gap-2"><button disabled={isAssessingWriting||writingDraft.trim().split(/\s+/).filter(Boolean).length<8} onClick={assessWritingDraft} className={`rounded-xl px-4 py-3 text-sm font-extrabold text-white disabled:opacity-40 ${track.color}`}>{isAssessingWriting?'Teacher is reviewing your draft…':'Get evidence-based AI feedback'}</button><span className="text-xs text-slate-500">Corrections are checked against your actual words.</span></div>
+            {writingError && <p role="alert" className="mt-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{writingError}</p>}
+            {writingFeedback && <div className="mt-4 space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4"><div className="text-sm font-extrabold text-slate-900">Teacher’s feedback on your writing</div><p className="text-sm leading-6 text-slate-700">{writingFeedback.overallFeedback}</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{[{label:'Task',value:writingFeedback.taskFulfilment},{label:'Organisation',value:writingFeedback.organisation},{label:'Vocabulary',value:writingFeedback.vocabulary},{label:'Grammar',value:writingFeedback.grammar}].map(item=><div key={item.label} className="rounded-xl bg-white p-3"><div className="text-[10px] text-slate-500">{item.label}</div><div className="text-lg font-extrabold text-emerald-700">{item.value}/5</div></div>)}</div>{writingFeedback.corrections.map((item,index)=><div key={index} className="rounded-xl bg-white p-3 text-xs"><p className="text-rose-700 line-through">{item.original}</p><p className="mt-1 font-bold text-emerald-700">{item.improved}</p><p className="mt-1 text-slate-600">{item.explanationVi}</p></div>)}<ul className="list-disc space-y-1 pl-5 text-xs text-slate-700">{writingFeedback.nextSteps.map((item,index)=><li key={index}>{item}</li>)}</ul>{writingFeedback.improvedSampleAnswer&&<details className="rounded-xl bg-white p-3"><summary className="cursor-pointer text-xs font-bold">View separate model answer</summary><p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-700">{writingFeedback.improvedSampleAnswer}</p></details>}</div>}
             <div className="mt-4 rounded-2xl bg-slate-50 p-4"><div className="text-xs font-extrabold tracking-wider text-slate-500">MY WRITING CHECKLIST</div><div className="mt-3 space-y-3">{(isSchool ? ['I answer the topic directly.','I support my idea with relevant details.','I use complete sentences and check verb forms.'] : ['My purpose is clear in the opening.','I include the key detail and a specific action.','My tone is polite and the message is easy to scan.']).map((item,i)=><label key={item} className="flex cursor-pointer items-start gap-3 text-sm text-slate-600"><input type="checkbox" checked={reviewChecks[i]} onChange={e=>setReviewChecks(prev=>prev.map((v,j)=>j===i?e.target.checked:v))} className="mt-0.5 h-4 w-4 rounded border-slate-300"/><span>{item}</span></label>)}</div><p className="mt-3 text-xs text-slate-400">{reviewChecks.filter(Boolean).length}/3 checks complete · Self-review only; no AI grading is claimed.</p></div>
             <div className="mt-4 flex flex-wrap gap-2"><button onClick={()=>setSection('tutor')} className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-extrabold text-white ${track.color}`}>Discuss this with {track.coach} <ArrowRight size={15}/></button><button onClick={()=>{setWritingDraft('');setReviewChecks([false,false,false]);}} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-500">Clear draft</button></div>
           </section>
@@ -322,7 +410,28 @@ export default function BenEnglishExperience() {
             </div>
           </section>
         </div>}
-        {section === 'progress' && <section className="rounded-[2rem] bg-white p-7 shadow-sm ring-1 ring-slate-200/70 sm:p-9"><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR LEARNING JOURNEY</p><h1 className="mt-2 text-3xl font-extrabold">Progress that means something.</h1><p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">Your dashboard will measure real evidence from speaking, listening, reading and writing — not made-up scores.</p><div className="mt-7 grid gap-3 sm:grid-cols-2">{['Speaking confidence','Listening comprehension','Vocabulary in context','Grammar accuracy'].map((s,i)=><div key={s} className="rounded-2xl bg-slate-50 p-5"><div className="text-sm font-bold">{s}</div><div className="mt-2 text-xs text-slate-400">{i===0?'Awaiting first speaking sample':'Not assessed yet'}</div><div className="mt-4 h-1.5 rounded-full bg-slate-200"/></div>)}</div><button onClick={()=>setSection('tutor')} className="mt-7 rounded-2xl bg-slate-950 px-5 py-3 text-sm font-bold text-white">Start your first practice</button></section>}
+        {section === 'progress' && <section className="rounded-[2rem] bg-white p-7 shadow-sm ring-1 ring-slate-200/70 sm:p-9">
+          <p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR LEARNING JOURNEY</p>
+          <h1 className="mt-2 text-3xl font-extrabold">Progress that means something.</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-slate-500">Thống kê số hoạt động bạn thực sự hoàn thành trong Deep Practice Studio. Không tự tạo điểm CEFR hoặc phần trăm năng lực khi chưa có đủ bài đánh giá.</p>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            <div className="rounded-2xl bg-slate-950 p-5 text-white"><div className="text-3xl font-black">{completedSkillCount}</div><div className="mt-1 text-xs text-white/65">Skill activities completed</div></div>
+            <div className="rounded-2xl bg-slate-50 p-5"><div className="text-3xl font-black text-slate-900">{practisedUnitCount}</div><div className="mt-1 text-xs text-slate-500">Lesson units practised</div></div>
+          </div>
+          <h2 className="mt-7 text-lg font-extrabold">Practice by skill</h2>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {skillLabels.map(item => {
+              const count = Object.values(skillProgress).filter(skills => skills.includes(item.id)).length;
+              return <div key={item.id} className="rounded-2xl border border-slate-100 p-4">
+                <div className="flex items-center justify-between gap-3"><span className="text-sm font-bold">{item.label}</span><span className="text-xs font-extrabold text-slate-500">{count} units</span></div>
+                <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100"><div className={`h-full rounded-full ${track.color}`} style={{ width: `${Math.min(100, count / Math.max(1, curriculumUnits.length) * 100)}%` }}/></div>
+                <p className="mt-2 text-[11px] text-slate-400">{count ? 'Recorded practice in this browser' : 'No completed activity recorded yet'}</p>
+              </div>;
+            })}
+          </div>
+          <p className="mt-4 text-xs leading-5 text-slate-400">Tiến độ Deep Practice hiện được lưu trên trình duyệt đang sử dụng; chưa đồng bộ giữa các thiết bị hoặc tài khoản. Các đánh giá AI và lịch sử học cũ vẫn được giữ nguyên.</p>
+          <button onClick={()=>setSection('learn')} className={`mt-7 rounded-2xl px-5 py-3 text-sm font-bold text-white ${track.color}`}>Continue your lesson</button>
+        </section>}
         <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-slate-200 bg-white/95 px-2 py-2 backdrop-blur lg:hidden">{([{id:'today',label:'Today',icon:Target},{id:'tutor',label:'Tutor',icon:MessageCircle},{id:'learn',label:'Learn',icon:BookOpen},{id:'progress',label:'Progress',icon:TrendingUp}] as const).map(item=><button key={item.id} onClick={()=>setSection(item.id)} className={`flex flex-col items-center gap-1 rounded-xl py-2 text-[10px] font-bold ${section===item.id?track.ink:'text-slate-400'}`}><item.icon size={19}/>{item.label}</button>)}</nav>
       </main>
     </div>
