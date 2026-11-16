@@ -166,6 +166,7 @@ export default function PronunciationCoach({ track, level, contextLabel }: Props
         level,
       });
       setReport(result);
+      saveProgressEntry(result);
       setNotice(result.audioAssessment === 'not_assessable'
         ? 'The audio did not provide enough clear evidence for a reliable pronunciation assessment.'
         : 'Audio analysis complete. Review the sound observations and practise the model sentence.');
