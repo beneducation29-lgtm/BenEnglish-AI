@@ -55,6 +55,9 @@ export default function BenEnglishExperience() {
   const [quizChoice, setQuizChoice] = useState<number | null>(null);
   const [quizChecked, setQuizChecked] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
+  const [readingResponse, setReadingResponse] = useState('');
+  const [writingDraft, setWritingDraft] = useState('');
+  const [reviewChecks, setReviewChecks] = useState<boolean[]>([false, false, false]);
   const track = trackCopy[learner.track];
   const isSchool = learner.track === 'high_school';
   const schoolGrade = learner.grade === 'Grade 10' ? 10 : learner.grade === 'Grade 11' ? 11 : 12;
@@ -87,6 +90,14 @@ export default function BenEnglishExperience() {
   const currentQuiz = quizItems[quizIndex % quizItems.length];
 
   useEffect(() => { localStorage.setItem('benenglish-v2-profile', JSON.stringify(learner)); }, [learner]);
+  useEffect(() => {
+    setQuizChoice(null);
+    setQuizChecked(false);
+    setQuizIndex(0);
+    setReadingResponse('');
+    setWritingDraft('');
+    setReviewChecks([false, false, false]);
+  }, [learner.track, learner.grade, learner.level]);
   const update = (patch: Partial<Learner>) => setLearner(prev => ({ ...prev, ...patch }));
   const completeOnboarding = () => { update({ onboarded: true }); setSection('today'); };
   const sendMessage = () => {
@@ -232,6 +243,13 @@ export default function BenEnglishExperience() {
             <p className="text-xs font-extrabold tracking-[.18em] text-amber-300">READ, THINK & PRODUCE</p>
             <h2 className="mt-2 text-2xl font-extrabold">{isSchool ? 'A short reading: Small actions matter' : 'A workplace reading: A useful project update'}</h2>
             <p className="mt-4 text-sm leading-7 text-slate-200">{isSchool ? 'Our school started a small project to reduce plastic waste. Students bring reusable bottles and sort rubbish after lunch. At first, only a few students joined. After the class shared photos and explained the benefits, more students became interested. The project shows that simple actions can make a difference when people work together.' : 'The product team has finished the first stage of the website update. The new layout is ready, but the mobile checkout still needs testing. The team will review the main issues this afternoon and share a revised timeline tomorrow. The project is still on track, provided that the payment test is completed by Thursday.'}</p>
+            <div className="mt-5 rounded-2xl bg-white/10 p-4">
+              <label className="block text-xs font-extrabold tracking-wider text-white/65" htmlFor="reading-response">YOUR READING RESPONSE</label>
+              <p className="mt-2 text-sm font-semibold">{isSchool ? 'Why did more students become interested in the project?' : 'What must happen before the project can stay on track?'}</p>
+              <textarea id="reading-response" value={readingResponse} onChange={e=>setReadingResponse(e.target.value)} rows={3} placeholder={isSchool ? 'Write one complete sentence…' : 'Summarise the dependency in one or two sentences…'} className="mt-3 w-full rounded-xl border border-white/15 bg-slate-900/40 px-3 py-3 text-sm text-white placeholder:text-white/40 outline-none focus:border-white/50" />
+              <div className="mt-2 text-xs text-white/55">{readingResponse.trim().split(/\\s+/).filter(Boolean).length} words · Your answer stays in this browser preview.</div>
+              <div className="mt-3 rounded-xl bg-white/10 p-3 text-xs leading-5 text-white/80"><strong>Self-check:</strong> {isSchool ? 'Mention the photos and the explanation of the benefits.' : 'Mention completion of the payment test by Thursday.'} This is a reading hint, not an automatic score.</div>
+            </div>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl bg-white/10 p-4"><div className="text-xs font-extrabold text-white/60">CHECK YOUR UNDERSTANDING</div><p className="mt-2 text-sm font-semibold">{isSchool ? 'Why did more students join the project?' : 'What is the main blocker, and what is the next action?'}</p><p className="mt-2 text-xs text-white/60">{isSchool ? 'Answer in one complete sentence.' : 'Answer in two concise sentences.'}</p></div>
               <div className="rounded-2xl bg-white/10 p-4"><div className="text-xs font-extrabold text-white/60">YOUR OUTPUT TASK</div><p className="mt-2 text-sm font-semibold">{isSchool ? 'Write 3 sentences about one action that can improve your school or community.' : 'Give a 45-second spoken update: progress, one blocker and the next step.'}</p><p className="mt-2 text-xs text-white/60">Focus on clear meaning before using difficult vocabulary.</p></div>
@@ -241,8 +259,11 @@ export default function BenEnglishExperience() {
           <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-6">
             <p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>WRITING & SPEAKING CHALLENGE</p>
             <h2 className="mt-2 text-xl font-extrabold">{isSchool ? 'Build a clear paragraph' : 'Turn an idea into a professional message'}</h2>
-            <div className="mt-3 text-sm leading-6 text-slate-500">{isSchool ? 'Dùng cấu trúc: topic sentence → two supporting details → closing sentence. Chủ đề: “One skill I want to develop this year”.' : 'Dùng cấu trúc: purpose → key detail → requested action → polite close. Nhiệm vụ: viết email ngắn để xin dời một cuộc họp và đề xuất hai khung giờ thay thế.'}</div>
-            <button onClick={()=>setSection('tutor')} className={`mt-5 inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-extrabold text-white ${track.color}`}>Practise this with {track.coach} <ArrowRight size={15}/></button>
+            <div className="mt-3 text-sm leading-6 text-slate-500">{isSchool ? `Dùng cấu trúc: topic sentence → two supporting details → closing sentence. Chủ đề: “One skill I want to develop this year”. Mục tiêu gợi ý: ${schoolGrade === 10 ? '60–80' : schoolGrade === 11 ? '80–100' : '100–120'} từ.` : `Dùng cấu trúc: purpose → key detail → requested action → polite close. Viết email ngắn để xin dời một cuộc họp và đề xuất hai khung giờ thay thế. Mục tiêu: ${learner.level === 'A1' || learner.level === 'A2' ? '40–60' : learner.level === 'B1' ? '80–100' : learner.level === 'B2' ? '120–150' : '160–200'} từ.`}</div>
+            <textarea value={writingDraft} onChange={e=>setWritingDraft(e.target.value)} rows={5} placeholder={isSchool ? 'Write your paragraph here…' : 'Draft your professional email here…'} className="mt-4 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 outline-none focus:border-indigo-400" />
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400"><span>{writingDraft.trim().split(/\\s+/).filter(Boolean).length} words</span><span>{isSchool ? `${learner.grade} · CEFR ${learner.level}` : `Professional · CEFR ${learner.level}`}</span></div>
+            <div className="mt-4 rounded-2xl bg-slate-50 p-4"><div className="text-xs font-extrabold tracking-wider text-slate-500">MY WRITING CHECKLIST</div><div className="mt-3 space-y-3">{(isSchool ? ['I answer the topic directly.','I support my idea with relevant details.','I use complete sentences and check verb forms.'] : ['My purpose is clear in the opening.','I include the key detail and a specific action.','My tone is polite and the message is easy to scan.']).map((item,i)=><label key={item} className="flex cursor-pointer items-start gap-3 text-sm text-slate-600"><input type="checkbox" checked={reviewChecks[i]} onChange={e=>setReviewChecks(prev=>prev.map((v,j)=>j===i?e.target.checked:v))} className="mt-0.5 h-4 w-4 rounded border-slate-300"/><span>{item}</span></label>)}</div><p className="mt-3 text-xs text-slate-400">{reviewChecks.filter(Boolean).length}/3 checks complete · Self-review only; no AI grading is claimed.</p></div>
+            <div className="mt-4 flex flex-wrap gap-2"><button onClick={()=>setSection('tutor')} className={`inline-flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-extrabold text-white ${track.color}`}>Discuss this with {track.coach} <ArrowRight size={15}/></button><button onClick={()=>{setWritingDraft('');setReviewChecks([false,false,false]);}} className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-500">Clear draft</button></div>
           </section>
 
           <section className="mt-7">
