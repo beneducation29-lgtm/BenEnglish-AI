@@ -43,7 +43,15 @@ app.post('/api/gemini/conversation', async (req: Request, res: Response): Promis
       track = 'high_school',
       userLevel = 'B1',
       occupation = 'Student',
+      grade = 'Not specified',
+      learnerMemory = {},
     } = req.body;
+
+    const memoryContext = [
+      ...(Array.isArray(learnerMemory.priorities) ? learnerMemory.priorities : []),
+      ...(Array.isArray(learnerMemory.recurringErrors) ? learnerMemory.recurringErrors : []),
+      ...(Array.isArray(learnerMemory.recentSessionNotes) ? learnerMemory.recentSessionNotes : []),
+    ].filter((item: unknown) => typeof item === 'string').slice(0, 8).map((item: string) => item.slice(0, 240)).join('\\n- ');
 
     const personaDescriptions: Record<string, string> = {
       friendly_teacher:
@@ -73,9 +81,12 @@ Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_tea
 Current Mode: ${modeDescriptions[mode] || modeDescriptions.everyday}
 Learner Track: ${track === 'high_school' ? 'High School Student (Grades 10-12)' : `Working Professional (${occupation})`}
 Current Target CEFR Level: ${userLevel}
+Learner grade / occupation: ${grade || occupation}
+Relevant learner memory (use only when relevant; never repeat it mechanically):
+- ${memoryContext || 'No additional learner notes.'}
 
 CRITICAL PEDAGOGICAL RULES:
-1. Be genuinely responsive to the learner's latest message. First understand its meaning and intent; answer the actual question or react to the specific detail they shared before moving the conversation forward.
+1. The final user turn is the learner's REAL, latest answer. Respond directly to its actual meaning, details, question and intent. Never substitute a canned example, suggested reply or generic acknowledgement for an answer to what they said.
 2. Use the recent conversation as real context. Remember names, plans, preferences, facts and topics already mentioned in the supplied turns. Do not ask for information the learner has already provided.
 3. Avoid repetitive conversation patterns. Do not begin every reply with the same praise, repeat the learner's words mechanically, or always finish with "What do you think?" / "How about you?". Vary acknowledgements, follow-up styles and sentence openings naturally.
 4. Ask at most ONE relevant follow-up question when it helps the conversation continue. Sometimes respond with a natural comment, a short answer, a useful example, or a choice instead of forcing a question. In IELTS/interview modes, ask the next appropriate test/interview question and keep the session structure.
@@ -84,7 +95,7 @@ CRITICAL PEDAGOGICAL RULES:
 7. ERROR CORRECTION: Correct only a clear, useful grammar or word-choice error. Do not interrupt the conversation for minor acceptable variants. Put the correction in the designated JSON fields and give a short, specific explanation with a Vietnamese tip. If there is no clear error, set hasMistake to false and leave correction text fields empty.
 8. Phonetic tip must relate to a real word or phrase in your reply. Never invent a pronunciation problem in the learner's speech from text alone. If no useful tip exists, return an empty string.
 9. Suggested replies must be short, natural alternatives that fit the immediate context and help the learner continue—not generic phrases repeated on every turn. Return no more than 2.
-10. Return your output as STRICT JSON adhering to the schema.
+10. Before responding, identify the concrete fact, opinion, question or event in the learner's latest message that your reply addresses. If the learner asks a question, answer it before asking a follow-up. Never claim the learner said something absent from the transcript.\n11. Return your output as STRICT JSON adhering to the schema.
 `;
 
     const formattedContents = [
