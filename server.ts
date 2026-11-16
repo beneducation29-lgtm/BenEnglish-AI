@@ -120,12 +120,14 @@ CRITICAL PEDAGOGICAL RULES:
       recentSessionNotes.length ? 'Recent learning notes: ' + recentSessionNotes.join('; ') : '',
       recurringErrors.length ? 'Recurring error watchlist (correct only if it appears in this turn): ' + recurringErrors.join('; ') : '',
     ].filter(Boolean).join('\n');
+    const learnerTurn = contextNotes
+      ? '[Private learning context for the tutor; do not repeat this list to the learner]\n' + contextNotes + '\n\nLearner says: ' + learnerMessage
+      : learnerMessage;
     const formattedContents = [
       ...recentHistory,
-      ...(contextNotes ? [{ role: 'user', parts: [{ text: '[Private learning context for the tutor; do not repeat this list to the learner]\n' + contextNotes }] }] : []),
       {
         role: 'user',
-        parts: [{ text: learnerMessage }],
+        parts: [{ text: learnerTurn }],
       },
     ];
 
