@@ -62,6 +62,7 @@ export default function DeepPracticeHub({ unit, track, grade, level }: Props) {
 
   useEffect(() => {
     localStorage.setItem('benenglish-skill-progress-v1', JSON.stringify(progress));
+    window.dispatchEvent(new Event('benenglish-skill-progress-updated'));
   }, [progress]);
 
   useEffect(() => {
