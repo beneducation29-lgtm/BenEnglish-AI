@@ -84,6 +84,7 @@ export default function BenEnglishExperience() {
   const [isRecordingSpeaking, setIsRecordingSpeaking] = useState(false);
   const [speakingSeconds, setSpeakingSeconds] = useState(0);
   const [speakingFeedback, setSpeakingFeedback] = useState<SpeakingEvalData | null>(null);
+  const [speakingAudioUrl, setSpeakingAudioUrl] = useState('');
   const [speakingError, setSpeakingError] = useState('');
   const [isAssessingSpeaking, setIsAssessingSpeaking] = useState(false);
   const speakingRecorderRef = useRef<MediaRecorder | null>(null);
@@ -365,7 +366,7 @@ export default function BenEnglishExperience() {
       speakingStreamRef.current = stream;
       const recorder = new MediaRecorder(stream); speakingRecorderRef.current = recorder;
       recorder.ondataavailable = event => { if (event.data.size) speakingChunksRef.current.push(event.data); };
-      recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); void blob; speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; };
+      recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); setSpeakingAudioUrl(previous => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(blob); }); speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; };
       recorder.start(250); speakingStartedAtRef.current = Date.now(); setIsRecordingSpeaking(true);
       const w = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }; const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
       if (Recognition) { const recognition = new Recognition(); speakingRecognitionRef.current = recognition; recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true; recognition.onresult = (event: any) => { let transcript = ''; for (let i=0;i<event.results.length;i+=1) transcript += event.results[i][0]?.transcript ? event.results[i][0].transcript + ' ' : ''; setSpeakingTranscript(transcript.trim()); }; recognition.onerror = () => setSpeakingError('Không nhận dạng được lời nói tự động. Bạn vẫn có thể nhập hoặc chỉnh sửa bản chép lời.'); recognition.start(); }
@@ -690,6 +691,7 @@ export default function BenEnglishExperience() {
               <div className="text-xs font-extrabold tracking-widest text-sky-700">SPEAKING ASSESSMENT</div><h3 className="mt-1 text-lg font-extrabold text-slate-900">Speak, record and review</h3>
               <p className="mt-1 text-xs leading-5 text-slate-600">{isSchool ? "Describe a school subject you enjoy and how it may help your future." : "Describe a recent work challenge, your action and the outcome."}</p>
               <div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={isRecordingSpeaking?stopSpeakingAssessment:startSpeakingAssessment} className={"rounded-xl px-4 py-3 text-sm font-extrabold text-white " + (isRecordingSpeaking?"bg-rose-600":"bg-sky-700")}>{isRecordingSpeaking?"Finish recording":"Start microphone recording"}</button><span className="self-center text-xs text-slate-500">{isRecordingSpeaking?"Recording…":speakingSeconds ? "Captured " + speakingSeconds + "s" : "Audio is captured in this browser session"}</span></div>
+              {speakingAudioUrl && <audio controls src={speakingAudioUrl} className="mt-3 w-full" />}
               <textarea value={speakingTranscript} onChange={event=>setSpeakingTranscript(event.target.value)} rows={4} placeholder="Recognised transcript appears here. You can edit it before assessment…" className="mt-3 w-full rounded-xl border border-sky-100 bg-white px-3 py-3 text-sm leading-6 outline-none focus:border-sky-400"/>
               {speakingError && <p role="alert" className="mt-2 text-xs text-rose-700">{speakingError}</p>}
               <button disabled={isRecordingSpeaking||isAssessingSpeaking||speakingTranscript.trim().split(/\s+/).filter(Boolean).length<8} onClick={submitSpeakingAssessment} className="mt-3 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-40">{isAssessingSpeaking?"Assessing speaking…":"Assess my speaking"}</button>
