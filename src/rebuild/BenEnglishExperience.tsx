@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { sendConversationMessage, evaluateWriting, WritingAssessmentData } from '../services/api';
 import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
+import DeepPracticeHub from './DeepPracticeHub';
 import {
   ArrowRight, AudioLines, BookOpen, BriefcaseBusiness, Check, ChevronRight,
   Clock3, Flame, GraduationCap, Headphones, MessageCircle,
@@ -244,6 +245,8 @@ export default function BenEnglishExperience() {
             <div className="mt-4 flex flex-wrap gap-2">{activeCurriculum.vocabulary.map(item=><div key={item.word} className="rounded-xl bg-slate-50 px-3 py-2 text-xs"><strong>{item.word}</strong><span className="ml-2 text-slate-500">{item.meaningVi}</span><p className="mt-1 text-slate-500">{item.example}</p></div>)}</div>
             <div className="mt-3 text-xs text-slate-500">Grammar focus: {activeCurriculum.grammarFocus.join(' · ')}</div>
           </section>}
+          {activeCurriculum && <DeepPracticeHub unit={activeCurriculum} track={learner.track} grade={learner.grade} level={learner.level} />}
+
           <section className="mt-7">
             <div className="flex items-end justify-between gap-3"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR COURSE MAP</p><h2 className="mt-2 text-2xl font-extrabold">{isSchool ? `Grade ${learner.grade.replace('Grade ', '')} learning path` : 'Workplace communication path'}</h2></div><Pill>{isSchool ? 'School curriculum' : 'CEFR-based practice'}</Pill></div>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">{isSchool ? 'Các chủ đề dưới đây là khung ôn luyện theo năng lực và chủ điểm thường gặp ở bậc THPT; giáo viên có thể điều chỉnh theo bộ sách trường đang học.' : 'Học theo tình huống công việc thực tế. Mỗi chủ đề kết hợp cụm từ, cấu trúc lịch sự và một nhiệm vụ giao tiếp có đầu ra rõ ràng.'}</p>
