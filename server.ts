@@ -67,6 +67,21 @@ app.post('/api/gemini/conversation', async (req: Request, res: Response): Promis
       interview: 'Job interview practice with behavioral, situational, and competency questions.',
     };
 
+    const learnerMessage = typeof message === 'string' ? message.trim().slice(0, 1200) : '';
+    if (!learnerMessage) {
+      res.status(400).json({ success: false, error: 'Please send a short message before starting the conversation.' });
+      return;
+    }
+
+    // Bound conversation context so long sessions cannot turn each reply into an oversized request.
+    const recentHistory = Array.isArray(history)
+      ? history.slice(-6).filter((turn: any) => turn && typeof turn.content === 'string' && turn.content.trim())
+          .map((turn: any) => ({
+            role: turn.role === 'user' ? 'user' : 'model',
+            parts: [{ text: turn.content.trim().slice(-700) }],
+          }))
+      : [];
+
     const systemInstruction = `
 You are the interactive AI voice conversation partner for BenEnglish AI.
 Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_teacher}
@@ -88,28 +103,31 @@ CRITICAL PEDAGOGICAL RULES:
 `;
 
     const formattedContents = [
-      ...history.map((turn: { role: string; content: string }) => ({
-        role: turn.role === 'user' ? 'user' : 'model',
-        parts: [{ text: turn.content }],
-      })),
+      ...recentHistory,
       {
         role: 'user',
-        parts: [
-          {
-            text: message || "Hello! Let's start our conversation practice.",
-          },
-        ],
+        parts: [{ text: learnerMessage }],
       },
     ];
 
-    const response = await ai.models.generateContent({
+    // Use a bounded timeout and disable the SDK's long default retry backoff for this
+    // interactive turn. The learner can retry from the UI without losing the turn.
+    const conversationAi = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        timeout: 18000,
+        headers: { 'User-Agent': 'aistudio-build' },
+        retryOptions: { attempts: 1 },
+      },
+    });
+    const response = await conversationAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: formattedContents,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
-        temperature: 0.75,
-        maxOutputTokens: 500,
+        temperature: 0.65,
+        maxOutputTokens: 320,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -145,10 +163,22 @@ CRITICAL PEDAGOGICAL RULES:
     const parsed = JSON.parse(response.text || '{}');
     res.json({ success: true, data: parsed });
   } catch (error: any) {
-    console.error('Conversation error:', error);
-    res.status(500).json({
+    const detail = String(error?.message || 'Failed to generate conversation response');
+    const deadlineExceeded = /DEADLINE_EXCEEDED|deadline|timed?\s*out|timeout/i.test(detail)
+      || Number(error?.code) === 504 || Number(error?.status) === 504;
+    console.error('Conversation error:', {
+      message: detail.slice(0, 500),
+      code: error?.code,
+      status: error?.status,
+      deadlineExceeded,
+    });
+    res.status(deadlineExceeded ? 504 : 502).json({
       success: false,
-      error: error.message || 'Failed to generate conversation response',
+      code: deadlineExceeded ? 'AI_DEADLINE_EXCEEDED' : 'AI_UPSTREAM_ERROR',
+      retryable: true,
+      error: deadlineExceeded
+        ? 'The AI tutor is taking longer than usual. Your message is preserved; please try again in a moment.'
+        : 'The AI tutor is temporarily unavailable. Your message is preserved; please retry shortly.',
     });
   }
 });
