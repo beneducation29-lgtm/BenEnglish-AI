@@ -33,6 +33,11 @@ export default async function handler(req: any, res: any) {
   const durationSeconds = Number.isFinite(Number(req.body?.durationSeconds))
     ? Math.max(0, Math.min(600, Math.round(Number(req.body.durationSeconds))))
     : 0;
+  const audioBase64 = typeof req.body?.audioBase64 === 'string' ? req.body.audioBase64 : '';
+  const audioMimeType = req.body?.audioMimeType === 'audio/wav' ? 'audio/wav' : '';
+  if (audioBase64 && (!audioMimeType || audioBase64.length > 2_100_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(audioBase64))) {
+    return res.status(400).json({ success: false, error: 'The audio sample is invalid or too large. Record a shorter answer and try again.' });
+  }
 
   if (userTranscript.split(/\\s+/).filter(Boolean).length < 8) {
     return res.status(400).json({ success: false, error: 'Please provide at least 8 recognised words before requesting a speaking assessment.' });
@@ -45,23 +50,27 @@ export default async function handler(req: any, res: any) {
   const request = {
     contents: [{
       role: 'user',
-      parts: [{
-        text: [
-          'LEARNER TRACK: ' + track,
-          'TARGET CEFR: ' + level,
-          'SPEAKING TASK: ' + (topic || 'Describe an experience and explain your ideas.'),
-          'RECORDED RESPONSE DURATION IN SECONDS: ' + (durationSeconds || 'not available'),
-          'AUTOMATIC SPEECH TRANSCRIPT:',
-          userTranscript,
-        ].join('\\n'),
-      }],
+      parts: [
+        {
+          text: [
+            'LEARNER TRACK: ' + track,
+            'TARGET CEFR: ' + level,
+            'SPEAKING TASK: ' + (topic || 'Describe an experience and explain your ideas.'),
+            'RECORDED RESPONSE DURATION IN SECONDS: ' + (durationSeconds || 'not available'),
+            'AUTOMATIC SPEECH TRANSCRIPT:',
+            userTranscript,
+            audioBase64 ? 'AUDIO EVIDENCE IS ATTACHED. Assess only audible evidence and report uncertainty when the recording is unclear.' : 'NO AUDIO EVIDENCE IS ATTACHED. Do not provide an acoustic pronunciation score.',
+          ].join('\\n'),
+        },
+        ...(audioBase64 ? [{ inlineData: { mimeType: audioMimeType, data: audioBase64 } }] : []),
+      ],
     }],
     config: {
       systemInstruction: `You are BenEnglish AI's careful, supportive CEFR-aligned speaking assessor.
-Assess the learner's spoken response from the transcript and task evidence only.
+Assess the learner's spoken response from the transcript and task evidence.
 Score these four dimensions from 1 to 5: lexicalResource, grammaticalAccuracy, fluencyCoherence, relevanceContent.
-Fluency/coherence may consider transcript length, discourse markers, repetition and the supplied duration, but do not claim to measure pauses, speech rate, accent, pronunciation, stress or intonation from text.
-Do not fabricate an acoustic pronunciation score. State clearly in areasToImprove that pronunciation requires direct audio analysis when no acoustic evidence is supplied.
+When an audio recording is attached, listen to the actual audio and additionally score pronunciation from 1 to 5. Assess intelligibility, segmental accuracy (consonants/vowels/final sounds) and stress/intonation only where audible. Give a few specific heard-to-suggested examples only when genuinely supported by the recording; do not infer accent identity or penalise a legitimate accent. If the audio is unclear, say so and lower confidence rather than guessing.
+When no audio is attached, do not fabricate an acoustic pronunciation score and state that pronunciation needs direct audio analysis.
 Estimate CEFR conservatively from this short speaking sample; do not award C1/C2 from a short or weak sample. This is formative feedback, not an official certificate.
 Every grammarCorrections.original must be an exact contiguous substring of the transcript. Return no correction if no genuine error is evidenced.
 Offer useful vocabulary upgrades that fit the learner's track and level. improvedSampleAnswer must be a separate model, not represented as the learner's original words.
@@ -81,8 +90,31 @@ Return valid JSON only.`,
               grammaticalAccuracy: { type: Type.INTEGER },
               fluencyCoherence: { type: Type.INTEGER },
               relevanceContent: { type: Type.INTEGER },
+              pronunciation: { type: Type.INTEGER },
             },
             required: ['lexicalResource', 'grammaticalAccuracy', 'fluencyCoherence', 'relevanceContent'],
+          },
+          audioEvidenceAvailable: { type: Type.BOOLEAN },
+          pronunciationAssessment: {
+            type: Type.OBJECT,
+            properties: {
+              intelligibility: { type: Type.INTEGER },
+              segmentalAccuracy: { type: Type.INTEGER },
+              stressAndIntonation: { type: Type.INTEGER },
+              feedback: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    heard: { type: Type.STRING },
+                    suggested: { type: Type.STRING },
+                    explanation: { type: Type.STRING },
+                  },
+                  required: ['heard', 'suggested', 'explanation'],
+                },
+              },
+            },
+            required: ['intelligibility', 'segmentalAccuracy', 'stressAndIntonation', 'feedback'],
           },
           strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
           areasToImprove: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -132,6 +164,19 @@ Return valid JSON only.`,
         for (const key of ['lexicalResource', 'grammaticalAccuracy', 'fluencyCoherence', 'relevanceContent']) {
           result.rubricScores[key] = clampRubric(result.rubricScores[key]);
         }
+        result.audioEvidenceAvailable = Boolean(audioBase64);
+        if (audioBase64 && result.rubricScores.pronunciation !== undefined && result.pronunciationAssessment) {
+          result.rubricScores.pronunciation = clampRubric(result.rubricScores.pronunciation);
+          for (const key of ['intelligibility', 'segmentalAccuracy', 'stressAndIntonation']) {
+            result.pronunciationAssessment[key] = clampRubric(result.pronunciationAssessment[key]);
+          }
+          result.pronunciationAssessment.feedback = Array.isArray(result.pronunciationAssessment.feedback)
+            ? result.pronunciationAssessment.feedback.filter((item: any) => item && typeof item.heard === 'string' && typeof item.suggested === 'string' && typeof item.explanation === 'string').slice(0, 4)
+            : [];
+        } else {
+          delete result.rubricScores.pronunciation;
+          delete result.pronunciationAssessment;
+        }
         result.grammarCorrections = Array.isArray(result.grammarCorrections)
           ? result.grammarCorrections.filter((item: any) =>
               item && typeof item.original === 'string' && item.original.length > 0 && userTranscript.includes(item.original)
@@ -143,8 +188,11 @@ Return valid JSON only.`,
         if (userTranscript.split(/\\s+/).length < 35 && ['C1', 'C2'].includes(result.cefrEstimate)) {
           result.cefrEstimate = 'B2';
         }
-        if (!result.areasToImprove.some((item: string) => /pronunciation|audio|phát âm/i.test(item))) {
+        if (!audioBase64 && !result.areasToImprove.some((item: string) => /pronunciation|audio|phát âm/i.test(item))) {
           result.areasToImprove.push('Pronunciation, stress and intonation need direct audio analysis; this transcript-only score does not assess them.');
+        }
+        if (audioBase64 && !result.pronunciationAssessment) {
+          result.areasToImprove.push('The recording did not provide enough clear acoustic evidence for a reliable pronunciation score. Please record again in a quiet place.');
         }
         break;
       } catch (error) {
