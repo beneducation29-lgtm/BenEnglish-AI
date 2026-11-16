@@ -93,6 +93,7 @@ export default function BenEnglishExperience() {
   const speakingChunksRef = useRef<Blob[]>([]);
   const speakingStartedAtRef = useRef(0);
   const speakingDurationRef = useRef(0);
+  const speakingFinalTranscriptRef = useRef('');
   const [quizChoice, setQuizChoice] = useState<number | null>(null);
   const [quizChecked, setQuizChecked] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
@@ -360,7 +361,7 @@ export default function BenEnglishExperience() {
 
   const startSpeakingAssessment = async () => {
     if (isRecordingSpeaking || isAssessingSpeaking) return;
-    setSpeakingError(''); setSpeakingFeedback(null); setSpeakingTranscript(''); setSpeakingSeconds(0); speakingChunksRef.current = [];
+    setSpeakingError(''); setSpeakingFeedback(null); setSpeakingTranscript(''); speakingFinalTranscriptRef.current = ''; setSpeakingSeconds(0); speakingChunksRef.current = [];
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       speakingStreamRef.current = stream;
@@ -369,7 +370,7 @@ export default function BenEnglishExperience() {
       recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); setSpeakingAudioUrl(previous => { if (previous) URL.revokeObjectURL(previous); return URL.createObjectURL(blob); }); speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; };
       recorder.start(250); speakingStartedAtRef.current = Date.now(); setIsRecordingSpeaking(true);
       const w = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }; const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
-      if (Recognition) { const recognition = new Recognition(); speakingRecognitionRef.current = recognition; recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true; recognition.onresult = (event: any) => { let transcript = ''; for (let i=0;i<event.results.length;i+=1) transcript += event.results[i][0]?.transcript ? event.results[i][0].transcript + ' ' : ''; setSpeakingTranscript(transcript.trim()); }; recognition.onerror = () => setSpeakingError('Không nhận dạng được lời nói tự động. Bạn vẫn có thể nhập hoặc chỉnh sửa bản chép lời.'); recognition.start(); }
+      if (Recognition) { const recognition = new Recognition(); speakingRecognitionRef.current = recognition; recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true; recognition.onresult = (event: any) => { let interim = ''; const startIndex = Number.isInteger(event.resultIndex) ? event.resultIndex : 0; for (let i=startIndex;i<event.results.length;i+=1) { const result = event.results[i]; const text = result[0]?.transcript?.trim() || ''; if (!text) continue; if (result.isFinal) speakingFinalTranscriptRef.current = [speakingFinalTranscriptRef.current, text].filter(Boolean).join(' '); else interim = [interim, text].filter(Boolean).join(' '); } setSpeakingTranscript([speakingFinalTranscriptRef.current, interim].filter(Boolean).join(' ').trim()); }; recognition.onerror = () => setSpeakingError('Không nhận dạng được lời nói tự động. Bạn vẫn có thể nhập hoặc chỉnh sửa bản chép lời.'); recognition.start(); }
       else setSpeakingError('Trình duyệt không hỗ trợ nhận dạng giọng nói; bản ghi âm vẫn chạy. Hãy nhập bản chép lời để chấm nội dung.');
     } catch (error) { setSpeakingError(error instanceof Error ? error.message : 'Không thể mở microphone. Hãy kiểm tra quyền truy cập micro.'); setIsRecordingSpeaking(false); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; }
   };
