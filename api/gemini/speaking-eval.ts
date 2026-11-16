@@ -39,7 +39,7 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ success: false, error: 'The audio sample is invalid or too large. Record a shorter answer and try again.' });
   }
 
-  if (userTranscript.split(/\\s+/).filter(Boolean).length < 8) {
+  if (userTranscript.split(/\s+/).filter(Boolean).length < 8) {
     return res.status(400).json({ success: false, error: 'Please provide at least 8 recognised words before requesting a speaking assessment.' });
   }
 
@@ -60,7 +60,7 @@ export default async function handler(req: any, res: any) {
             'AUTOMATIC SPEECH TRANSCRIPT:',
             userTranscript,
             audioBase64 ? 'AUDIO EVIDENCE IS ATTACHED. Assess only audible evidence and report uncertainty when the recording is unclear.' : 'NO AUDIO EVIDENCE IS ATTACHED. Do not provide an acoustic pronunciation score.',
-          ].join('\\n'),
+          ].join('\n'),
         },
         ...(audioBase64 ? [{ inlineData: { mimeType: audioMimeType, data: audioBase64 } }] : []),
       ],
@@ -185,7 +185,7 @@ Return valid JSON only.`,
         result.strengths = Array.isArray(result.strengths) ? result.strengths.slice(0, 4) : [];
         result.areasToImprove = Array.isArray(result.areasToImprove) ? result.areasToImprove.slice(0, 4) : [];
         result.upgradedVocabulary = Array.isArray(result.upgradedVocabulary) ? result.upgradedVocabulary.slice(0, 4) : [];
-        if (userTranscript.split(/\\s+/).length < 35 && ['C1', 'C2'].includes(result.cefrEstimate)) {
+        if (userTranscript.split(/\s+/).length < 35 && ['C1', 'C2'].includes(result.cefrEstimate)) {
           result.cefrEstimate = 'B2';
         }
         if (!audioBase64 && !result.areasToImprove.some((item: string) => /pronunciation|audio|phát âm/i.test(item))) {
