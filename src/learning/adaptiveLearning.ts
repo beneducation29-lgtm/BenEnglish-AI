@@ -18,7 +18,7 @@ export interface LearnerMemory {
 
 const MEMORY_KEY = 'benenglish-ai-tutor-memory-v1';
 
-const normalise = (value: string) => value.trim().replace(/\\s+/g, ' ').slice(0, 180);
+const normalise = (value: string) => value.trim().replace(/\s+/g, ' ').slice(0, 180);
 const unique = (items: string[]) => items.filter((item, index) =>
   items.findIndex(other => other.toLowerCase() === item.toLowerCase()) === index
 );
