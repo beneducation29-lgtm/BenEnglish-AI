@@ -374,9 +374,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [customLessons, authUser?.uid]);
 
   useEffect(() => {
-    if (!cloudMemoryReady || import.meta.env.VITE_FIREBASE_ENABLE_CLOUD_SYNC !== 'true' || !firebaseApp || !authUser?.uid) return;
+    const app = firebaseApp;
+    if (!cloudMemoryReady || import.meta.env.VITE_FIREBASE_ENABLE_CLOUD_SYNC !== 'true' || !app || !authUser?.uid) return;
     const timer = window.setTimeout(() => {
-      saveCloudMemory(firebaseApp, authUser.uid, { profile: user, vocabBank, customLessons })
+      saveCloudMemory(app, authUser.uid, { profile: user, vocabBank, customLessons })
         .catch((error) => console.warn('BenEnglish cloud sync failed; changes are still saved on this device.', error));
     }, 1200);
     return () => window.clearTimeout(timer);

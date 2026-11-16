@@ -64,6 +64,7 @@ export default async function handler(req: any, res: any) {
   const track = req.body?.track === 'professional' ? 'professional' : 'high_school';
   const userLevel = String(req.body?.userLevel || 'B1').slice(0, 8);
   const occupation = String(req.body?.occupation || 'Student').slice(0, 120);
+  const grade = String(req.body?.grade || (track === 'high_school' ? occupation : 'Not specified')).slice(0, 40);
   const history = normalizeHistory(req.body?.history);
   const rawMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
   const safeList = (value: unknown, maxItems = 5) => Array.isArray(value)
@@ -98,7 +99,8 @@ export default async function handler(req: any, res: any) {
 You are the interactive AI voice conversation partner for BenEnglish AI.
 Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_teacher}
 Current mode: ${modeDescriptions[mode] || modeDescriptions.everyday}
-Learner track: ${track === 'high_school' ? 'High-school student (Grades 10–12)' : `Working professional (${occupation})`}
+Learner track: ${track === 'high_school' ? `High-school student (${grade})` : `Working professional (${occupation})`}
+Learner grade: ${grade}
 Target CEFR level: ${userLevel}
 \n${trackTeachingContract}
 
