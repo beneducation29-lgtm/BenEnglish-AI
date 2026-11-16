@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { sendConversationMessage, evaluateWriting, WritingAssessmentData } from '../services/api';
+import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
 import {
   ArrowRight, AudioLines, BookOpen, BriefcaseBusiness, Check, ChevronRight,
   Clock3, Flame, GraduationCap, Headphones, MessageCircle,
@@ -51,7 +53,14 @@ export default function BenEnglishExperience() {
   const [section, setSection] = useState<Section>('today');
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState<{ role: 'coach' | 'learner'; text: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: 'coach' | 'learner'; text: string; correction?: { original: string; improved: string; explanation: string; vietnameseTip: string } }[]>([]);
+  const [isTutorLoading, setIsTutorLoading] = useState(false);
+  const [tutorError, setTutorError] = useState('');
+  const [failedTutorMessage, setFailedTutorMessage] = useState('');
+  const [curriculumLevel, setCurriculumLevel] = useState('');
+  const [writingFeedback, setWritingFeedback] = useState<WritingAssessmentData | null>(null);
+  const [isAssessingWriting, setIsAssessingWriting] = useState(false);
+  const [writingError, setWritingError] = useState('');
   const [quizChoice, setQuizChoice] = useState<number | null>(null);
   const [quizChecked, setQuizChecked] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
@@ -61,6 +70,8 @@ export default function BenEnglishExperience() {
   const track = trackCopy[learner.track];
   const isSchool = learner.track === 'high_school';
   const schoolGrade = learner.grade === 'Grade 10' ? 10 : learner.grade === 'Grade 11' ? 11 : 12;
+  const curriculumUnits = GRADE_CEFR_CURRICULUM.filter(unit => unit.track === learner.track && (learner.track !== 'high_school' || unit.grade === learner.grade));
+  const activeCurriculum = curriculumUnits.find(unit => unit.level === curriculumLevel) || curriculumUnits.find(unit => unit.level === learner.level) || curriculumUnits[0];
   const schoolTier = learner.level === 'A1' || learner.level === 'A2' ? 'foundation' : learner.level === 'B2' || learner.level === 'C1' ? 'stretch' : 'core';
   const schoolQuiz = schoolGrade === 10
     ? (schoolTier === 'foundation'
@@ -97,14 +108,69 @@ export default function BenEnglishExperience() {
     setReadingResponse('');
     setWritingDraft('');
     setReviewChecks([false, false, false]);
+    setCurriculumLevel('');
+    setWritingFeedback(null);
+    setWritingError('');
   }, [learner.track, learner.grade, learner.level]);
   const update = (patch: Partial<Learner>) => setLearner(prev => ({ ...prev, ...patch }));
   const completeOnboarding = () => { update({ onboarded: true }); setSection('today'); };
-  const sendMessage = () => {
-    const text = message.trim();
-    if (!text) return;
-    setMessages(prev => [...prev, { role: 'learner', text }, { role: 'coach', text: 'Thanks for sharing. In your next speaking session, your tutor will respond to your ideas, help you express them more naturally and highlight one useful improvement.' }]);
+  const sendMessage = async (retryText?: string) => {
+    const text = (retryText ?? message).trim();
+    if (!text || isTutorLoading) return;
+    const history = messages.slice(-8).map(turn => ({ role: turn.role === 'learner' ? 'user' : 'assistant', content: turn.text }));
+    setMessages(prev => [...prev, { role: 'learner', text }]);
     setMessage('');
+    setTutorError('');
+    setIsTutorLoading(true);
+    try {
+      const response = await sendConversationMessage({
+        message: text,
+        history,
+        tutorPersona: isSchool ? 'friendly_teacher' : 'business_coach',
+        mode: isSchool ? 'school' : 'business',
+        track: learner.track,
+        userLevel: ['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2',
+        occupation: learner.role,
+        grade: learner.grade,
+        learnerMemory: { priorities: [learner.goal], recentSessionNotes: [], recurringErrors: [] },
+      });
+      setMessages(prev => [...prev, {
+        role: 'coach',
+        text: response.replyText + (response.phoneticTip ? '\\n\\nPronunciation tip: ' + response.phoneticTip : ''),
+        correction: response.correction?.hasMistake ? response.correction : undefined,
+      }]);
+      setFailedTutorMessage('');
+    } catch (error) {
+      setFailedTutorMessage(text);
+      setTutorError(error instanceof Error ? error.message : 'The AI tutor could not respond. Your message is preserved; please retry.');
+    } finally {
+      setIsTutorLoading(false);
+    }
+  };
+
+  const assessWritingDraft = async () => {
+    if (writingDraft.trim().split(/\\s+/).filter(Boolean).length < 8) {
+      setWritingError('Please write at least 8 words before requesting feedback.');
+      return;
+    }
+    setIsAssessingWriting(true);
+    setWritingError('');
+    setWritingFeedback(null);
+    try {
+      const feedback = await evaluateWriting({
+        prompt: activeCurriculum?.writing.prompt || (isSchool ? 'Write a paragraph about a skill you want to develop.' : 'Write a concise professional message with a clear action.'),
+        learnerResponse: writingDraft,
+        sourceText: activeCurriculum?.reading.passage || '',
+        track: learner.track,
+        grade: learner.grade,
+        level: activeCurriculum?.level || (['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2'),
+      });
+      setWritingFeedback(feedback);
+    } catch (error) {
+      setWritingError(error instanceof Error ? error.message : 'Could not assess this draft.');
+    } finally {
+      setIsAssessingWriting(false);
+    }
   };
 
   if (!learner.onboarded) {
@@ -158,7 +224,7 @@ export default function BenEnglishExperience() {
               ]).map(s=><button key={s.title} onClick={()=>setMessage(s.prompt)} className="rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300"><div className="text-sm font-extrabold">{s.title}</div><p className="mt-1 text-xs leading-5 text-slate-500">{s.desc}</p><span className={`mt-2 inline-flex text-[11px] font-bold ${track.ink}`}>Use this starter →</span></button>)}
             </div>
           </div>
-          <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[.8fr_1.2fr]"><div className="rounded-3xl bg-slate-50 p-6"><div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-white text-4xl shadow-sm">👩‍🏫</div><h2 className="mt-4 text-center text-xl font-extrabold">{track.coach}</h2><p className="mt-1 text-center text-xs text-slate-400">Personal AI English tutor</p><div className="mt-6 space-y-3 text-sm text-slate-600"><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Natural conversation practice</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Corrections after you speak</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Practice matched to your level</div></div><div className="mt-6 rounded-2xl bg-white p-4 text-xs leading-5 text-slate-500">Voice conversation integration is the next implementation milestone. This preview currently demonstrates the redesigned tutor workspace.</div></div><div className="flex min-h-[390px] flex-col rounded-3xl border border-slate-200 p-4 sm:p-5"><div className="flex items-center justify-between border-b border-slate-100 pb-3"><div className="font-extrabold">Practice conversation</div><Pill>CEFR {learner.level}</Pill></div><div className="flex-1 space-y-4 overflow-y-auto py-5">{messages.length === 0 && <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Hi{learner.name ? ` ${learner.name}` : ''}! I'm {track.coach}. Let's practise: <strong>{track.today.toLowerCase()}</strong>. What would you like to tell me about it?</div>}{messages.map((m,i)=><div key={i} className={`max-w-[90%] rounded-2xl p-4 text-sm leading-6 ${m.role === 'learner' ? 'ml-auto bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700'}`}>{m.text}</div>)}</div><div className="flex gap-2"><input value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&sendMessage()} placeholder="Write what you would say..." className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-300"/><button onClick={sendMessage} className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white">Send</button></div></div></div></section>}
+          <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[.8fr_1.2fr]"><div className="rounded-3xl bg-slate-50 p-6"><div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-white text-4xl shadow-sm">👩‍🏫</div><h2 className="mt-4 text-center text-xl font-extrabold">{track.coach}</h2><p className="mt-1 text-center text-xs text-slate-400">Personal AI English tutor</p><div className="mt-6 space-y-3 text-sm text-slate-600"><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Natural conversation practice</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Corrections after you speak</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Practice matched to your level</div></div><div className="mt-6 rounded-2xl bg-white p-4 text-xs leading-5 text-slate-500">Voice conversation integration is the next implementation milestone. This preview currently demonstrates the redesigned tutor workspace.</div></div><div className="flex min-h-[390px] flex-col rounded-3xl border border-slate-200 p-4 sm:p-5"><div className="flex items-center justify-between border-b border-slate-100 pb-3"><div className="font-extrabold">Practice conversation</div><Pill>CEFR {learner.level}</Pill></div><div className="flex-1 space-y-4 overflow-y-auto py-5">{messages.length === 0 && <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Hi{learner.name ? ` ${learner.name}` : ''}! I'm {track.coach}. Let's practise: <strong>{track.today.toLowerCase()}</strong>. What would you like to tell me about it?</div>}{messages.map((m,i)=><div key={i} className={`max-w-[90%] rounded-2xl p-4 text-sm leading-6 ${m.role === 'learner' ? 'ml-auto bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700'}`}><div className="whitespace-pre-wrap">{m.text}</div>{m.correction && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><div className="font-extrabold">A useful correction</div><p className="mt-1 line-through opacity-70">{m.correction.original}</p><p className="font-bold">{m.correction.improved}</p><p className="mt-1">{m.correction.explanation}</p><p className="mt-1 text-amber-800">{m.correction.vietnameseTip}</p></div>}</div>)}</div>{isTutorLoading && <div className="mb-3 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">Teacher is reading your answer and preparing a response…</div>}{tutorError && <div role="alert" className="mb-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{tutorError}<button onClick={()=>sendMessage(failedTutorMessage)} className="ml-2 font-extrabold underline">Retry</button></div>}<div className="flex gap-2"><input value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!isTutorLoading&&sendMessage()} placeholder="Write what you would say..." className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-300"/><button disabled={isTutorLoading||!message.trim()} onClick={()=>sendMessage()} className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white disabled:opacity-40">{isTutorLoading?'…':'Send'}</button></div></div></div></section>}
         {section === 'learn' && <div>
           <div className={`rounded-[2rem] bg-gradient-to-br ${track.gradient} p-7 text-white sm:p-9`}>
             <Pill active>SHORT, REAL-WORLD LESSONS</Pill>
