@@ -481,3 +481,37 @@ export async function evaluateWriting(payload: {
   }
   return data.data as WritingAssessmentData;
 }
+
+export interface PronunciationAudioCoachData {
+  audioAssessment: 'assessable' | 'not_assessable';
+  transcript: string;
+  audioSummary: string;
+  soundTargets: { word: string; ipa: string; observation: string; practiceTipVi: string }[];
+  grammarCorrections: { original: string; correction: string; explanationVi: string }[];
+  vocabularyUpgrades: { original: string; upgrade: string; whyVi: string; example: string }[];
+  modelSentence: string;
+  repeatTaskVi: string;
+  strengths: string[];
+}
+
+export async function analyzePronunciationAudio(payload: {
+  audioBase64: string;
+  mimeType: string;
+  targetText?: string;
+  track: string;
+  level: string;
+}): Promise<PronunciationAudioCoachData> {
+  const res = await fetch('/api/gemini/pronunciation-audio-coach', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success || !data.data) {
+    throw new Error(data?.error || `Audio pronunciation analysis returned HTTP ${res.status}. Please try again.`);
+  }
+  return data.data as PronunciationAudioCoachData;
+}
