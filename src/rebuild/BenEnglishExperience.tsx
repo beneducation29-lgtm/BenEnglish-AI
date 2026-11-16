@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { sendConversationMessage, evaluateWriting, WritingAssessmentData } from '../services/api';
+import { sendConversationMessage, evaluateWriting, evaluateSpeaking, WritingAssessmentData, SpeakingEvalData } from '../services/api';
+import { loadLearnerMemory, saveLearnerMemory, mergeLearnerMemory, recommendNextLesson, LearnerMemory } from '../learning/adaptiveLearning';
 import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
 import { EXPANDED_LESSON_BANK } from '../data/lessonBankExpansion';
 import DeepPracticeHub from './DeepPracticeHub';
@@ -78,6 +79,19 @@ export default function BenEnglishExperience() {
   const [writingError, setWritingError] = useState('');
   const [placementAnswers, setPlacementAnswers] = useState<Record<number, number>>({});
   const [placementSubmitted, setPlacementSubmitted] = useState(false);
+  const [learnerMemory, setLearnerMemory] = useState<LearnerMemory>(() => loadLearnerMemory());
+  const [speakingTranscript, setSpeakingTranscript] = useState('');
+  const [isRecordingSpeaking, setIsRecordingSpeaking] = useState(false);
+  const [speakingSeconds, setSpeakingSeconds] = useState(0);
+  const [speakingFeedback, setSpeakingFeedback] = useState<SpeakingEvalData | null>(null);
+  const [speakingError, setSpeakingError] = useState('');
+  const [isAssessingSpeaking, setIsAssessingSpeaking] = useState(false);
+  const speakingRecorderRef = useRef<MediaRecorder | null>(null);
+  const speakingRecognitionRef = useRef<any>(null);
+  const speakingStreamRef = useRef<MediaStream | null>(null);
+  const speakingChunksRef = useRef<Blob[]>([]);
+  const speakingStartedAtRef = useRef(0);
+  const speakingDurationRef = useRef(0);
   const [quizChoice, setQuizChoice] = useState<number | null>(null);
   const [quizChecked, setQuizChecked] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
@@ -171,8 +185,11 @@ export default function BenEnglishExperience() {
   const skillLabels = [{ id: 'listening', label: 'Listening comprehension' }, { id: 'reading', label: 'Reading comprehension' }, { id: 'writing', label: 'Writing accuracy' }, { id: 'speaking', label: 'Speaking performance' }, { id: 'vocabulary', label: 'Vocabulary retrieval' }, { id: 'grammar', label: 'Grammar application' }, { id: 'exam', label: 'Mixed-skill checkpoint' }];
   const completedSkillCount = Object.values(skillProgress).reduce((total, skills) => total + skills.length, 0);
   const practisedUnitCount = Object.values(skillProgress).filter(skills => skills.length > 0).length;
+  const nextLessonPlan = recommendNextLesson(curriculumUnits, assessmentHistory, learner.level, activeCurriculum?.id);
 
   useEffect(() => { localStorage.setItem('benenglish-v2-profile', JSON.stringify(learner)); }, [learner]);
+  useEffect(() => { saveLearnerMemory(learnerMemory); }, [learnerMemory]);
+  useEffect(() => () => { try { speakingRecorderRef.current?.stop(); } catch {} speakingRecognitionRef.current?.stop?.(); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); }, []);
   useEffect(() => {
     if (!('speechSynthesis' in window)) { setSpeechNotice('Your browser does not support spoken replies. Try the latest Chrome or Edge.'); return; }
     const loadVoices = () => setEnglishVoices(window.speechSynthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('en')));
@@ -323,7 +340,7 @@ export default function BenEnglishExperience() {
         userLevel: ['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2',
         occupation: isSchool ? learner.grade : learner.role,
         grade: learner.grade,
-        learnerMemory: { priorities: [learner.goal], recentSessionNotes: [], recurringErrors: [] },
+        learnerMemory: { priorities: [learner.goal], recentSessionNotes: learnerMemory.lastFocus ? ['Recent learning focus: ' + learnerMemory.lastFocus] : [], recurringErrors: learnerMemory.recurringErrors },
       });
       setMessages(prev => [...prev, {
         role: 'coach',
@@ -340,6 +357,31 @@ export default function BenEnglishExperience() {
     }
   };
 
+  const startSpeakingAssessment = async () => {
+    if (isRecordingSpeaking || isAssessingSpeaking) return;
+    setSpeakingError(''); setSpeakingFeedback(null); setSpeakingTranscript(''); setSpeakingSeconds(0); speakingChunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      speakingStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream); speakingRecorderRef.current = recorder;
+      recorder.ondataavailable = event => { if (event.data.size) speakingChunksRef.current.push(event.data); };
+      recorder.onstop = () => { const blob = new Blob(speakingChunksRef.current, { type: recorder.mimeType || 'audio/webm' }); void blob; speakingDurationRef.current = Math.max(1, Math.round((Date.now() - speakingStartedAtRef.current) / 1000)); setSpeakingSeconds(speakingDurationRef.current); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; };
+      recorder.start(250); speakingStartedAtRef.current = Date.now(); setIsRecordingSpeaking(true);
+      const w = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any }; const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
+      if (Recognition) { const recognition = new Recognition(); speakingRecognitionRef.current = recognition; recognition.lang = 'en-US'; recognition.continuous = true; recognition.interimResults = true; recognition.onresult = (event: any) => { let transcript = ''; for (let i=0;i<event.results.length;i+=1) transcript += event.results[i][0]?.transcript ? event.results[i][0].transcript + ' ' : ''; setSpeakingTranscript(transcript.trim()); }; recognition.onerror = () => setSpeakingError('Không nhận dạng được lời nói tự động. Bạn vẫn có thể nhập hoặc chỉnh sửa bản chép lời.'); recognition.start(); }
+      else setSpeakingError('Trình duyệt không hỗ trợ nhận dạng giọng nói; bản ghi âm vẫn chạy. Hãy nhập bản chép lời để chấm nội dung.');
+    } catch (error) { setSpeakingError(error instanceof Error ? error.message : 'Không thể mở microphone. Hãy kiểm tra quyền truy cập micro.'); setIsRecordingSpeaking(false); speakingStreamRef.current?.getTracks().forEach(track => track.stop()); speakingStreamRef.current = null; }
+  };
+  const stopSpeakingAssessment = () => { if (!isRecordingSpeaking) return; setIsRecordingSpeaking(false); try { speakingRecognitionRef.current?.stop?.(); } catch {} speakingRecognitionRef.current = null; try { if (speakingRecorderRef.current?.state !== 'inactive') speakingRecorderRef.current?.stop(); } catch {} };
+  const submitSpeakingAssessment = async () => {
+    const transcript = speakingTranscript.trim(); if (transcript.split(/\s+/).filter(Boolean).length < 8) { setSpeakingError('Hãy nói hoặc nhập ít nhất 8 từ để có đủ dữ liệu đánh giá.'); return; }
+    setIsAssessingSpeaking(true); setSpeakingError('');
+    try {
+      const result = await evaluateSpeaking({ topic: isSchool ? 'Describe a subject you enjoy and explain how it may help your future.' : 'Describe a recent work challenge, the action you took and the outcome.', userTranscript: transcript, durationSeconds: speakingDurationRef.current || speakingSeconds || undefined, track: learner.track, level: learner.level });
+      setSpeakingFeedback(result); const errors = (result.grammarCorrections || []).map(item => item.original + ' → ' + item.correction); setLearnerMemory(current => mergeLearnerMemory(current, errors, result.strengths || []));
+      setAssessmentHistory(current => [...current, { skill: 'speaking', correct: result.rubricScores.relevanceContent >= 3 && result.rubricScores.fluencyCoherence >= 3, unitId: 'speaking-assessment', at: Date.now(), topic: isSchool ? 'School speaking assessment' : 'Professional speaking assessment' }].slice(-300));
+    } catch (error) { setSpeakingError(error instanceof Error ? error.message : 'Không thể chấm phần nói lúc này. Bản chép lời vẫn được giữ lại.'); } finally { setIsAssessingSpeaking(false); }
+  };
   const assessWritingDraft = async () => {
     if (writingDraft.trim().split(/\\s+/).filter(Boolean).length < 8) {
       setWritingError('Please write at least 8 words before requesting feedback.');
@@ -358,6 +400,9 @@ export default function BenEnglishExperience() {
         level: activeCurriculum?.level || (['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2'),
       });
       setWritingFeedback(feedback);
+      const writingErrors = (feedback.corrections || []).map(item => item.original + ' → ' + item.improved);
+      setLearnerMemory(current => mergeLearnerMemory(current, writingErrors, feedback.strengths || []));
+      setAssessmentHistory(current => [...current, { skill: 'writing', correct: (feedback.grammar + feedback.vocabulary + feedback.organisation + feedback.taskFulfilment) >= 14, unitId: activeCurriculum?.id || 'writing-assessment', at: Date.now(), topic: activeCurriculum?.title || 'Writing assessment' }].slice(-300));
     } catch (error) {
       setWritingError(error instanceof Error ? error.message : 'Could not assess this draft.');
     } finally {
@@ -641,7 +686,16 @@ export default function BenEnglishExperience() {
             <div className="mt-2 text-4xl font-black text-slate-900">{suggestedPlacementLevel}</div>
             <p className="mt-2 text-sm leading-6 text-slate-600">You answered {placementScore} of {placementItems.length} questions correctly. This suggests a provisional {suggestedPlacementLevel} starting point for the objective skills checked here, not a certified CEFR result.</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">{(['listening','reading','vocabulary','grammar'] as const).map(skill=>{const rows=placementItems.map((item,index)=>({item,index})).filter(row=>row.item.skill===skill);const correct=rows.filter(row=>placementAnswers[row.index]===row.item.answer).length;return <div key={skill} className="rounded-xl bg-white p-4"><div className="text-sm font-bold capitalize">{skill}</div><div className="mt-1 text-xl font-extrabold">{correct}/{rows.length}</div><div className="text-xs text-slate-400">Correct answers</div></div>})}</div>
-            <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="text-sm font-extrabold text-amber-900">Complete your 4-skill profile</div><p className="mt-1 text-sm leading-6 text-amber-900/80">Next, submit a short speaking sample with the AI tutor and a writing sample in your lesson. These productive skills are not automatically scored by this quick check.</p></div>
+            <div className="mt-5 rounded-2xl border border-sky-100 bg-sky-50/60 p-5">
+              <div className="text-xs font-extrabold tracking-widest text-sky-700">SPEAKING ASSESSMENT</div><h3 className="mt-1 text-lg font-extrabold text-slate-900">Speak, record and review</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-600">{isSchool ? "Describe a school subject you enjoy and how it may help your future." : "Describe a recent work challenge, your action and the outcome."}</p>
+              <div className="mt-4 flex flex-wrap items-center gap-2"><button onClick={isRecordingSpeaking?stopSpeakingAssessment:startSpeakingAssessment} className={"rounded-xl px-4 py-3 text-sm font-extrabold text-white " + (isRecordingSpeaking?"bg-rose-600":"bg-sky-700")}>{isRecordingSpeaking?"Finish recording":"Start microphone recording"}</button><span className="self-center text-xs text-slate-500">{isRecordingSpeaking?"Recording…":speakingSeconds ? "Captured " + speakingSeconds + "s" : "Audio is captured in this browser session"}</span></div>
+              <textarea value={speakingTranscript} onChange={event=>setSpeakingTranscript(event.target.value)} rows={4} placeholder="Recognised transcript appears here. You can edit it before assessment…" className="mt-3 w-full rounded-xl border border-sky-100 bg-white px-3 py-3 text-sm leading-6 outline-none focus:border-sky-400"/>
+              {speakingError && <p role="alert" className="mt-2 text-xs text-rose-700">{speakingError}</p>}
+              <button disabled={isRecordingSpeaking||isAssessingSpeaking||speakingTranscript.trim().split(/\s+/).filter(Boolean).length<8} onClick={submitSpeakingAssessment} className="mt-3 rounded-xl bg-slate-950 px-4 py-3 text-sm font-bold text-white disabled:opacity-40">{isAssessingSpeaking?"Assessing speaking…":"Assess my speaking"}</button>
+              <p className="mt-2 text-[11px] leading-5 text-slate-500">AI scores fluency/coherence, grammar, vocabulary and task relevance from the transcript. The current endpoint does not analyse raw audio, so it does not fabricate an acoustic pronunciation score.</p>
+              {speakingFeedback && <div className="mt-4 rounded-xl bg-white p-4"><div className="flex items-center justify-between"><strong className="text-sm">AI speaking report</strong><Pill>{speakingFeedback.cefrEstimate} · indicative</Pill></div><div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">{Object.entries(speakingFeedback.rubricScores).map(([key,value])=><div key={key} className="rounded-lg bg-slate-50 p-3"><div className="text-[10px] capitalize text-slate-500">{key.replace(/([A-Z])/g," $1")}</div><div className="text-lg font-extrabold">{value}/5</div></div>)}</div><p className="mt-3 text-sm leading-6 text-slate-700">{speakingFeedback.strengths.join(" · ")}</p>{speakingFeedback.areasToImprove.map((item,index)=><p key={index} className="mt-2 text-xs leading-5 text-amber-800">• {item}</p>)}{speakingFeedback.grammarCorrections.map((item,index)=><div key={index} className="mt-2 rounded-lg bg-slate-50 p-3 text-xs"><span className="text-rose-700 line-through">{item.original}</span><p className="mt-1 font-bold text-emerald-700">{item.correction}</p><p className="mt-1 text-slate-600">{item.vietnameseNote}</p></div>)}</div>}
+            </div>
             <div className="mt-5 flex flex-wrap gap-2"><button onClick={()=>{update({level:suggestedPlacementLevel});setSection('learn');}} className={`rounded-xl px-4 py-3 text-sm font-bold text-white ${track.color}`}>Use this starting level</button><button onClick={()=>{setPlacementAnswers({});setPlacementSubmitted(false);}} className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700">Retake test</button></div>
           </div>}
         </section>}
@@ -654,7 +708,7 @@ export default function BenEnglishExperience() {
             <div className="rounded-2xl bg-slate-50 p-5"><div className="text-3xl font-black text-slate-900">{practisedUnitCount}</div><div className="mt-1 text-xs text-slate-500">Lesson units practised</div></div>
           </div>
           <h2 className="mt-7 text-lg font-extrabold">Practice by skill</h2>
-          <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-5"><div className="flex items-center gap-2 text-sm font-extrabold text-indigo-900"><Sparkles size={17}/> Adaptive learning insight</div><p className="mt-2 text-sm leading-6 text-indigo-950">{adaptiveAdvice}</p>{weakestSkill && <p className="mt-2 text-xs font-semibold text-indigo-700">Ưu tiên hiện tại: {weakestSkill.skill} · Độ chính xác {weakestSkill.accuracy}% trên {weakestSkill.attempts} lượt đã chấm.{focusTopic ? ` Chủ đề cần ôn: ${focusTopic}.` : ''}</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{skillSummary.map(item=><div key={item.skill} className="rounded-xl bg-white/80 p-3"><div className="text-xs font-bold capitalize text-slate-600">{item.skill}</div><div className="mt-1 text-lg font-extrabold text-slate-900">{item.accuracy===null?'—':`${item.accuracy}%`}</div><div className="text-[10px] text-slate-400">{item.attempts} attempts</div></div>)}</div><p className="mt-3 text-[11px] leading-5 text-indigo-700">Gợi ý dựa trên câu hỏi đã nộp trong trình duyệt này; đây chưa phải điểm CEFR chính thức.</p></div>
+          <div className="mt-4 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-5"><div className="flex items-center gap-2 text-sm font-extrabold text-indigo-900"><Sparkles size={17}/> Adaptive learning insight</div><p className="mt-2 text-sm leading-6 text-indigo-950">{adaptiveAdvice}</p><div className="mt-3 rounded-xl bg-white/80 p-3"><div className="text-xs font-extrabold text-indigo-900">NEXT LESSON RECOMMENDATION</div><p className="mt-1 text-xs leading-5 text-slate-700">{nextLessonPlan.reason}</p>{nextLessonPlan.lesson && <button onClick={()=>{setCurriculumLevel(nextLessonPlan.lesson!.id);setSection("learn");}} className="mt-2 rounded-lg bg-indigo-700 px-3 py-2 text-xs font-bold text-white">Study: {nextLessonPlan.lesson.title}</button>}</div><div className="mt-3 rounded-xl bg-white/80 p-3"><div className="text-xs font-extrabold text-indigo-900">TUTOR MEMORY · {track.coach}</div><p className="mt-1 text-xs leading-5 text-slate-700">{learnerMemory.recurringErrors.length ? learnerMemory.recurringErrors.slice(0,4).join(" · ") : "Chưa ghi nhận lỗi lặp lại. Sau các bài đánh giá, hệ thống sẽ lưu mẫu lỗi để cá nhân hoá câu hỏi ôn tập."}</p></div>{weakestSkill && <p className="mt-2 text-xs font-semibold text-indigo-700">Ưu tiên hiện tại: {weakestSkill.skill} · Độ chính xác {weakestSkill.accuracy}% trên {weakestSkill.attempts} lượt đã chấm.{focusTopic ? ` Chủ đề cần ôn: ${focusTopic}.` : ''}</p>}<div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{skillSummary.map(item=><div key={item.skill} className="rounded-xl bg-white/80 p-3"><div className="text-xs font-bold capitalize text-slate-600">{item.skill}</div><div className="mt-1 text-lg font-extrabold text-slate-900">{item.accuracy===null?'—':`${item.accuracy}%`}</div><div className="text-[10px] text-slate-400">{item.attempts} attempts</div></div>)}</div><p className="mt-3 text-[11px] leading-5 text-indigo-700">Gợi ý dựa trên câu hỏi đã nộp trong trình duyệt này; đây chưa phải điểm CEFR chính thức.</p></div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {skillLabels.map(item => {
               const count = Object.values(skillProgress).filter(skills => skills.includes(item.id)).length;
