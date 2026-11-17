@@ -55,6 +55,9 @@ export default async function handler(req: any, res: any) {
       ielts_coach: 'Rasalgethi',
     };
     const voiceName = personaVoice[persona] || 'Aoede';
+    const accentGuide = persona === 'strict_teacher' || persona === 'ielts_coach'
+      ? 'Use a natural, contemporary British English accent and British vocabulary where appropriate.'
+      : 'Use a natural, contemporary General American accent and everyday American phrasing.';
 
     const modeGuide: Record<string, string> = {
       everyday: 'Practice natural everyday English.',
@@ -70,7 +73,8 @@ export default async function handler(req: any, res: any) {
       personaGuide[persona] || personaGuide.friendly_teacher,
       modeGuide[mode] || modeGuide.everyday,
       `Learner track: ${track}. Target CEFR level: ${level}.`,
-      'Speak in clear, natural American English appropriate to the learner level, with a warm, human conversational delivery. Use natural pitch variation, connected speech, gentle emphasis on meaningful words, and short pauses at clause boundaries. Avoid flat, evenly stressed, announcer-style delivery.',
+      accentGuide,
+      'Speak in clear, natural English appropriate to the learner level, with a warm, human conversational delivery. Use natural pitch variation, connected speech, gentle emphasis on meaningful words, and short pauses at clause boundaries. Avoid flat, evenly stressed, announcer-style delivery.',
       'Sound like a thoughtful tutor speaking face-to-face: relaxed but articulate, friendly and emotionally responsive. Use contractions naturally. Vary sentence rhythm; do not speak every sentence at the same pace or pitch. Do not add artificial filler words, exaggerated enthusiasm, whispering, or theatrical acting.',
       'Keep most turns concise (one to three spoken sentences), but answer fully when asked. Give the learner a beat to respond; ask at most one natural follow-up question. Pronounce clearly without slowing down unnaturally. Match the learner CEFR level while keeping adult, natural speech.',
       'React directly to what the learner just said and remember context within this live session. Do not restart with generic greetings.',
