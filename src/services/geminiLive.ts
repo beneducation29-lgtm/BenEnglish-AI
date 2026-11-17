@@ -93,6 +93,10 @@ export class GeminiLiveSpeakingSession {
       model: tokenPayload.model || 'gemini-3.8-live',
       config: {
         responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: { prebuiltVoiceConfig: { voiceName: tokenPayload.voiceName || 'Aoede' } },
+          languageCode: 'en-US',
+        },
         inputAudioTranscription: {},
         outputAudioTranscription: {},
       },
