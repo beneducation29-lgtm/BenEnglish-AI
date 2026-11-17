@@ -140,6 +140,7 @@ Return strict JSON matching the schema.
             'personalizedExercise',
           ],
         },
+        },
       });
         if (!response.text?.trim()) throw new Error('The AI returned an empty session report.');
         break;
