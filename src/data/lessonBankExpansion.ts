@@ -548,7 +548,6 @@ const seeds: LessonSeed[] = [
     speakingPrompt: 'Role-play a performance conversation. Give evidence-based feedback, invite the employee’s perspective and agree on a practical next step.',
     followUps: ['How can a manager discuss a repeated problem without discouraging an employee?', 'What evidence would show that the development action is working?'],
   },
-,
 
   {
     id: 'pro-b1-sales-discovery', track: 'professional', level: 'B1',
