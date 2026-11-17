@@ -61,6 +61,8 @@ export class GeminiLiveSpeakingSession {
   private processor: ScriptProcessorNode | null = null;
   private gain: GainNode | null = null;
   private nextPlaybackTime = 0;
+  private pendingTurnComplete = false;
+  private smoothedOutputLevel = 0;
   private activeSources = new Set<AudioBufferSourceNode>();
   private closed = false;
   private callbacks: GeminiLiveCallbacks;
@@ -165,7 +167,9 @@ export class GeminiLiveSpeakingSession {
     if (content.turnComplete) {
       this.callbacks.onInputTurnComplete?.();
       this.callbacks.onOutputTranscript?.('', true);
-      this.callbacks.onStatus?.('listening');
+      // Keep the tutor in Speaking state until queued PCM has actually played.
+      this.pendingTurnComplete = this.activeSources.size > 0;
+      if (!this.pendingTurnComplete) this.callbacks.onStatus?.('listening');
     } else if (parts.length) {
       this.callbacks.onStatus?.('speaking');
     }
@@ -183,7 +187,10 @@ export class GeminiLiveSpeakingSession {
       samples[i] = pcm[i] / 32768;
       outputEnergy += samples[i] * samples[i];
     }
-    this.callbacks.onOutputAudioLevel?.(Math.min(1, Math.sqrt(outputEnergy / Math.max(1, samples.length)) * 4.5));
+    const rawLevel = Math.min(1, Math.sqrt(outputEnergy / Math.max(1, samples.length)) * 4.5);
+    // Smooth RMS changes between audio chunks for steadier, less jittery avatar motion.
+    this.smoothedOutputLevel = this.smoothedOutputLevel * 0.42 + rawLevel * 0.58;
+    this.callbacks.onOutputAudioLevel?.(this.smoothedOutputLevel);
     const buffer = context.createBuffer(1, samples.length, sampleRate);
     buffer.copyToChannel(samples, 0);
     const source = context.createBufferSource();
@@ -191,7 +198,14 @@ export class GeminiLiveSpeakingSession {
     source.connect(context.destination);
     source.onended = () => {
       this.activeSources.delete(source);
-      if (this.activeSources.size === 0) this.callbacks.onOutputAudioLevel?.(0);
+      if (this.activeSources.size === 0) {
+        this.smoothedOutputLevel = 0;
+        this.callbacks.onOutputAudioLevel?.(0);
+        if (this.pendingTurnComplete) {
+          this.pendingTurnComplete = false;
+          this.callbacks.onStatus?.('listening');
+        }
+      }
     };
     const startAt = Math.max(context.currentTime + 0.02, this.nextPlaybackTime);
     source.start(startAt);
@@ -204,6 +218,8 @@ export class GeminiLiveSpeakingSession {
       try { source.stop(); } catch { /* already stopped */ }
     }
     this.activeSources.clear();
+    this.pendingTurnComplete = false;
+    this.smoothedOutputLevel = 0;
     this.callbacks.onOutputAudioLevel?.(0);
     this.nextPlaybackTime = this.audioContext?.currentTime || 0;
   }
