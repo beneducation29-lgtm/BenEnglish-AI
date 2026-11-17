@@ -121,10 +121,20 @@ class BenEnglishAudioEngine {
       const selected = englishVoices.find((v) => v.name.includes(options.voiceName!));
       if (selected) utterance.voice = selected;
     } else if (englishVoices.length > 0) {
-      // Prefer standard clear English voice
-      const preferred = englishVoices.find((v) =>
-        v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Daniel')
-      ) || englishVoices[0];
+      // Browser fallback only: prefer installed natural voices when available.
+      // The Live room uses Gemini's configured HD prebuilt voice.
+      const preferredTerms = ['natural', 'neural', 'google us english', 'microsoft aria', 'microsoft jenny', 'samantha'];
+      const preferred = [...englishVoices].sort((a, b) => {
+        const score = (voice: SpeechSynthesisVoice) => {
+          const name = voice.name.toLowerCase();
+          const language = voice.lang.toLowerCase();
+          let value = language === 'en-us' ? 20 : language.startsWith('en') ? 5 : 0;
+          preferredTerms.forEach((term, index) => { if (name.includes(term)) value += 100 - index * 5; });
+          if (voice.localService === false) value += 3;
+          return value;
+        };
+        return score(b) - score(a);
+      })[0];
       utterance.voice = preferred;
     }
 
