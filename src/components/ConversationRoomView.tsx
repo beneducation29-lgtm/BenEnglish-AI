@@ -725,7 +725,7 @@ export const ConversationRoomView: React.FC = () => {
         persona: activePersona.name,
         mode: selectedModeId,
         track: user.track,
-        userLevel: user.cefrLevel,
+        userLevel: user.placementAssessment?.skills.speaking.level || user.cefrLevel,
       });
 
       setSummaryReportModal(summaryData);

@@ -62,9 +62,16 @@ Return strict JSON matching the schema.
 `;
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+    const ai = new GoogleGenAI({
+      apiKey,
+      httpOptions: { timeout: 25000, retryOptions: { attempts: 1 } },
+    });
+    let response: any = null;
+    let lastError: unknown;
+    for (const model of ['gemini-3.5-flash-lite', 'gemini-3.8-flash']) {
+      try {
+        response = await ai.models.generateContent({
+          model,
       contents: 'Generate a concise, evidence-grounded conversation diagnostic report.',
       config: {
         systemInstruction,
@@ -133,14 +140,24 @@ Return strict JSON matching the schema.
             'personalizedExercise',
           ],
         },
-      },
-    });
-    const parsed = JSON.parse(response.text || '{}');
+      });
+        if (!response.text?.trim()) throw new Error('The AI returned an empty session report.');
+        break;
+      } catch (error) {
+        lastError = error;
+        if (model === 'gemini-3.8-flash') throw error;
+        console.warn('Primary summary model failed; trying fallback.');
+      }
+    }
+    if (!response?.text?.trim()) throw lastError || new Error('The session report is unavailable.');
+    const parsed = JSON.parse(response.text);
     return res.status(200).json({ success: true, data: parsed });
   } catch (error: any) {
+    const transient = /429|503|504|unavailable|resource_exhausted|overload|timeout|timed out|deadline/i.test(String(error?.message || error));
     console.error('BenEnglish conversation summary failed:', error?.message || error);
-    return res.status(502).json({
+    return res.status(transient ? 503 : 502).json({
       success: false,
+      retryable: transient,
       error: error?.message || 'The conversation report could not be generated right now.',
     });
   }
