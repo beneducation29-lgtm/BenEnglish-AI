@@ -5,6 +5,8 @@ export type GeminiLiveCallbacks = {
   onInputTranscript?: (text: string, isFinal: boolean) => void;
   onInputTurnComplete?: () => void;
   onOutputTranscript?: (text: string, isFinal: boolean) => void;
+  onInputAudioLevel?: (level: number) => void;
+  onOutputAudioLevel?: (level: number) => void;
   onError?: (message: string) => void;
 };
 
@@ -116,6 +118,9 @@ export class GeminiLiveSpeakingSession {
     this.processor.onaudioprocess = (event) => {
       if (this.closed || !this.session) return;
       const input = event.inputBuffer.getChannelData(0);
+      let inputEnergy = 0;
+      for (let i = 0; i < input.length; i += 1) inputEnergy += input[i] * input[i];
+      this.callbacks.onInputAudioLevel?.(Math.min(1, Math.sqrt(inputEnergy / Math.max(1, input.length)) * 4));
       const resampled = resampleTo16k(input, context.sampleRate);
       const pcm = floatToPcm16(resampled);
       this.session.sendRealtimeInput({
@@ -169,13 +174,21 @@ export class GeminiLiveSpeakingSession {
     const bytes = fromBase64(base64);
     const pcm = new Int16Array(bytes.buffer, bytes.byteOffset, Math.floor(bytes.byteLength / 2));
     const samples = new Float32Array(pcm.length);
-    for (let i = 0; i < pcm.length; i += 1) samples[i] = pcm[i] / 32768;
+    let outputEnergy = 0;
+    for (let i = 0; i < pcm.length; i += 1) {
+      samples[i] = pcm[i] / 32768;
+      outputEnergy += samples[i] * samples[i];
+    }
+    this.callbacks.onOutputAudioLevel?.(Math.min(1, Math.sqrt(outputEnergy / Math.max(1, samples.length)) * 4.5));
     const buffer = context.createBuffer(1, samples.length, sampleRate);
     buffer.copyToChannel(samples, 0);
     const source = context.createBufferSource();
     source.buffer = buffer;
     source.connect(context.destination);
-    source.onended = () => this.activeSources.delete(source);
+    source.onended = () => {
+      this.activeSources.delete(source);
+      if (this.activeSources.size === 0) this.callbacks.onOutputAudioLevel?.(0);
+    };
     const startAt = Math.max(context.currentTime + 0.02, this.nextPlaybackTime);
     source.start(startAt);
     this.nextPlaybackTime = startAt + buffer.duration;
@@ -187,6 +200,7 @@ export class GeminiLiveSpeakingSession {
       try { source.stop(); } catch { /* already stopped */ }
     }
     this.activeSources.clear();
+    this.callbacks.onOutputAudioLevel?.(0);
     this.nextPlaybackTime = this.audioContext?.currentTime || 0;
   }
 

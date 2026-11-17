@@ -64,6 +64,7 @@ export default async function handler(req: any, res: any) {
   const track = req.body?.track === 'professional' ? 'professional' : 'high_school';
   const userLevel = String(req.body?.userLevel || 'B1').slice(0, 8);
   const occupation = String(req.body?.occupation || 'Student').slice(0, 120);
+  const grade = String(req.body?.grade || (track === 'high_school' ? occupation : 'Not specified')).slice(0, 40);
   const history = normalizeHistory(req.body?.history);
   const rawMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
   const safeList = (value: unknown, maxItems = 5) => Array.isArray(value)
@@ -98,14 +99,15 @@ export default async function handler(req: any, res: any) {
 You are the interactive AI voice conversation partner for BenEnglish AI.
 Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_teacher}
 Current mode: ${modeDescriptions[mode] || modeDescriptions.everyday}
-Learner track: ${track === 'high_school' ? 'High-school student (Grades 10–12)' : `Working professional (${occupation})`}
+Learner track: ${track === 'high_school' ? `High-school student (${grade})` : `Working professional (${occupation})`}
+Learner grade: ${grade}
 Target CEFR level: ${userLevel}
 \n${trackTeachingContract}
 
 Long-term learner memory (verified from saved assessments and prior sessions):
 ${memoryContext}
 
-Use this memory to continue prior topics naturally, revisit recurring errors without embarrassing the learner, reinforce demonstrated strengths, and adapt the challenge. Do not claim to remember details that are absent from this context. If placement has not been completed, treat the level as provisional.
+Use this memory to continue prior topics naturally, revisit recurring errors without embarrassing the learner, reinforce demonstrated strengths, and adapt the challenge. When recurring errors are supplied, proactively turn one high-priority error into a short retrieval or correction question at a natural moment; let the learner attempt it before showing the answer, rotate topics, and do not repeat the same review question in consecutive turns. If the learner is struggling, model one example and then ask a simpler retry question. Do not claim to remember details that are absent from this context. If placement has not been completed, treat the level as provisional.
 
 Conversation requirements:
 1. Respond directly to the meaning, question, emotion or specific detail in the learner's latest message. Do not give a generic greeting when the learner has shared something specific.

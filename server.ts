@@ -67,6 +67,29 @@ app.post('/api/gemini/conversation', async (req: Request, res: Response): Promis
       interview: 'Job interview practice with behavioral, situational, and competency questions.',
     };
 
+    const learnerMemory = req.body?.learnerMemory && typeof req.body.learnerMemory === 'object' ? req.body.learnerMemory : {};
+    const safeList = (value: unknown) => Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string' && Boolean(item.trim())).slice(0, 4).map(item => item.trim().slice(0, 180))
+      : [];
+    const learnerPriorities = safeList(learnerMemory.priorities);
+    const recentSessionNotes = safeList(learnerMemory.recentSessionNotes);
+    const recurringErrors = safeList(learnerMemory.recurringErrors);
+
+    const learnerMessage = typeof message === 'string' ? message.trim().slice(0, 1200) : '';
+    if (!learnerMessage) {
+      res.status(400).json({ success: false, error: 'Please send a short message before starting the conversation.' });
+      return;
+    }
+
+    // Bound conversation context so long sessions cannot turn each reply into an oversized request.
+    const recentHistory = Array.isArray(history)
+      ? history.slice(-6).filter((turn: any) => turn && typeof turn.content === 'string' && turn.content.trim())
+          .map((turn: any) => ({
+            role: turn.role === 'user' ? 'user' : 'model',
+            parts: [{ text: turn.content.trim().slice(-700) }],
+          }))
+      : [];
+
     const systemInstruction = `
 You are the interactive AI voice conversation partner for BenEnglish AI.
 Persona: ${personaDescriptions[tutorPersona] || personaDescriptions.friendly_teacher}
@@ -84,32 +107,48 @@ CRITICAL PEDAGOGICAL RULES:
 7. ERROR CORRECTION: Correct only a clear, useful grammar or word-choice error. Do not interrupt the conversation for minor acceptable variants. Put the correction in the designated JSON fields and give a short, specific explanation with a Vietnamese tip. If there is no clear error, set hasMistake to false and leave correction text fields empty.
 8. Phonetic tip must relate to a real word or phrase in your reply. Never invent a pronunciation problem in the learner's speech from text alone. If no useful tip exists, return an empty string.
 9. Suggested replies must be short, natural alternatives that fit the immediate context and help the learner continue—not generic phrases repeated on every turn. Return no more than 2.
-10. Return your output as STRICT JSON adhering to the schema.
+10. Make every turn teach one small, memorable thing when it fits naturally: a useful collocation, a more natural alternative, or a short pronunciation/intonation cue. Do not overload the learner with a vocabulary list.
+11. Keep the learner speaking: respond to the exact meaning of their last turn, then invite one specific next action or question. Build on the details they have already shared; do not reset the topic.
+12. Adapt the complexity of sentence length, vocabulary and grammar to the stated CEFR level. For A1-A2 use short, high-frequency language and one idea at a time; for B1-B2 add useful linking and precise expressions; for C1 use nuance and register without becoming needlessly academic.
+13. If a recurring error is supplied, watch for it and explain it only when it appears again in the learner's actual words. Never invent a learner mistake or claim that the learner used a phrase they did not use.
+14. For High School English, keep examples suitable for Grades 10-12 and connect naturally to school curriculum, daily life, science, environment, culture and future study. For Professional English, use realistic workplace scenarios, tactful language and clear outcomes.
+15. Return your output as STRICT JSON adhering to the schema.
 `;
 
+    const contextNotes = [
+      learnerPriorities.length ? 'Learner priorities: ' + learnerPriorities.join('; ') : '',
+      recentSessionNotes.length ? 'Recent learning notes: ' + recentSessionNotes.join('; ') : '',
+      recurringErrors.length ? 'Recurring error watchlist (correct only if it appears in this turn): ' + recurringErrors.join('; ') : '',
+    ].filter(Boolean).join('\n');
+    const learnerTurn = contextNotes
+      ? '[Private learning context for the tutor; do not repeat this list to the learner]\n' + contextNotes + '\n\nLearner says: ' + learnerMessage
+      : learnerMessage;
     const formattedContents = [
-      ...history.map((turn: { role: string; content: string }) => ({
-        role: turn.role === 'user' ? 'user' : 'model',
-        parts: [{ text: turn.content }],
-      })),
+      ...recentHistory,
       {
         role: 'user',
-        parts: [
-          {
-            text: message || "Hello! Let's start our conversation practice.",
-          },
-        ],
+        parts: [{ text: learnerTurn }],
       },
     ];
 
-    const response = await ai.models.generateContent({
+    // Use a bounded timeout and disable the SDK's long default retry backoff for this
+    // interactive turn. The learner can retry from the UI without losing the turn.
+    const conversationAi = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        timeout: 18000,
+        headers: { 'User-Agent': 'aistudio-build' },
+        retryOptions: { attempts: 1 },
+      },
+    });
+    const response = await conversationAi.models.generateContent({
       model: 'gemini-3.8-flash',
       contents: formattedContents,
       config: {
         systemInstruction,
         responseMimeType: 'application/json',
-        temperature: 0.75,
-        maxOutputTokens: 500,
+        temperature: 0.65,
+        maxOutputTokens: 320,
         responseSchema: {
           type: Type.OBJECT,
           properties: {
@@ -145,10 +184,22 @@ CRITICAL PEDAGOGICAL RULES:
     const parsed = JSON.parse(response.text || '{}');
     res.json({ success: true, data: parsed });
   } catch (error: any) {
-    console.error('Conversation error:', error);
-    res.status(500).json({
+    const detail = String(error?.message || 'Failed to generate conversation response');
+    const deadlineExceeded = /DEADLINE_EXCEEDED|deadline|timed?\s*out|timeout/i.test(detail)
+      || Number(error?.code) === 504 || Number(error?.status) === 504;
+    console.error('Conversation error:', {
+      message: detail.slice(0, 500),
+      code: error?.code,
+      status: error?.status,
+      deadlineExceeded,
+    });
+    res.status(deadlineExceeded ? 504 : 502).json({
       success: false,
-      error: error.message || 'Failed to generate conversation response',
+      code: deadlineExceeded ? 'AI_DEADLINE_EXCEEDED' : 'AI_UPSTREAM_ERROR',
+      retryable: true,
+      error: deadlineExceeded
+        ? 'The AI tutor is taking longer than usual. Your message is preserved; please try again in a moment.'
+        : 'The AI tutor is temporarily unavailable. Your message is preserved; please retry shortly.',
     });
   }
 });
@@ -259,6 +310,107 @@ Return strict JSON matching the schema.
       success: false,
       error: error.message || 'Failed to generate conversation summary',
     });
+  }
+});
+
+// Audio-first Pronunciation Coach: analyse the uploaded recording itself, not ASR text as a proxy for sound quality.
+app.post('/api/gemini/pronunciation-audio-coach', async (req: Request, res: Response): Promise<void> => {
+  try {
+    if (!process.env.GEMINI_API_KEY) {
+      res.status(503).json({ success: false, error: 'Audio coaching is not configured. Add GEMINI_API_KEY on the server and redeploy.' });
+      return;
+    }
+    const { audioBase64, mimeType, targetText = '', track = 'high_school', level = 'A2' } = req.body || {};
+    if (typeof audioBase64 !== 'string' || audioBase64.length < 1000 || audioBase64.length > 8_000_000) {
+      res.status(400).json({ success: false, error: 'The recording is empty or too large. Please record a shorter answer (up to 30 seconds).' });
+      return;
+    }
+    const safeMime = typeof mimeType === 'string' ? mimeType.toLowerCase().split(';')[0] : '';
+    if (!/^audio\/(webm|mp4|mpeg|wav|x-wav|ogg|aac)$/.test(safeMime)) {
+      res.status(415).json({ success: false, error: 'This audio format is not supported. Please record again using a supported browser audio format.' });
+      return;
+    }
+    const safeTarget = typeof targetText === 'string' ? targetText.slice(0, 1200).trim() : '';
+    const safeTrack = track === 'professional' ? 'professional' : 'high_school';
+    const safeLevel = typeof level === 'string' && /^(A1|A2|B1|B2|C1|C2)$/.test(level) ? level : 'A2';
+
+    const trackGuidance = safeTrack === 'high_school'
+      ? 'The learner is studying high-school English in Vietnam. Keep explanations age-appropriate and connect vocabulary to school, daily life, science, environment, culture and future study.'
+      : 'The learner is studying Professional English. Prioritise precise workplace language, natural collocations, diplomacy, clarity and register.';
+    const systemInstruction = `
+You are BenEnglish AI's senior English Pronunciation and Speaking Coach for Vietnamese learners.
+The attached input contains the learner's ACTUAL MICROPHONE AUDIO. Listen to the audio directly.
+Learner track: ${safeTrack}; CEFR target: ${safeLevel}.
+${trackGuidance}
+
+CRITICAL EVIDENCE RULES:
+1. Assess sound production ONLY from acoustic evidence in the audio. Do not use a speech-to-text transcript as a substitute for listening.
+2. If the recording is silent, clipped, noisy, too short, unclear, or the relevant sound cannot be judged, set audioAssessment to "not_assessable", explain why, and return no soundTargets. Never guess.
+3. Do not produce numeric pronunciation scores, accent scores, fluency scores, or confidence percentages. Describe only specific audible evidence and its limitations.
+4. Do not claim to assess exact phoneme placement unless the recording gives enough evidence. Distinguish a possible speech-recognition mismatch from a clearly audible sound.
+5. Grammar and vocabulary feedback is a separate transcript/language analysis. Mark only clear errors; do not call acceptable variants wrong.
+6. Do not infer the learner's identity, age, location or personal attributes from their voice.
+7. For Vietnamese learners, check possible final consonant omissions, /θ/ vs /s/ or /t/, /ʃ/ vs /s/, /iː/ vs /ɪ/, /æ/ vs /e/, consonant clusters and lexical stress only when actually audible.
+8. Keep soundTargets to at most 4 high-value targets. Include IPA only when confident. Explain mouth/tongue/action in Vietnamese, then give one practical drill.
+9. Provide a natural model sentence preserving the learner's intended meaning. It should be suitable for their track and ${safeLevel}.
+10. Respond in Vietnamese for explanations; English for corrected phrases, examples and model sentences.
+${safeTarget ? 'Target sentence supplied by learner: ' + safeTarget : 'No target sentence supplied. Analyse this as free speaking.'}
+`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: [{
+        role: 'user',
+        parts: [
+          { text: 'Listen to this learner recording. First transcribe what is actually audible. Then provide evidence-based audio pronunciation coaching and separate transcript-based grammar/vocabulary feedback. If audio evidence is insufficient, say so clearly.' },
+          { inlineData: { mimeType: safeMime, data: audioBase64 } },
+        ],
+      }],
+      config: {
+        systemInstruction,
+        responseMimeType: 'application/json',
+        temperature: 0.2,
+        maxOutputTokens: 1300,
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            audioAssessment: { type: Type.STRING, enum: ['assessable', 'not_assessable'] },
+            transcript: { type: Type.STRING },
+            audioSummary: { type: Type.STRING },
+            soundTargets: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
+              word: { type: Type.STRING }, ipa: { type: Type.STRING }, observation: { type: Type.STRING }, practiceTipVi: { type: Type.STRING },
+            }, required: ['word', 'ipa', 'observation', 'practiceTipVi'] } },
+            grammarCorrections: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
+              original: { type: Type.STRING }, correction: { type: Type.STRING }, explanationVi: { type: Type.STRING },
+            }, required: ['original', 'correction', 'explanationVi'] } },
+            vocabularyUpgrades: { type: Type.ARRAY, items: { type: Type.OBJECT, properties: {
+              original: { type: Type.STRING }, upgrade: { type: Type.STRING }, whyVi: { type: Type.STRING }, example: { type: Type.STRING },
+            }, required: ['original', 'upgrade', 'whyVi', 'example'] } },
+            modelSentence: { type: Type.STRING },
+            repeatTaskVi: { type: Type.STRING },
+            strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+          required: ['audioAssessment', 'transcript', 'audioSummary', 'soundTargets', 'grammarCorrections', 'vocabularyUpgrades', 'modelSentence', 'repeatTaskVi', 'strengths'],
+        },
+      },
+    });
+
+    const parsed = JSON.parse(response.text || '{}');
+    const assessable = parsed.audioAssessment === 'assessable';
+    res.status(200).json({ success: true, data: {
+      audioAssessment: assessable ? 'assessable' : 'not_assessable',
+      transcript: typeof parsed.transcript === 'string' ? parsed.transcript.slice(0, 1800) : '',
+      audioSummary: typeof parsed.audioSummary === 'string' ? parsed.audioSummary.slice(0, 1200) : 'The audio could not be assessed reliably.',
+      soundTargets: assessable && Array.isArray(parsed.soundTargets) ? parsed.soundTargets.slice(0, 4) : [],
+      grammarCorrections: Array.isArray(parsed.grammarCorrections) ? parsed.grammarCorrections.slice(0, 5) : [],
+      vocabularyUpgrades: Array.isArray(parsed.vocabularyUpgrades) ? parsed.vocabularyUpgrades.slice(0, 5) : [],
+      modelSentence: typeof parsed.modelSentence === 'string' ? parsed.modelSentence.slice(0, 500) : '',
+      repeatTaskVi: typeof parsed.repeatTaskVi === 'string' ? parsed.repeatTaskVi.slice(0, 600) : '',
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths.slice(0, 4) : [],
+    }});
+  } catch (error: any) {
+    console.error('Audio pronunciation coach failed:', error?.message || error);
+    res.status(502).json({ success: false, error: 'Audio analysis is temporarily unavailable. Your recording remains on this page; please try again.' });
   }
 });
 

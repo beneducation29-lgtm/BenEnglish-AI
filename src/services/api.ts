@@ -74,6 +74,14 @@ export interface SpeakingEvalData {
     grammaticalAccuracy: number;
     fluencyCoherence: number;
     relevanceContent: number;
+    pronunciation?: number;
+  };
+  audioEvidenceAvailable?: boolean;
+  pronunciationAssessment?: {
+    intelligibility: number;
+    segmentalAccuracy: number;
+    stressAndIntonation: number;
+    feedback: { heard: string; suggested: string; explanation: string }[];
   };
   strengths: string[];
   areasToImprove: string[];
@@ -126,6 +134,7 @@ export async function sendConversationMessage(payload: {
   track: string;
   userLevel: string;
   occupation?: string;
+  grade?: string;
   learnerMemory?: { placementLevel?: string; skillLevels?: Record<string,string>; priorities?: string[]; recentSessionNotes?: string[]; recurringErrors?: string[] };
 }): Promise<ConversationResponseData> {
   const res = await fetch('/api/gemini/conversation', {
@@ -147,6 +156,9 @@ export async function sendConversationMessage(payload: {
       : rawBody.trim().slice(0, 180) || 'The server returned an empty response.';
     if (res.status === 404) {
       throw new Error('Conversation API route was not found (HTTP 404). Please redeploy the latest Preview and check the Vercel function route.');
+    }
+    if (res.status === 502 || res.status === 503 || res.status === 504 || data?.code === 'AI_DEADLINE_EXCEEDED') {
+      throw new Error('Teacher Emma is taking longer than usual to reply. Your message is still in the conversation — please tap Retry in a moment.');
     }
     throw new Error(`Conversation API returned HTTP ${res.status}: ${detail}`);
   }
@@ -214,17 +226,22 @@ export async function evaluateSpeaking(payload: {
   durationSeconds?: number;
   track: string;
   level: string;
+  audioBase64?: string;
+  audioMimeType?: 'audio/wav';
 }): Promise<SpeakingEvalData> {
   const res = await fetch('/api/gemini/speaking-eval', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!data.success) {
-    throw new Error(data.error || 'Failed to evaluate speaking response');
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.error || raw.slice(0, 180) || `Speaking assessment failed (HTTP ${res.status})`);
   }
-  return data.data;
+  return data.data as SpeakingEvalData;
 }
 
 export async function sendRoleplayMessage(payload: {
@@ -442,4 +459,77 @@ export async function evaluatePlacementSpeaking(payload: {
     throw new Error(data?.error || `Speaking assessment returned HTTP ${res.status}. Please try again.`);
   }
   return data.data;
+}
+
+
+export interface WritingAssessmentData {
+  overallFeedback: string;
+  cefrEstimate?: string;
+  cefrRationale?: string;
+  taskFulfilment: number;
+  organisation: number;
+  vocabulary: number;
+  grammar: number;
+  strengths: string[];
+  corrections: { original: string; improved: string; explanationVi: string }[];
+  nextSteps: string[];
+  improvedSampleAnswer: string;
+}
+
+export async function evaluateWriting(payload: {
+  prompt: string;
+  learnerResponse: string;
+  sourceText?: string;
+  track: string;
+  grade?: string;
+  level: string;
+}): Promise<WritingAssessmentData> {
+  const res = await fetch('/api/gemini/evaluate-writing', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success || !data.data) {
+    const detail = typeof data?.error === 'string' ? data.error : raw.slice(0, 180);
+    throw new Error('Writing assessment returned HTTP ' + res.status + ': ' + (detail || 'Please try again.'));
+  }
+  return data.data as WritingAssessmentData;
+}
+
+export interface PronunciationAudioCoachData {
+  audioAssessment: 'assessable' | 'not_assessable';
+  transcript: string;
+  audioSummary: string;
+  soundTargets: { word: string; ipa: string; observation: string; practiceTipVi: string }[];
+  grammarCorrections: { original: string; correction: string; explanationVi: string }[];
+  vocabularyUpgrades: { original: string; upgrade: string; whyVi: string; example: string }[];
+  modelSentence: string;
+  repeatTaskVi: string;
+  strengths: string[];
+}
+
+export async function analyzePronunciationAudio(payload: {
+  audioBase64: string;
+  mimeType: string;
+  targetText?: string;
+  track: string;
+  level: string;
+}): Promise<PronunciationAudioCoachData> {
+  const res = await fetch('/api/gemini/pronunciation-audio-coach', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const contentType = res.headers.get('content-type') || '';
+  const raw = await res.text();
+  let data: any = null;
+  try { data = contentType.includes('application/json') ? JSON.parse(raw) : null; } catch { data = null; }
+  if (!res.ok || !data?.success || !data.data) {
+    throw new Error(data?.error || `Audio pronunciation analysis returned HTTP ${res.status}. Please try again.`);
+  }
+  return data.data as PronunciationAudioCoachData;
 }
