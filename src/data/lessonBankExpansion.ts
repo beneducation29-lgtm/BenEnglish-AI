@@ -478,6 +478,77 @@ const seeds: LessonSeed[] = [
     speakingPrompt: 'Explain a small budget overrun to your manager and recommend how the team should respond.',
     followUps: ['When is reallocating funds better than requesting more money?', 'How can a team make financial forecasts more reliable?'],
   },
+,
+
+  {
+    id: 'pro-b1-customer-success', track: 'professional', level: 'B1',
+    title: 'Handling a Customer Complaint', theme: 'Customer service, active listening and practical problem-solving',
+    vocabulary: [
+      { word: 'acknowledge', meaningVi: 'ghi nhận, thừa nhận', example: 'First, acknowledge the customer’s concern.' },
+      { word: 'resolve', meaningVi: 'giải quyết', example: 'We aim to resolve the issue within one working day.' },
+      { word: 'follow up', meaningVi: 'liên hệ lại để cập nhật', example: 'I will follow up after the replacement is sent.' },
+    ],
+    grammarFocus: ['polite requests and indirect questions', 'past simple for describing incidents', 'will and present continuous for next steps'],
+    listeningScript: 'Thank you for explaining what happened. I understand that the delivery arrived two days late and that one item was missing. I am sorry for the inconvenience. I will check the warehouse record now and arrange for the missing item to be sent by express delivery. You will receive a confirmation email this afternoon. May I contact you tomorrow to make sure everything has arrived?',
+    listeningQuestions: [
+      { prompt: 'What problems did the customer report?', options: ['A late delivery and a missing item', 'A damaged payment card', 'An incorrect account password'], answer: 'A late delivery and a missing item', explanation: 'The agent repeats both problems before offering a solution.' },
+      { prompt: 'When will the agent send a confirmation email?', options: ['Tomorrow morning', 'This afternoon', 'Next week'], answer: 'This afternoon', explanation: 'The agent says the confirmation email will arrive this afternoon.' },
+    ],
+    readingPassage: 'A good complaint-handling process begins with listening rather than defending the organisation. The employee should confirm the facts, explain what can be done and give a realistic time for the next update. If the issue cannot be solved immediately, the customer should still know who is responsible for it. A short follow-up message can prevent repeated contact and show that the organisation has taken the concern seriously.',
+    readingQuestions: [
+      { prompt: 'What should an employee do first?', options: ['Defend the organisation', 'Listen and confirm the facts', 'Promise an immediate refund in every case'], answer: 'Listen and confirm the facts', explanation: 'The passage says the process begins with listening and confirming facts.' },
+      { prompt: 'Why is a follow-up message useful?', options: ['It can prevent repeated contact and show ownership', 'It replaces the need to solve the issue', 'It guarantees that no complaint will happen again'], answer: 'It can prevent repeated contact and show ownership', explanation: 'The final sentence explains both benefits.' },
+    ],
+    writingPrompt: 'Write a 130–160-word reply to a customer whose order arrived late and incomplete. Acknowledge the problem, explain the action you will take and give a clear follow-up time.',
+    speakingPrompt: 'Role-play a customer-service call. Listen to a complaint, clarify the facts, apologise appropriately and explain the next action.',
+    followUps: ['What should you say when you cannot promise an immediate solution?', 'How can a team learn from repeated customer complaints?'],
+  },
+  {
+    id: 'pro-b2-marketing-campaign', track: 'professional', level: 'B2',
+    title: 'Presenting a Marketing Campaign Review', theme: 'Marketing strategy, campaign metrics and evidence-led recommendations',
+    vocabulary: [
+      { word: 'conversion rate', meaningVi: 'tỷ lệ chuyển đổi', example: 'The conversion rate increased after the landing page changed.' },
+      { word: 'target audience', meaningVi: 'đối tượng khách hàng mục tiêu', example: 'The campaign was designed for a younger target audience.' },
+      { word: 'return on investment', meaningVi: 'tỷ suất hoàn vốn', example: 'The team is reviewing return on investment before extending the campaign.' },
+    ],
+    grammarFocus: ['comparatives and trend language for data', 'present perfect for campaign results', 'hedging when evidence is limited'],
+    listeningScript: 'The campaign reached  forty thousand people over four weeks, and website visits increased by eighteen percent. However, the conversion rate rose by only two percent, which suggests that awareness did not translate into sales as strongly as we expected. The strongest results came from returning visitors rather than new audiences. I recommend testing a clearer product message and comparing the cost per acquisition before increasing the budget.',
+    listeningQuestions: [
+      { prompt: 'Which metric increased by eighteen percent?', options: ['Website visits', 'Conversion rate', 'The campaign budget'], answer: 'Website visits', explanation: 'The speaker reports an eighteen-percent increase in website visits.' },
+      { prompt: 'What does the speaker recommend before increasing the budget?', options: ['Stop measuring campaign results', 'Test the message and compare acquisition costs', 'Target only existing customers'], answer: 'Test the message and compare acquisition costs', explanation: 'The final sentence gives both proposed actions.' },
+    ],
+    readingPassage: 'A campaign review should connect activity to business outcomes. Reach and impressions indicate how many people may have seen a message, but they do not show whether the campaign generated qualified interest or revenue. Teams should compare conversion rates, acquisition costs and customer quality across channels. Results also need context: seasonality, pricing changes and audience differences can affect performance. Recommendations should therefore distinguish observed results from possible explanations and propose a test that can reduce uncertainty.',
+    readingQuestions: [
+      { prompt: 'Why are reach and impressions insufficient on their own?', options: ['They do not show whether qualified interest or revenue was generated', 'They measure customer satisfaction perfectly', 'They automatically calculate profit'], answer: 'They do not show whether qualified interest or revenue was generated', explanation: 'The passage distinguishes exposure metrics from business outcomes.' },
+      { prompt: 'What should recommendations distinguish?', options: ['Observed results and possible explanations', 'Old campaigns and office locations', 'Design preferences and job titles'], answer: 'Observed results and possible explanations', explanation: 'The final sentence explicitly makes this distinction.' },
+    ],
+    writingPrompt: 'Write a 180–220-word campaign review for a marketing manager. Summarise two results, explain one limitation and recommend a measurable next experiment.',
+    speakingPrompt: 'Present a two-minute campaign review. Explain what worked, what did not meet expectations and which experiment you would run next.',
+    followUps: ['Which metric would you prioritise if the objective were customer retention?', 'How would you explain a positive result when the sample size is small?'],
+  },
+  {
+    id: 'pro-b2-hr-performance', track: 'professional', level: 'B2',
+    title: 'Giving Constructive Performance Feedback', theme: 'Human resources, coaching conversations and professional development',
+    vocabulary: [
+      { word: 'specific example', meaningVi: 'ví dụ cụ thể', example: 'Use a specific example to explain the feedback.' },
+      { word: 'development goal', meaningVi: 'mục tiêu phát triển', example: 'Agree on one realistic development goal.' },
+      { word: 'action plan', meaningVi: 'kế hoạch hành động', example: 'The action plan includes a review date.' },
+    ],
+    grammarFocus: ['diplomatic language and softening', 'present perfect for progress over time', 'modal verbs for achievable recommendations'],
+    listeningScript: 'You have built strong relationships with clients this quarter, and your handover notes are much clearer than they were in January. One area to develop is prioritisation when several urgent requests arrive together. In the last project, two internal updates were delayed because the client request took all your attention. Let us agree on a simple priority checklist and review how it works in four weeks. How does that sound to you?',
+    listeningQuestions: [
+      { prompt: 'Which strength does the manager mention?', options: ['Clearer handover notes', 'Faster budget approval', 'Leading a new department'], answer: 'Clearer handover notes', explanation: 'The manager explicitly praises the improvement in handover notes.' },
+      { prompt: 'What development action do they agree to try?', options: ['A priority checklist', 'A new reporting system for every team', 'An immediate role change'], answer: 'A priority checklist', explanation: 'The manager proposes a checklist and a review in four weeks.' },
+    ],
+    readingPassage: 'Constructive performance feedback is most useful when it is timely, specific and connected to an agreed goal. General comments such as “be more organised” give an employee little guidance. A manager can describe an observable situation, explain its impact and invite the employee to discuss possible causes. The conversation should end with an action that both people consider realistic, together with a date to review progress. Feedback is a development process, not a label attached to a person.',
+    readingQuestions: [
+      { prompt: 'Why are general comments such as “be more organised” unhelpful?', options: ['They give little practical guidance', 'They are always too positive', 'They include too many measurable details'], answer: 'They give little practical guidance', explanation: 'The passage contrasts general comments with specific, actionable feedback.' },
+      { prompt: 'What should the conversation end with?', options: ['A realistic action and a review date', 'A permanent judgement about the employee', 'An unrelated list of company rules'], answer: 'A realistic action and a review date', explanation: 'The passage recommends agreeing on an action and a date to review progress.' },
+    ],
+    writingPrompt: 'Write a 160–200-word follow-up email after a performance conversation. Recognise one strength, summarise one development area, confirm an agreed action and state the review date.',
+    speakingPrompt: 'Role-play a performance conversation. Give evidence-based feedback, invite the employee’s perspective and agree on a practical next step.',
+    followUps: ['How can a manager discuss a repeated problem without discouraging an employee?', 'What evidence would show that the development action is working?'],
+  },
 
 ];
 
