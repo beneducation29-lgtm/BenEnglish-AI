@@ -43,6 +43,7 @@ import {
   Pause,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import TutorAvatar from './TutorAvatar';
 
 interface TutorPersonaConfig {
   id: TutorPersonaId;
@@ -225,6 +226,8 @@ export const ConversationRoomView: React.FC = () => {
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
   const [liveTranscript, setLiveTranscript] = useState('');
   const [aiCaption, setAiCaption] = useState('');
+  const [liveInputLevel, setLiveInputLevel] = useState(0);
+  const [liveOutputLevel, setLiveOutputLevel] = useState(0);
   const [liveModeStatus, setLiveModeStatus] = useState<'off' | 'connecting' | 'connected' | 'listening' | 'speaking'>('off');
   const [liveModeError, setLiveModeError] = useState<string | null>(null);
   const [micError, setMicError] = useState<string | null>(null);
@@ -252,6 +255,7 @@ export const ConversationRoomView: React.FC = () => {
   const liveInputFinalRef = useRef(false);
   const liveInputTurnCompleteRef = useRef(false);
   const liveOutputBufferRef = useRef('');
+  const liveInputFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep async speech callbacks synchronized with the latest React state.
   useEffect(() => { isHandsFreeModeRef.current = isHandsFreeMode; }, [isHandsFreeMode]);
@@ -285,6 +289,7 @@ export const ConversationRoomView: React.FC = () => {
       micSessionRef.current?.stop();
       micSessionRef.current = null;
       if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+      if (liveInputFlushTimerRef.current) clearTimeout(liveInputFlushTimerRef.current);
     };
   }, []);
 
@@ -304,6 +309,10 @@ export const ConversationRoomView: React.FC = () => {
     liveInputFinalRef.current = false;
     liveInputTurnCompleteRef.current = false;
     liveOutputBufferRef.current = '';
+    setLiveInputLevel(0);
+    setLiveOutputLevel(0);
+    setLiveInputLevel(0);
+    setLiveOutputLevel(0);
   };
 
   const startGeminiLive = async () => {
@@ -348,7 +357,8 @@ export const ConversationRoomView: React.FC = () => {
           liveInputFinalRef.current = true;
           setLiveTranscript(liveInputBufferRef.current);
           setFinalTranscript(liveInputBufferRef.current);
-          if (liveInputTurnCompleteRef.current) {
+          if (liveInputFlushTimerRef.current) clearTimeout(liveInputFlushTimerRef.current);
+          liveInputFlushTimerRef.current = setTimeout(() => {
             const transcript = liveInputBufferRef.current.trim();
             if (transcript) {
               setTurns((prev) => [...prev, {
@@ -363,29 +373,17 @@ export const ConversationRoomView: React.FC = () => {
             liveInputTurnCompleteRef.current = false;
             setLiveTranscript('');
             setFinalTranscript('');
-          }
+            liveInputFlushTimerRef.current = null;
+          }, 650);
         } else {
           setLiveTranscript(`${liveInputBufferRef.current} ${text}`.trim());
         }
       },
       onInputTurnComplete: () => {
-        liveInputTurnCompleteRef.current = true;
-        if (!liveInputFinalRef.current) return;
-        const transcript = liveInputBufferRef.current.trim();
-        if (transcript) {
-          setTurns((prev) => [...prev, {
-            id: `live-user-${Date.now()}`,
-            role: 'user',
-            content: transcript,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          }]);
-        }
-        liveInputBufferRef.current = '';
-        liveInputFinalRef.current = false;
-        liveInputTurnCompleteRef.current = false;
-        setLiveTranscript('');
-        setFinalTranscript('');
+        // Input transcripts are flushed after the final transcription event; model turnComplete is not an input boundary.
       },
+      onInputAudioLevel: (level) => setLiveInputLevel(level),
+      onOutputAudioLevel: (level) => setLiveOutputLevel(level),
       onOutputTranscript: (text, isFinal) => {
         if (text) {
           liveOutputBufferRef.current = `${liveOutputBufferRef.current} ${text}`.trim();
@@ -1033,36 +1031,20 @@ export const ConversationRoomView: React.FC = () => {
         <div className="absolute -left-16 -bottom-16 w-56 h-56 rounded-full bg-blue-500/10 blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
-          {/* Avatar with Status Ring */}
+          {/* Human-style tutor portrait with real input/output audio-reactive motion */}
           <div className="flex items-center gap-4">
-            <div className="relative">
-              <div
-                className={`w-16 h-16 rounded-2xl bg-slate-800 border-2 flex items-center justify-center text-3xl shadow-inner transition-all ${
-                  isAiSpeaking
-                    ? 'border-teal-400 ring-4 ring-teal-500/20 scale-105'
-                    : isRecording
-                    ? 'border-emerald-400 ring-4 ring-emerald-500/20 scale-105'
-                    : isAiResponding
-                    ? 'border-amber-400 ring-4 ring-amber-500/20 animate-pulse'
-                    : 'border-slate-700'
-                }`}
-              >
-                {activePersona.avatar}
-              </div>
-
-              {/* Status Dot */}
-              <div
-                className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 flex items-center justify-center ${
-                  isAiSpeaking
-                    ? 'bg-teal-400'
-                    : isRecording
-                    ? 'bg-emerald-400 animate-ping'
-                    : isAiResponding
-                    ? 'bg-amber-400'
-                    : 'bg-slate-500'
-                }`}
-              />
-            </div>
+            <TutorAvatar
+              name={activePersona.name}
+              state={liveModeStatus !== 'off'
+                ? liveModeStatus
+                : isAiSpeaking ? 'speaking'
+                : isRecording ? 'listening'
+                : isAiResponding ? 'thinking'
+                : 'idle'}
+              inputLevel={liveInputLevel}
+              outputLevel={Math.max(liveOutputLevel, isAiSpeaking && liveModeStatus === 'off' ? 0.22 : 0)}
+            />
+          </div>
 
             <div>
               <div className="flex items-center gap-2">
