@@ -431,6 +431,54 @@ const seeds: LessonSeed[] = [
     speakingPrompt: 'Present a recommendation to a senior decision-maker in 90 seconds, then respond to a question about risk or evidence.',
     followUps: ['Which uncertainty would most affect your recommendation?', 'How would you communicate a recommendation when the evidence is incomplete?'],
   },
+
+  {
+    id: 'pro-b1-it-sprint', track: 'professional', level: 'B1',
+    title: 'Explaining a Software Sprint Update', theme: 'Technology teams, project delivery and clear status reporting',
+    vocabulary: [
+      { word: 'sprint', meaningVi: 'chu kỳ phát triển ngắn', example: 'The team plans the next sprint on Monday.' },
+      { word: 'blocker', meaningVi: 'trở ngại làm đình trệ công việc', example: 'A missing approval is the main blocker.' },
+      { word: 'deploy', meaningVi: 'triển khai phần mềm', example: 'We plan to deploy the update on Thursday.' },
+    ],
+    grammarFocus: ['present perfect for completed work', 'past simple for specific incidents', 'will / going to for next actions'],
+    listeningScript: 'Good morning, everyone. During this sprint, we have completed the new account settings page and fixed the two highest-priority login bugs. We found one blocker: the test environment is not receiving updated customer records. The platform team is investigating it. If the issue is resolved by Wednesday, we are going to deploy the release on Thursday. Otherwise, we will move the deployment to next week. I will share another update tomorrow afternoon.',
+    listeningQuestions: [
+      { prompt: 'Which work has the team completed?', options: ['The account settings page and two login fixes', 'A new payment platform', 'The customer support handbook'], answer: 'The account settings page and two login fixes', explanation: 'The speaker identifies the settings page and two login bugs as completed work.' },
+      { prompt: 'What will happen if the blocker is not resolved by Wednesday?', options: ['The release will be cancelled permanently', 'Deployment will move to next week', 'The team will skip testing'], answer: 'Deployment will move to next week', explanation: 'The speaker gives this as the alternative deployment plan.' },
+    ],
+    readingPassage: 'A useful sprint update helps colleagues understand progress without requiring them to read every task record. It should separate completed work from work still in progress, identify blockers and name the person responsible for the next action. Dates should be realistic rather than optimistic guesses. When a delivery date depends on an unresolved issue, explain the condition clearly and provide a time for the next update. This makes the report reliable and gives other teams a chance to adjust their plans.',
+    readingQuestions: [
+      { prompt: 'What should a sprint update separate?', options: ['Completed work and work still in progress', 'Developers and customers', 'Budgets and office locations'], answer: 'Completed work and work still in progress', explanation: 'The second sentence explicitly asks for this distinction.' },
+      { prompt: 'What should a writer do when a date depends on an unresolved issue?', options: ['Present the date as guaranteed', 'Explain the condition and next update time', 'Avoid mentioning the issue'], answer: 'Explain the condition and next update time', explanation: 'The passage recommends making the dependency and next update explicit.' },
+    ],
+    writingPrompt: 'Write a 130–160-word sprint update for a cross-functional team. Include completed work, one blocker, its owner, a conditional delivery date and the next update time.',
+    speakingPrompt: 'Give a one-minute stand-up update. Explain what you completed, what you are working on and whether anything is blocking progress.',
+    followUps: ['How would you explain a delay to a non-technical stakeholder?', 'What information should never be hidden in a project status report?'],
+  },
+  {
+    id: 'pro-b1-finance-budget', track: 'professional', level: 'B1',
+    title: 'Discussing a Department Budget', theme: 'Finance, budgets and evidence-based workplace decisions',
+    vocabulary: [
+      { word: 'allocate', meaningVi: 'phân bổ', example: 'We need to allocate more money to staff training.' },
+      { word: 'forecast', meaningVi: 'dự báo', example: 'The forecast shows higher travel costs next quarter.' },
+      { word: 'overrun', meaningVi: 'chi phí vượt ngân sách', example: 'The project had a small budget overrun.' },
+    ],
+    grammarFocus: ['comparatives for financial options', 'quantifiers and numbers', 'polite requests and suggestions'],
+    listeningScript: 'I have reviewed the department budget for the next quarter. Training costs are expected to rise by ten percent because two new systems are being introduced. However, travel spending was lower than forecast last quarter, so we may be able to move part of that budget. I suggest keeping the total budget unchanged and reallocating the available funds to staff training. Could each team send its revised estimate by Friday?',
+    listeningQuestions: [
+      { prompt: 'Why are training costs expected to rise?', options: ['Two new systems are being introduced', 'The office is moving abroad', 'Travel prices have doubled'], answer: 'Two new systems are being introduced', explanation: 'The speaker links the increase to the introduction of two systems.' },
+      { prompt: 'What does the speaker suggest?', options: ['Increase the total budget immediately', 'Reallocate some travel funds to training', 'Cancel staff training'], answer: 'Reallocate some travel funds to training', explanation: 'The speaker proposes moving available funds while keeping the total unchanged.' },
+    ],
+    readingPassage: 'A department budget is a plan, not a guarantee that every estimate will be correct. Managers should compare actual spending with the forecast regularly and explain significant differences. If one activity costs more than expected, the team can consider changing the timing, reducing the scope or reallocating funds from a lower-priority activity. Any change should be recorded so that colleagues understand the reason and the effect on other plans.',
+    readingQuestions: [
+      { prompt: 'What should managers compare regularly?', options: ['Actual spending and the forecast', 'Staff birthdays and holidays', 'Office size and team names'], answer: 'Actual spending and the forecast', explanation: 'The passage recommends regular comparison of actual spending with forecasts.' },
+      { prompt: 'Why should budget changes be recorded?', options: ['To explain the reason and effect on other plans', 'To prevent all future changes', 'To replace the annual report'], answer: 'To explain the reason and effect on other plans', explanation: 'The final sentence gives this purpose directly.' },
+    ],
+    writingPrompt: 'Write a 130–160-word email to your manager explaining a budget variance. State the original estimate, actual change, likely reason and one practical recommendation.',
+    speakingPrompt: 'Explain a small budget overrun to your manager and recommend how the team should respond.',
+    followUps: ['When is reallocating funds better than requesting more money?', 'How can a team make financial forecasts more reliable?'],
+  },
+
 ];
 
 export const EXPANDED_LESSON_BANK: GradeCefrLessonUnit[] = seeds.map(build);
