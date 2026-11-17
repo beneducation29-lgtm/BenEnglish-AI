@@ -160,9 +160,9 @@
 .tutor-portrait-listening, .tutor-portrait-connected {
   box-shadow: 0 0 0 5px rgba(16, 185, 129, .16), 0 22px 56px rgba(2, 6, 23, .46);
 }
-.tutor-portrait-expression-speaking .tutor-portrait-photo-wrap { animation-duration: 1.9s; }
-.tutor-portrait-expression-listening .tutor-portrait-photo-wrap { animation-duration: 3.2s; }
-.tutor-portrait-expression-thinking .tutor-portrait-photo-wrap { animation-duration: 2.5s; }
+.tutor-portrait-shell.expression-speaking .tutor-portrait-photo-wrap { animation-duration: 1.9s; }
+.tutor-portrait-shell.expression-listening .tutor-portrait-photo-wrap { animation-duration: 3.2s; }
+.tutor-portrait-shell.expression-thinking .tutor-portrait-photo-wrap { animation-duration: 2.5s; }
 @media (max-width: 640px) {
   .tutor-portrait-shell {
     width: min(46vw, 176px);
