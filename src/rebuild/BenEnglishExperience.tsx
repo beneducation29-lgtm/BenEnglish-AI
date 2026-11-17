@@ -5,6 +5,7 @@ import { GRADE_CEFR_CURRICULUM } from '../data/gradeCefrCurriculum';
 import { EXPANDED_LESSON_BANK } from '../data/lessonBankExpansion';
 import DeepPracticeHub from './DeepPracticeHub';
 import PronunciationCoach from './PronunciationCoach';
+import PronunciationReviewDrills from './PronunciationReviewDrills';
 import { recordedBlobToWavBase64 } from '../utils/recordedAudio';
 import {
   ArrowRight, AudioLines, BookOpen, BriefcaseBusiness, Check, ChevronRight,
@@ -497,7 +498,8 @@ export default function BenEnglishExperience() {
             {liveTranscript && <p aria-live="polite" className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">{liveTranscript}</p>}
             {voiceInputNotice && <p role="status" className="mt-2 text-xs leading-5 text-amber-700">{voiceInputNotice}</p>}
           </div>
-          <div className="flex gap-2"><input value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!isTutorLoading&&sendMessage()} placeholder="Type or review your recognised words..." className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-300"/><button disabled={isTutorLoading||!message.trim()} onClick={()=>sendMessage()} className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white disabled:opacity-40">{isTutorLoading?'…':'Send'}</button></div></div></div><div className="px-5 pb-6 sm:px-8"><PronunciationCoach track={learner.track} level={learner.level} contextLabel={isSchool ? learner.grade : learner.role} /></div></section>}
+          <div className="flex gap-2"><input value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!isTutorLoading&&sendMessage()} placeholder="Type or review your recognised words..." className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-300"/><button disabled={isTutorLoading||!message.trim()} onClick={()=>sendMessage()} className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white disabled:opacity-40">{isTutorLoading?'…':'Send'}</button></div></div></div><div className="px-5 pb-6 sm:px-8"><PronunciationCoach track={learner.track} level={learner.level} contextLabel={isSchool ? learner.grade : learner.role} />
+          <PronunciationReviewDrills track={learner.track} level={learner.level} contextLabel={isSchool ? learner.grade : learner.role} /></div></section>}
         {section === 'learn' && <div>
           <div className={`rounded-[2rem] bg-gradient-to-br ${track.gradient} p-7 text-white sm:p-9`}>
             <Pill active>SHORT, REAL-WORLD LESSONS</Pill>
