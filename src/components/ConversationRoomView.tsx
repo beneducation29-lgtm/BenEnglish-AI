@@ -448,17 +448,24 @@ export const ConversationRoomView: React.FC = () => {
     const voices = audioEngine.getEnglishVoices();
     let preferredVoiceName: string | undefined = undefined;
 
-    if (activePersona.voiceAccent === 'GB') {
-      const gbVoice = voices.find(
-        (v) => v.lang.startsWith('en-GB') || v.name.includes('UK') || v.name.includes('British') || v.name.includes('Daniel')
-      );
-      if (gbVoice) preferredVoiceName = gbVoice.name;
-    } else {
-      const usVoice = voices.find(
-        (v) => v.lang.startsWith('en-US') || v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha')
-      );
-      if (usVoice) preferredVoiceName = usVoice.name;
-    }
+    const naturalVoicePriority = ['natural', 'neural', 'google us english', 'microsoft aria', 'microsoft jenny', 'samantha', 'daniel'];
+    const rankedVoices = [...voices].sort((a, b) => {
+      const score = (voice: SpeechSynthesisVoice) => {
+        const name = voice.name.toLowerCase();
+        const lang = voice.lang.toLowerCase();
+        const accentMatch = activePersona.voiceAccent === 'GB'
+          ? (lang === 'en-gb' || name.includes('british') || name.includes('uk'))
+          : lang === 'en-us';
+        let value = accentMatch ? 30 : lang.startsWith('en') ? 5 : 0;
+        naturalVoicePriority.forEach((term, index) => {
+          if (name.includes(term)) value += 100 - index * 6;
+        });
+        if (voice.localService === false) value += 3;
+        return value;
+      };
+      return score(b) - score(a);
+    });
+    preferredVoiceName = rankedVoices[0]?.name;
 
     audioEngine.speak(text, {
       rate: activePersona.voiceRate * playbackSpeed,
