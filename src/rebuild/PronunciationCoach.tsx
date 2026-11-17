@@ -192,7 +192,7 @@ export default function PronunciationCoach({ track, level, contextLabel }: Props
     window.speechSynthesis.speak(utterance);
   };
 
-  return <section className="mt-6 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-6">
+  return <section id="pronunciation-coach" className="mt-6 rounded-3xl border border-indigo-100 bg-white p-5 shadow-sm sm:p-6">
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div><div className="flex items-center gap-2 text-xs font-extrabold tracking-[.14em] text-indigo-600"><AudioLines size={15}/> PRONUNCIATION COACH</div>
         <h2 className="mt-2 text-xl font-extrabold text-slate-900">Speak. Listen. Improve.</h2>
