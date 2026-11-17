@@ -468,7 +468,7 @@ export default function BenEnglishExperience() {
                 <p className="mt-7 text-xs font-extrabold tracking-[.2em] text-white/55">YOUR PERSONAL ENGLISH SPACE</p>
                 <h1 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">Speak more.<br/><span className="text-cyan-200">Worry less.</span></h1>
                 <p className="mt-3 max-w-lg text-sm leading-6 text-white/70">A relaxed place to practise real conversations, build confidence and learn from every response.</p>
-                <div className="mt-6 flex flex-wrap items-center gap-3"><span className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-slate-900"><Mic2 size={16}/> Start talking</span><span className="text-xs text-white/55">with {track.coach} · {track.coachRole}</span></div>
+                <div className="mt-6 flex flex-wrap items-center gap-3"><button type="button" onClick={()=>setMessage(isSchool ? "Hi Emma, I would like to practise speaking about school life." : "Hi Alex, I would like to practise a professional conversation.")} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-slate-900 shadow-lg transition hover:-translate-y-0.5"><Mic2 size={16}/> Start talking</button><span className="text-xs text-white/55">with {track.coach} · {track.coachRole}</span></div>
               </div>
               <div className="relative mx-auto flex w-full max-w-xs items-center gap-4 rounded-[1.75rem] border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-md lg:mx-0">
                 <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/15 text-3xl shadow-inner">{isSchool ? '👩‍🏫' : '🧑‍💼'}</div>
