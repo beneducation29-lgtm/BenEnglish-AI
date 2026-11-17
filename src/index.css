@@ -143,3 +143,33 @@
   .tutor-portrait-photo-wrap, .tutor-portrait-eye, .tutor-portrait-mouth.is-speaking,
   .tutor-portrait-status-dot { animation: none !important; }
 }
+
+
+/* Larger tutor stage: half-body portrait remains the visual focus */
+.tutor-portrait-shell {
+  width: clamp(196px, 23vw, 292px);
+  height: clamp(250px, 30vw, 372px);
+  border-radius: 30px;
+  border-width: 2px;
+  box-shadow: 0 22px 56px rgba(2, 6, 23, .46);
+}
+.tutor-portrait-photo { object-position: center 22%; }
+.tutor-portrait-speaking {
+  box-shadow: 0 0 0 6px rgba(45, 212, 191, .17), 0 22px 56px rgba(2, 6, 23, .46);
+}
+.tutor-portrait-listening, .tutor-portrait-connected {
+  box-shadow: 0 0 0 5px rgba(16, 185, 129, .16), 0 22px 56px rgba(2, 6, 23, .46);
+}
+.tutor-portrait-expression-speaking .tutor-portrait-photo-wrap { animation-duration: 1.9s; }
+.tutor-portrait-expression-listening .tutor-portrait-photo-wrap { animation-duration: 3.2s; }
+.tutor-portrait-expression-thinking .tutor-portrait-photo-wrap { animation-duration: 2.5s; }
+@media (max-width: 640px) {
+  .tutor-portrait-shell {
+    width: min(46vw, 176px);
+    height: min(60vw, 224px);
+    border-radius: 22px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tutor-portrait-shell, .tutor-portrait-photo-wrap { transition: none !important; }
+}
