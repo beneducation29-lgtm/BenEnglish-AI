@@ -478,7 +478,6 @@ const seeds: LessonSeed[] = [
     speakingPrompt: 'Explain a small budget overrun to your manager and recommend how the team should respond.',
     followUps: ['When is reallocating funds better than requesting more money?', 'How can a team make financial forecasts more reliable?'],
   },
-,
 
   {
     id: 'pro-b1-customer-success', track: 'professional', level: 'B1',
