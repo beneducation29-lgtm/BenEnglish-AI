@@ -548,6 +548,77 @@ const seeds: LessonSeed[] = [
     speakingPrompt: 'Role-play a performance conversation. Give evidence-based feedback, invite the employee’s perspective and agree on a practical next step.',
     followUps: ['How can a manager discuss a repeated problem without discouraging an employee?', 'What evidence would show that the development action is working?'],
   },
+,
+
+  {
+    id: 'pro-b1-sales-discovery', track: 'professional', level: 'B1',
+    title: 'Understanding a Customer’s Needs', theme: 'Sales discovery, needs analysis and recommending suitable solutions',
+    vocabulary: [
+      { word: 'requirement', meaningVi: 'yêu cầu, nhu cầu cần đáp ứng', example: 'Could you tell me your main requirements?' },
+      { word: 'budget range', meaningVi: 'khoảng ngân sách', example: 'What budget range have you planned for?' },
+      { word: 'recommend', meaningVi: 'đề xuất, khuyến nghị', example: 'I would recommend the smaller package for your team.' },
+    ],
+    grammarFocus: ['open questions with what, how and which', 'would like / would prefer for customer preferences', 'comparatives for explaining options'],
+    listeningScript: 'Before I recommend a product, I would like to understand how your team works. How many people will use the system, and which tasks take the most time at the moment? We have two packages that may suit you. The standard package is less expensive, while the professional package includes reporting tools and priority support. If you tell me your budget range, I can explain which option offers the best value for your needs.',
+    listeningQuestions: [
+      { prompt: 'What does the salesperson want to understand first?', options: ['How the customer’s team works', 'The customer’s office address', 'The customer’s advertising plan'], answer: 'How the customer’s team works', explanation: 'The salesperson asks about team size and time-consuming tasks before recommending a package.' },
+      { prompt: 'What does the professional package include?', options: ['Reporting tools and priority support', 'Free office furniture', 'Unlimited training days'], answer: 'Reporting tools and priority support', explanation: 'The speaker names these two features of the professional package.' },
+    ],
+    readingPassage: 'A useful sales conversation is not simply a presentation of product features. A salesperson should first ask questions about the customer’s goals, current process, budget and decision timeline. The answers help the salesperson connect relevant features to real needs. If a product is not suitable, it is better to explain the limitation clearly than to make a promise the company cannot keep. Trust built through accurate advice can be more valuable than a quick sale.',
+    readingQuestions: [
+      { prompt: 'What should a salesperson do before presenting features?', options: ['Ask about the customer’s goals and situation', 'Offer the most expensive product', 'Avoid discussing the budget'], answer: 'Ask about the customer’s goals and situation', explanation: 'The passage says discovery questions should come before matching features to needs.' },
+      { prompt: 'Why should limitations be explained clearly?', options: ['To build trust through accurate advice', 'To make every sale take longer', 'To avoid answering customer questions'], answer: 'To build trust through accurate advice', explanation: 'The final sentence links honest advice with long-term trust.' },
+    ],
+    writingPrompt: 'Write a 130–160-word follow-up email after a discovery call. Summarise the customer’s needs, recommend one suitable option and suggest a clear next step.',
+    speakingPrompt: 'Conduct a short discovery call. Ask at least three open questions, summarise the customer’s needs and recommend a suitable solution.',
+    followUps: ['How would you respond if a customer’s budget is below the available options?', 'Why is it important to confirm your understanding before making a recommendation?'],
+  },
+  {
+    id: 'pro-b2-global-supplier', track: 'professional', level: 'B2',
+    title: 'Negotiating with an International Supplier', theme: 'International business, negotiation and cross-cultural communication',
+    vocabulary: [
+      { word: 'lead time', meaningVi: 'thời gian từ đặt hàng đến giao hàng', example: 'The current lead time is six weeks.' },
+      { word: 'payment terms', meaningVi: 'điều khoản thanh toán', example: 'We would like to discuss the payment terms.' },
+      { word: 'mutually beneficial', meaningVi: 'có lợi cho cả hai bên', example: 'We are looking for a mutually beneficial agreement.' },
+    ],
+    grammarFocus: ['conditional structures for proposals', 'diplomatic disagreement and qualifying language', 'concession clauses with although and while'],
+    listeningScript: 'Thank you for sending the revised quotation. The unit price is competitive, although the six-week lead time may create difficulties for our launch schedule. If you could deliver the first thirty percent of the order within three weeks, we would be prepared to discuss a longer-term agreement. We would also like to review the payment terms. Our aim is to find a reliable arrangement that works for both companies, rather than focus on price alone.',
+    listeningQuestions: [
+      { prompt: 'What is the main concern about the quotation?', options: ['The six-week delivery lead time', 'The product colour', 'The supplier’s office location'], answer: 'The six-week delivery lead time', explanation: 'The buyer says the six-week lead time may affect the launch schedule.' },
+      { prompt: 'What does the buyer offer in exchange for an earlier partial delivery?', options: ['A discussion about a longer-term agreement', 'Immediate cancellation', 'A reduction in product quality'], answer: 'A discussion about a longer-term agreement', explanation: 'The conditional proposal links early delivery with a possible longer-term agreement.' },
+    ],
+    readingPassage: 'International supplier negotiations involve more than agreeing on a unit price. Buyers and suppliers need a shared understanding of specifications, delivery milestones, quality checks, payment conditions and the process for handling delays. Cultural expectations may also influence how directly people express disagreement or make decisions. Clear written summaries reduce the risk of different interpretations. A strong agreement protects both parties by defining responsibilities while leaving a practical route for resolving unexpected problems.',
+    readingQuestions: [
+      { prompt: 'Which factors should an agreement clarify besides price?', options: ['Specifications, delivery, quality and payment', 'Only the preferred meeting time', 'The personal hobbies of both teams'], answer: 'Specifications, delivery, quality and payment', explanation: 'The passage lists these operational terms as essential parts of an agreement.' },
+      { prompt: 'How can written summaries help?', options: ['They reduce the risk of different interpretations', 'They remove the need for quality checks', 'They guarantee that delays never occur'], answer: 'They reduce the risk of different interpretations', explanation: 'The passage directly states that written summaries reduce misunderstanding.' },
+    ],
+    writingPrompt: 'Write a 180–220-word negotiation email proposing an earlier partial delivery in exchange for a longer-term business discussion. Address delivery, payment and shared interests diplomatically.',
+    speakingPrompt: 'Role-play a supplier negotiation. Explain your priorities, make a conditional proposal, respond to a counteroffer and summarise the points agreed.',
+    followUps: ['How can you disagree firmly without damaging a business relationship?', 'Which contract details should always be confirmed in writing?'],
+  },
+  {
+    id: 'pro-c1-healthcare-handover', track: 'professional', level: 'C1',
+    title: 'Communicating a Clear Clinical Handover', theme: 'Healthcare communication, structured handovers and patient safety',
+    vocabulary: [
+      { word: 'handover', meaningVi: 'bàn giao thông tin chăm sóc', example: 'The handover should highlight any immediate concerns.' },
+      { word: 'deterioration', meaningVi: 'sự diễn biến xấu đi', example: 'Report any signs of deterioration promptly.' },
+      { word: 'pending result', meaningVi: 'kết quả đang chờ', example: 'The pending result must be followed up by the next shift.' },
+    ],
+    grammarFocus: ['precise sequencing and time references', 'reported information versus direct observation', 'modal verbs for obligation and clinical escalation'],
+    listeningScript: 'I am handing over the evening shift for patient in bed twelve. The patient was admitted this morning with shortness of breath. At the latest review, oxygen saturation had improved, but the patient still reported chest discomfort. The blood test result is pending, and the medical team has been informed. Please repeat the observations at the scheduled time and escalate immediately if the symptoms worsen. I have documented the discussion and the outstanding actions in the record.',
+    listeningQuestions: [
+      { prompt: 'Which information is still pending?', options: ['A blood test result', 'The patient’s admission date', 'The handover document'], answer: 'A blood test result', explanation: 'The speaker explicitly says the blood test result is pending.' },
+      { prompt: 'When should the next team escalate the situation?', options: ['If the symptoms worsen', 'Only at the end of the week', 'After deleting the previous notes'], answer: 'If the symptoms worsen', explanation: 'The speaker gives a clear escalation instruction if symptoms worsen.' },
+    ],
+    readingPassage: 'A safe clinical handover transfers responsibility as well as information. It should distinguish what has been directly observed from what has been reported, identify changes over time and make outstanding actions explicit. Vague statements can leave the receiving professional uncertain about urgency or ownership. A structured format can improve consistency, but it does not replace professional judgement or the opportunity to clarify important details. Any uncertainty about a patient’s condition should be escalated through the organisation’s established clinical procedures.',
+    readingQuestions: [
+      { prompt: 'What distinction should a handover make?', options: ['Direct observations and reported information', 'Personal opinions and unrelated details', 'Administrative tasks and social plans'], answer: 'Direct observations and reported information', explanation: 'The passage explicitly says a handover should distinguish observed from reported information.' },
+      { prompt: 'What does a structured format not replace?', options: ['Professional judgement and clarification', 'The need to record outstanding actions', 'Communication between shifts'], answer: 'Professional judgement and clarification', explanation: 'The passage says structure supports consistency but cannot replace judgement or clarification.' },
+    ],
+    writingPrompt: 'Write a concise 180–220-word handover note based on a fictional, non-identifiable case. Separate observations from reported information, list pending actions and state when escalation is required. Do not include real patient details.',
+    speakingPrompt: 'Practise a structured shift handover using a fictional case. Communicate the current situation, relevant background, your assessment and the actions required by the receiving team.',
+    followUps: ['How would you confirm that the receiving colleague has understood a time-critical action?', 'Why should uncertainty be stated explicitly rather than hidden behind vague language?'],
+  },
 
 ];
 
