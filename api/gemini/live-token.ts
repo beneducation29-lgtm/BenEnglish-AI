@@ -46,6 +46,16 @@ export default async function handler(req: any, res: any) {
       business_coach: 'You are Victoria Sloan, an executive communication coach.',
       ielts_coach: 'You are David, an IELTS Speaking practice coach. Never claim to be an official examiner.',
     };
+    // Gemini Live prebuilt voice selection (case-sensitive).
+    const personaVoice: Record<string, string> = {
+      friendly_teacher: 'Aoede',
+      strict_teacher: 'Charon',
+      native_partner: 'Achird',
+      business_coach: 'Sulafat',
+      ielts_coach: 'Rasalgethi',
+    };
+    const voiceName = personaVoice[persona] || 'Aoede';
+
     const modeGuide: Record<string, string> = {
       everyday: 'Practice natural everyday English.',
       school: 'Practice high-school English and academic communication.',
@@ -60,7 +70,9 @@ export default async function handler(req: any, res: any) {
       personaGuide[persona] || personaGuide.friendly_teacher,
       modeGuide[mode] || modeGuide.everyday,
       `Learner track: ${track}. Target CEFR level: ${level}.`,
-      'Speak in clear, natural English appropriate to the learner level. Keep most turns concise (one to three sentences), but answer fully when asked.',
+      'Speak in clear, natural American English appropriate to the learner level, with a warm, human conversational delivery. Use natural pitch variation, connected speech, gentle emphasis on meaningful words, and short pauses at clause boundaries. Avoid flat, evenly stressed, announcer-style delivery.',
+      'Sound like a thoughtful tutor speaking face-to-face: relaxed but articulate, friendly and emotionally responsive. Use contractions naturally. Vary sentence rhythm; do not speak every sentence at the same pace or pitch. Do not add artificial filler words, exaggerated enthusiasm, whispering, or theatrical acting.',
+      'Keep most turns concise (one to three spoken sentences), but answer fully when asked. Give the learner a beat to respond; ask at most one natural follow-up question. Pronounce clearly without slowing down unnaturally. Match the learner CEFR level while keeping adult, natural speech.',
       'React directly to what the learner just said and remember context within this live session. Do not restart with generic greetings.',
       'Ask at most one relevant follow-up question and do not force a question after every response.',
       'Correct only clear, useful grammar or word-choice errors. Give a brief natural alternative, then continue the conversation without turning every reply into a lecture.',
@@ -79,6 +91,10 @@ export default async function handler(req: any, res: any) {
           model: LIVE_MODEL,
           config: {
             responseModalities: [Modality.AUDIO],
+            speechConfig: {
+              voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+              languageCode: 'en-US',
+            },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             systemInstruction: { parts: [{ text: systemInstruction }] },
@@ -93,6 +109,7 @@ export default async function handler(req: any, res: any) {
       success: true,
       token: token.name,
       model: LIVE_MODEL,
+      voiceName,
       expiresAt: token.expireTime || new Date(now + 10 * 60 * 1000).toISOString(),
     });
   } catch (error: any) {
