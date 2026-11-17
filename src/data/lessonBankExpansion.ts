@@ -431,7 +431,99 @@ const seeds: LessonSeed[] = [
     speakingPrompt: 'Present a recommendation to a senior decision-maker in 90 seconds, then respond to a question about risk or evidence.',
     followUps: ['Which uncertainty would most affect your recommendation?', 'How would you communicate a recommendation when the evidence is incomplete?'],
   },
-];
+,
+  {
+    id: 'hs11-b1-media-literacy', track: 'high_school', grade: 'Grade 11', level: 'B1',
+    title: 'Making Sense of Online Information', theme: 'Media literacy and responsible digital citizenship',
+    vocabulary: [
+      { word: 'misleading', meaningVi: 'gây hiểu lầm', example: 'A misleading headline may leave out important context.' },
+      { word: 'verify', meaningVi: 'xác minh, kiểm chứng', example: 'Readers should verify a claim before sharing it.' },
+      { word: 'source', meaningVi: 'nguồn thông tin', example: 'Check whether the source provides reliable evidence.' },
+    ],
+    grammarFocus: ['reported statements and questions', 'relative clauses for adding information', 'modals of obligation and advice'],
+    listeningScript: 'Our class has started a media-literacy project. When we see a surprising post, we should pause before sharing it. First, check who published it and when. Then look for the original report and compare it with another reliable source. A picture can be genuine but used in a misleading context, so we also need to check where and when it was taken.',
+    listeningQuestions: [
+      { prompt: 'What should students do before sharing a surprising post?', options: ['Pause and check it', 'Add an emotional comment', 'Forward it immediately'], answer: 'Pause and check it', explanation: 'The speaker advises pausing before sharing.' },
+      { prompt: 'Why should students check a picture’s context?', options: ['A real picture may be used in a misleading context', 'Pictures never contain useful information', 'The original file is always unavailable'], answer: 'A real picture may be used in a misleading context', explanation: 'The speaker distinguishes an authentic image from the context in which it is presented.' },
+    ],
+    readingPassage: 'Online information travels quickly, but speed is not the same as reliability. A useful first step is to identify the original publisher rather than relying on a screenshot or a copied quotation. Readers should also examine the date, the evidence and the purpose of the message. If several reports repeat the same claim, check whether they refer to independent evidence or simply quote one another. Responsible digital citizens correct mistakes when they discover them and avoid sharing claims that they cannot support.',
+    readingQuestions: [
+      { prompt: 'What should readers identify first?', options: ['The original publisher', 'The number of reactions', 'The most dramatic comment'], answer: 'The original publisher', explanation: 'The second sentence recommends identifying the original publisher.' },
+      { prompt: 'What should readers check when several reports repeat a claim?', options: ['Whether the evidence is independent', 'Whether the headlines are identical', 'Whether the posts are popular'], answer: 'Whether the evidence is independent', explanation: 'The passage warns that reports may simply quote one another.' },
+    ],
+    writingPrompt: 'Write 140–170 words explaining three steps students can take to check online information. Include one example and use advice language.',
+    speakingPrompt: 'Explain how you decide whether an online story is trustworthy. Give a specific example.',
+    followUps: ['Should schools teach media literacy as a separate subject?', 'What responsibility do people have when they share incorrect information?'],
+  },
+  {
+    id: 'hs12-b2-career-decisions', track: 'high_school', grade: 'Grade 12', level: 'B2',
+    title: 'Choosing a Future Path', theme: 'Career orientation, higher education and lifelong learning',
+    vocabulary: [
+      { word: 'transferable skill', meaningVi: 'kỹ năng có thể chuyển đổi giữa các công việc', example: 'Communication is a transferable skill in many careers.' },
+      { word: 'apprenticeship', meaningVi: 'chương trình học nghề kết hợp thực hành', example: 'An apprenticeship combines practical work with training.' },
+      { word: 'career prospect', meaningVi: 'triển vọng nghề nghiệp', example: 'Students should research career prospects before deciding.' },
+    ],
+    grammarFocus: ['future forms for plans and predictions', 'conditionals for evaluating options', 'balanced argument and cautious language'],
+    listeningScript: 'When I was in Grade 10, I assumed that choosing a university course meant choosing a job for life. I no longer see it that way. My older cousin trained as an electrician and later moved into renewable-energy systems. Her experience showed me that technical knowledge, communication and a willingness to retrain can open new opportunities. I am now comparing university programmes with vocational pathways instead of judging them by reputation alone.',
+    listeningQuestions: [
+      { prompt: 'What changed the speaker’s view of career choices?', options: ['The cousin’s career development', 'A school timetable', 'A university advertisement'], answer: 'The cousin’s career development', explanation: 'The speaker refers to the cousin’s retraining and career move.' },
+      { prompt: 'What is the speaker comparing now?', options: ['University and vocational pathways', 'Two school uniforms', 'Different social-media platforms'], answer: 'University and vocational pathways', explanation: 'The final sentence states the two pathways being compared.' },
+    ],
+    readingPassage: 'Career decisions are often made under pressure, especially when students feel that one examination result will determine their future. In practice, most careers develop through a series of choices, experiences and further training. University can provide academic depth and access to certain professions, while vocational education may offer a more direct route into practical work. Neither pathway guarantees success. Students can make more informed decisions by examining course content, costs, entry requirements, employment information and the skills they genuinely want to develop.',
+    readingQuestions: [
+      { prompt: 'What is the main point about career development?', options: ['It often involves several choices and further training', 'It is fixed by one examination', 'It always requires a university degree'], answer: 'It often involves several choices and further training', explanation: 'The passage describes careers as developing through choices, experiences and training.' },
+      { prompt: 'Which factors should students examine?', options: ['Course content, costs and entry requirements', 'Only a school’s popularity', 'Only the starting salary'], answer: 'Course content, costs and entry requirements', explanation: 'These are among the factors listed in the final sentence.' },
+    ],
+    writingPrompt: 'Write 180–220 words comparing two possible paths after high school. Discuss benefits, limitations and the information you would need before deciding.',
+    speakingPrompt: 'Compare a university route with a vocational route for a career you are interested in. Justify your preferred option.',
+    followUps: ['How important is salary when choosing a career?', 'Which skills will remain valuable as technology changes?'],
+  },
+  {
+    id: 'pro-b1-meeting-updates', track: 'professional', level: 'B1',
+    title: 'Giving a Clear Project Update', theme: 'Meetings, progress reporting and workplace collaboration',
+    vocabulary: [
+      { word: 'milestone', meaningVi: 'mốc tiến độ quan trọng', example: 'We reached the first project milestone on Tuesday.' },
+      { word: 'delay', meaningVi: 'sự chậm trễ; trì hoãn', example: 'A supplier delay may affect the launch date.' },
+      { word: 'next step', meaningVi: 'bước tiếp theo', example: 'The next step is to confirm the revised schedule.' },
+    ],
+    grammarFocus: ['present perfect for progress updates', 'past simple for completed actions', 'future forms for commitments'],
+    listeningScript: 'Here is a quick update on the website project. We have completed the homepage and tested the contact form. The product images arrived two days late, so the team has moved the review meeting to Thursday. I will send the updated schedule this afternoon. We still need the sales team to approve the final product descriptions.',
+    listeningQuestions: [
+      { prompt: 'What has the team completed?', options: ['The homepage and contact-form test', 'The full marketing campaign', 'The customer training programme'], answer: 'The homepage and contact-form test', explanation: 'The speaker names these two completed tasks.' },
+      { prompt: 'What is still needed from the sales team?', options: ['Approval of product descriptions', 'A new office address', 'A software installation'], answer: 'Approval of product descriptions', explanation: 'The final sentence identifies the outstanding approval.' },
+    ],
+    readingPassage: 'A useful project update is brief but specific. Start with the overall status, then explain what has been completed and what remains outstanding. If a task is delayed, describe the impact and the action being taken rather than simply reporting a problem. End by naming the person responsible for the next step and the date by which it is needed. This structure helps colleagues understand progress and make decisions without searching through long email threads.',
+    readingQuestions: [
+      { prompt: 'What should a speaker explain when a task is delayed?', options: ['The impact and the action being taken', 'Only who caused the problem', 'Unrelated project history'], answer: 'The impact and the action being taken', explanation: 'The passage recommends explaining both impact and response.' },
+      { prompt: 'What should the update name at the end?', options: ['The owner and due date of the next step', 'Every person in the company', 'A list of past meetings'], answer: 'The owner and due date of the next step', explanation: 'The final sentence specifies responsibility and timing.' },
+    ],
+    writingPrompt: 'Write a 100–130-word project update for your manager. Include completed work, one delay, its impact and the next action with an owner and deadline.',
+    speakingPrompt: 'Give a one-minute update on a project. Explain progress, one issue and what you need from a colleague.',
+    followUps: ['How would you raise a delay that may affect a client?', 'What information should be shared before a project meeting?'],
+  },
+  {
+    id: 'pro-b2-client-complaint', track: 'professional', level: 'B2',
+    title: 'Responding to a Client Concern', theme: 'Customer communication, accountability and service recovery',
+    vocabulary: [
+      { word: 'acknowledge', meaningVi: 'ghi nhận, thừa nhận', example: 'We acknowledge the inconvenience caused by the delay.' },
+      { word: 'resolution', meaningVi: 'cách giải quyết, sự khắc phục', example: 'Our team is working towards a practical resolution.' },
+      { word: 'follow-up', meaningVi: 'việc liên hệ/cập nhật tiếp theo', example: 'I will send a follow-up once the issue is resolved.' },
+    ],
+    grammarFocus: ['polite requests and indirect questions', 'present perfect for unresolved issues', 'conditional language for service commitments'],
+    listeningScript: 'Thank you for explaining the issue with your recent order. I understand that the delivery arrived later than the date we confirmed, and I am sorry for the inconvenience. I have checked the tracking record and contacted our logistics team. They expect to confirm the revised delivery time by three o’clock today. I will update you as soon as I receive their response, even if the investigation is not yet complete.',
+    listeningQuestions: [
+      { prompt: 'What has the employee already done?', options: ['Checked tracking and contacted logistics', 'Issued a full refund', 'Cancelled the customer account'], answer: 'Checked tracking and contacted logistics', explanation: 'The speaker says both actions have already been completed.' },
+      { prompt: 'When does logistics expect to confirm the revised time?', options: ['By three o’clock today', 'Tomorrow morning', 'At the end of the week'], answer: 'By three o’clock today', explanation: 'The speaker gives a specific update deadline.' },
+    ],
+    readingPassage: 'A professional response to a complaint should combine empathy with clear ownership. Acknowledge the customer’s experience without arguing about their feelings, then explain what has been checked and what remains uncertain. Avoid promising an outcome that depends on another team or an external supplier. Instead, make a realistic commitment about the next update and keep it. Customers may accept that a problem takes time to resolve when communication is transparent and reliable.',
+    readingQuestions: [
+      { prompt: 'What should staff avoid promising?', options: ['An outcome outside their control', 'A realistic time for the next update', 'A clear explanation of what was checked'], answer: 'An outcome outside their control', explanation: 'The passage warns against promises dependent on other teams or suppliers.' },
+      { prompt: 'Why can transparent communication help?', options: ['Customers can understand what is known and when they will hear more', 'It guarantees there will be no problem', 'It removes the need to investigate'], answer: 'Customers can understand what is known and when they will hear more', explanation: 'The final sentence links acceptance with transparent and reliable communication.' },
+    ],
+    writingPrompt: 'Write a 160–190-word reply to a client complaint. Acknowledge the impact, explain what you have checked, state what remains unknown and make a realistic follow-up commitment.',
+    speakingPrompt: 'Role-play a call with a dissatisfied client. Listen, acknowledge the concern, explain the next action and agree on a follow-up time.',
+    followUps: ['How would you respond if the client demanded an immediate guarantee?', 'When should a complaint be escalated to a manager?'],
+  }];
 
 export const EXPANDED_LESSON_BANK: GradeCefrLessonUnit[] = seeds.map(build);
 export const ALL_GRADE_CEFR_LESSONS: GradeCefrLessonUnit[] = [...EXPANDED_LESSON_BANK];
