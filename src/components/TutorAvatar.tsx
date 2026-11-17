@@ -35,10 +35,11 @@ export default function TutorAvatar({
   const listening = state === 'listening' || state === 'connected';
   const audioLevel = speaking ? outputLevel : listening ? inputLevel : 0;
   const mouthScale = speaking ? Math.max(0.16, Math.min(1.45, 0.2 + outputLevel * 3.4)) : 0.18;
+  const expressionClass = speaking ? 'expression-speaking' : listening ? 'expression-listening' : state === 'thinking' ? 'expression-thinking' : 'expression-idle';
 
   return (
     <div className="flex shrink-0 flex-col items-center gap-2" aria-label={name + ': ' + statusText[state]}>
-      <div className={'tutor-portrait-shell tutor-portrait-' + state} data-state={state}>
+      <div className={'tutor-portrait-shell tutor-portrait-' + state + ' ' + expressionClass} data-state={state}>
         <div className="tutor-portrait-photo-wrap">
           <img
             src={tutorPortrait}
@@ -63,7 +64,8 @@ export default function TutorAvatar({
         )}
         <span className="tutor-portrait-status-dot" aria-hidden="true" />
       </div>
-      <span className="max-w-[150px] truncate text-[11px] font-bold text-slate-200">{name}</span>
+      <span className="max-w-[180px] truncate text-sm font-extrabold tracking-wide text-white">{name}</span>
+      <span className="text-[9px] font-semibold uppercase tracking-[.2em] text-slate-400">AI Speaking Buddy</span>
       <span className={'rounded-full px-2.5 py-1 text-[9px] font-extrabold uppercase tracking-wider ' +
         (speaking ? 'bg-teal-400/15 text-teal-200' :
           listening ? 'bg-emerald-400/15 text-emerald-200' :
