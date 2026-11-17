@@ -1034,7 +1034,7 @@ export const ConversationRoomView: React.FC = () => {
           {/* Human-style tutor portrait with real input/output audio-reactive motion */}
           <div className="flex items-center gap-4">
             <TutorAvatar
-              name={activePersona.name}
+              name="Lina"
               state={liveModeStatus !== 'off'
                 ? liveModeStatus
                 : isAiSpeaking ? 'speaking'
@@ -1050,7 +1050,7 @@ export const ConversationRoomView: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold uppercase tracking-wider text-teal-400">
                   {isAiSpeaking
-                    ? `${activePersona.name} is Speaking...`
+                    ? 'Lina is Speaking...'
                     : isRecording
                     ? 'Listening to You...'
                     : isAiResponding
@@ -1063,16 +1063,16 @@ export const ConversationRoomView: React.FC = () => {
                   </span>
                 )}
               </div>
-              <h3 className="text-lg font-extrabold mt-0.5">{activePersona.name}</h3>
+              <h3 className="text-lg font-extrabold mt-0.5">Lina <span className="text-xs font-semibold text-slate-400">· {activePersona.badge}</span></h3>
               {isAiSpeaking && aiCaption && (
                 <p aria-live="off" className="mt-1 max-w-xl text-[11px] leading-relaxed text-teal-100 line-clamp-2">{aiCaption}</p>
               )}
               <p className="text-xs text-slate-400">
                 {isRecording
-                  ? 'Speak naturally at standard cadence'
+                  ? 'I’m listening. Finish your thought naturally; I’ll wait for your pause.'
                   : isAiSpeaking
-                  ? (liveModeStatus !== 'off' ? 'Speak naturally to interrupt the AI' : 'Tap "Interrupt" or start speaking to cut in')
-                  : 'Tap the microphone or say something to begin'}
+                  ? (liveModeStatus !== 'off' ? 'You can interrupt Lina naturally at any time' : 'Tap "Interrupt" or start speaking to cut in')
+                  : 'Talk to Lina naturally — ask a question or tell her about your day'}
               </p>
             </div>
           </div>
