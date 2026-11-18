@@ -345,7 +345,14 @@ export default function BenEnglishExperience() {
         userLevel: ['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2',
         occupation: isSchool ? learner.grade : learner.role,
         grade: learner.grade,
-        learnerMemory: { priorities: [learner.goal], recentSessionNotes: learnerMemory.lastFocus ? ['Recent learning focus: ' + learnerMemory.lastFocus] : [], recurringErrors: learnerMemory.recurringErrors },
+        learnerMemory: {
+          priorities: [learner.goal],
+          recentSessionNotes: [
+            ...(learnerMemory.lastFocus ? ['Recent learning focus: ' + learnerMemory.lastFocus] : []),
+            ...(activeCurriculum ? [`Current lesson: ${activeCurriculum.title} (${activeCurriculum.theme}), level ${activeCurriculum.level}.`, `Speaking objective: ${activeCurriculum.speaking.prompt}`, `Useful lesson vocabulary: ${activeCurriculum.vocabulary.slice(0, 5).map(item => `${item.word} = ${item.meaningVi}`).join('; ')}`] : []),
+          ],
+          recurringErrors: learnerMemory.recurringErrors,
+        },
       });
       setMessages(prev => [...prev, {
         role: 'coach',
