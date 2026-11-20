@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { IELTS_LISTENING_MOCK_01, IELTSPart, IELTSQuestion } from '../data/ieltsListeningMockTest';
-import { Headphones, Play, Pause, RotateCcw, CheckCircle2, Clock3, Mic, BookOpen, Volume2, Lock, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Headphones, Play, Pause, RotateCcw, CheckCircle2, Clock3, Mic, BookOpen, Volume2, Lock, ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 
 type Mode = 'home' | 'track_lesson' | 'test' | 'result' | 'review' | 'adaptive' | 'shadow' | 'dictation';
 type SavedTest = { id: string; date: string; correct: number; total: number; band: number; partScores: number[]; answers: Record<number,string> };
@@ -11,10 +11,76 @@ const bandFor = (score: number) => score >= 39 ? 9 : score >= 37 ? 8.5 : score >
 const normalise = (value: string) => value.toLowerCase().trim().replace(/&/g, 'and').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ');
 const acceptedAnswers = (q: IELTSQuestion) => [q.answer, ...(q.accepted || [])].map(normalise);
 
+const LISTENING_SOURCES = [
+  { id:'bc', name:'British Council LearnEnglish', kind:'Graded listening', levels:'A1–C1', description:'Free recorded listening activities with speakers from different countries and comprehension exercises.', url:'https://learnenglish.britishcouncil.org/free-resources/listening', tracks:['high_school','professional'] },
+  { id:'voa', name:'VOA Learning English', kind:'Audio & video', levels:'A1–B2', description:'Human-presented news and learning programmes, often with transcripts and a slower delivery pace.', url:'https://learningenglish.voanews.com/', tracks:['high_school','professional'] },
+  { id:'elllo', name:'ELLLO', kind:'Real conversations', levels:'A1–C1', description:'Conversations with speakers from many countries, with audio, transcripts and quizzes.', url:'https://elllo.org/', tracks:['high_school','professional'] },
+  { id:'bbc', name:'BBC Learning English', kind:'Lessons & podcasts', levels:'A2–C1', description:'British English videos, interviews and short listening programmes.', url:'https://www.bbc.co.uk/learningenglish', tracks:['high_school','professional'] },
+  { id:'esllab', name:'Randall’s ESL Cyber Listening Lab', kind:'Listening quizzes', levels:'A1–C1', description:'Recorded everyday and academic conversations with comprehension questions.', url:'https://www.esl-lab.com/', tracks:['high_school','professional'] },
+  { id:'ted', name:'TED Talks', kind:'Talks & presentations', levels:'B1–C2', description:'Real speakers on science, education, technology and business; many talks provide transcripts.', url:'https://www.ted.com/talks', tracks:['high_school','professional'] },
+  { id:'bep', name:'Business English Pod', kind:'Workplace English', levels:'B1–C1', description:'Meetings, presentations, negotiations and workplace conversations; check each lesson for free access.', url:'https://www.businessenglishpod.com/', tracks:['professional'] },
+  { id:'bbc-youtube', name:'BBC Learning English · YouTube', kind:'Video channel', levels:'A2–C1', description:'Teacher-led videos and natural examples with YouTube captions.', url:'https://www.youtube.com/@bbclearningenglish', tracks:['high_school','professional'] },
+  { id:'voa-youtube', name:'VOA Learning English · YouTube', kind:'Video channel', levels:'A1–B2', description:'Human-presented English learning videos, news and everyday topics.', url:'https://www.youtube.com/@voalearningenglish', tracks:['high_school','professional'] },
+];
+
+const LISTENING_PATHWAYS = [
+  { id:'hs-missing-class', track:'high_school', level:'A2', title:'Missing a class', focus:'Hội thoại học sinh xin phép nghỉ học, bài tập và lịch kiểm tra', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2/missing-class', goal:'Nghe thông tin cụ thể: ngày nghỉ, bài cần làm và hạn nộp.' },
+  { id:'hs-assignment', track:'high_school', level:'A2', title:'Instructions for an assignment', focus:'Nghe giáo viên hướng dẫn bài luận, deadline và yêu cầu trình bày', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2/instructions-assignment', goal:'Bắt từ khóa về yêu cầu, con số, ngày tháng và trình tự.' },
+  { id:'hs-facts', track:'high_school', level:'A2', title:'Facts and figures', focus:'Bài giảng ngắn về kênh đào Panama, địa lý và thương mại', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2/facts-figures', goal:'Nghe số liệu, mốc thời gian và ý chính của bài thuyết trình.' },
+  { id:'hs-teens', track:'high_school', level:'A1–C1', title:'LearnEnglish Teens · Listening library', focus:'Kho bài nghe theo cấp độ dành cho học sinh, có chủ đề học tập và đời sống', provider:'British Council · LearnEnglish Teens', url:'https://learnenglishteens.britishcouncil.org/skills/listening', goal:'Chọn bài đúng trình độ CEFR và luyện nghe theo mục tiêu học đường.' },
+  { id:'pro-meeting', track:'professional', level:'A2', title:'Changing a meeting time', focus:'Hai đồng nghiệp đổi lịch họp, xác nhận thời gian và agenda', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/a2/changing-meeting-time', goal:'Nghe giờ giấc, đề xuất thay đổi và hành động xác nhận.' },
+  { id:'pro-customer', track:'professional', level:'B1', title:'A phone call from a customer', focus:'Cuộc gọi khách hàng về hóa đơn, điều khoản thanh toán và gia hạn', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/b1/phone-call-customer', goal:'Nhận diện vấn đề, đề nghị, phản hồi và thỏa thuận cuối cùng.' },
+  { id:'pro-team', track:'professional', level:'B1', title:'A team meeting about diversity', focus:'Cuộc họp nhóm về đa dạng, hòa nhập và kế hoạch hành động', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/b1/team-meeting-about-diversity', goal:'Theo dõi ý kiến, lý do và phân công nhiệm vụ trong cuộc họp.' },
+  { id:'pro-decision', track:'professional', level:'B1', title:'Making a decision', focus:'Đồng nghiệp thảo luận timeline và cách triển khai dự án', provider:'British Council · LearnEnglish', url:'https://learnenglish.britishcouncil.org/free-resources/listening/b1/making-decision', goal:'Nghe quan điểm trái chiều, lý do và quyết định chung.' },
+];
+
+const ListeningSourceHub: React.FC<{track:'high_school'|'professional'; onSelect:(item: typeof LISTENING_PATHWAYS[number])=>void; completedIds:string[]}> = ({track,onSelect,completedIds}) => {
+  const [videoUrl,setVideoUrl] = useState(''); const [embedUrl,setEmbedUrl] = useState(''); const [error,setError] = useState('');
+  const school = track === 'high_school';
+  const sources = LISTENING_SOURCES.filter(source => source.tracks.includes(track));
+  const pathways = LISTENING_PATHWAYS.filter(item => item.track === track);
+  const loadVideo = (event: React.FormEvent) => {
+    event.preventDefault();
+    try { const url = new URL(videoUrl.trim()); const host = url.hostname.toLowerCase().replace('www.',''); let id = '';
+      if (host === 'youtu.be') id = url.pathname.split('/').filter(Boolean)[0] || '';
+      if (['youtube.com','m.youtube.com','youtube-nocookie.com'].includes(host)) { if (url.pathname === '/watch') id = url.searchParams.get('v') || ''; else if (url.pathname.startsWith('/embed/') || url.pathname.startsWith('/shorts/')) id = url.pathname.split('/')[2] || ''; }
+      if (!/^[a-zA-Z0-9_-]{11}$/.test(id)) throw new Error('invalid');
+      setEmbedUrl('https://www.youtube-nocookie.com/embed/' + id); setError('');
+    } catch { setEmbedUrl(''); setError('Link YouTube chưa hợp lệ hoặc video không cho phép nhúng.'); }
+  };
+  return <section className={'mb-6 rounded-3xl border bg-white p-5 md:p-7 ' + (school?'border-sky-200':'border-violet-200')}>
+    <div className='flex flex-wrap items-start justify-between gap-3'><div><div className={'text-xs font-extrabold tracking-widest ' + (school?'text-sky-700':'text-violet-700')}>AUTHENTIC LISTENING · REAL SPEAKERS</div>
+      <h2 className='mt-1 text-2xl font-extrabold text-slate-900'>Nghe tiếng Anh từ nguồn thật</h2>
+      <p className='mt-2 max-w-3xl text-sm leading-6 text-slate-600'>Audio và video được phát từ website hoặc kênh gốc — không dùng giọng đọc AI/TTS của BenEnglish. Chọn nguồn theo trình độ, nghe giọng người thật và mở transcript/phụ đề tại nguồn.</p></div>
+      <span className={'rounded-full px-3 py-1 text-xs font-bold ' + (school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{school?'HIGH SCHOOL':'PROFESSIONAL'}</span></div>
+    <div className='mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>{sources.map(source => <a key={source.id} href={source.url} target='_blank' rel='noreferrer' className='rounded-2xl border border-slate-200 p-4 transition hover:border-slate-400 hover:shadow-sm'>
+      <div className='flex items-center justify-between gap-2'><span className='text-sm font-bold text-slate-900'>{source.name}</span><ExternalLink size={15} className='shrink-0 text-slate-400'/></div>
+      <div className={'mt-2 text-[10px] font-extrabold uppercase tracking-wider ' + (school?'text-sky-700':'text-violet-700')}>{source.kind} · {source.levels}</div><p className='mt-2 text-xs leading-5 text-slate-600'>{source.description}</p></a>)}</div>
+    <div className='mt-6'>
+      <div className='flex flex-wrap items-end justify-between gap-2'><div><h3 className='text-lg font-extrabold text-slate-900'>Lộ trình nghe gợi ý</h3><p className='mt-1 text-xs text-slate-500'>Các trang bài nghe thật đã phân cấp; mở bài tại website gốc để nghe recording, xem transcript và làm bài tập của nhà xuất bản.</p></div><span className={'rounded-full px-3 py-1 text-xs font-bold '+(school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{school?'School-focused':'Work-focused'}</span></div>
+      <div className='mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3'>{pathways.map(item=><button type='button' key={item.id} onClick={()=>onSelect(item)} className='w-full text-left rounded-2xl border border-slate-200 p-4 hover:border-slate-400 hover:shadow-sm'>
+        <div className='flex items-center justify-between gap-2'><span className={'rounded-lg px-2 py-1 text-[10px] font-extrabold '+(school?'bg-sky-50 text-sky-800':'bg-violet-50 text-violet-800')}>{item.level}</span><ExternalLink size={14} className='text-slate-400'/></div>
+        <h4 className='mt-3 text-sm font-bold text-slate-900'>{item.title}</h4><p className='mt-1 text-xs leading-5 text-slate-600'>{item.focus}</p>
+        <p className='mt-3 text-[11px] font-semibold text-slate-500'>{item.provider}</p><p className='mt-2 text-xs leading-5 text-slate-600'><span className='font-bold'>Mục tiêu:</span> {item.goal}</p><span className='mt-3 inline-flex items-center gap-1 text-xs font-bold text-slate-700'>{completedIds.includes(item.id)?'Đã hoàn thành · Xem lại lộ trình':'Mở hướng dẫn luyện nghe'} <ArrowRight size={13}/></span>
+      </button>)}</div>
+    </div>
+    <div className='mt-6 rounded-2xl bg-slate-50 p-4 md:p-5'><div className='flex items-center gap-2'><Play size={17}/><h3 className='font-bold text-slate-900'>Phát video YouTube ngay trong Listening</h3></div>
+      <p className='mt-1 text-xs text-slate-500'>Dán link video bạn chọn. BenEnglish chỉ nhúng trình phát chính thức, không tải hoặc lưu video.</p>
+      <form onSubmit={loadVideo} className='mt-3 flex flex-col gap-2 sm:flex-row'><input value={videoUrl} onChange={e=>setVideoUrl(e.target.value)} placeholder='https://www.youtube.com/watch?v=...' className='min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm'/><button className={'rounded-xl px-5 py-3 text-sm font-bold text-white ' + (school?'bg-sky-700':'bg-violet-700')}>Load video</button></form>
+      {error&&<p role='alert' className='mt-2 text-xs text-rose-600'>{error}</p>}{embedUrl&&<div className='mt-4 aspect-video max-w-4xl overflow-hidden rounded-2xl bg-black'><iframe src={embedUrl} title='Authentic English listening video from YouTube' className='h-full w-full' allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share' referrerPolicy='strict-origin-when-cross-origin' allowFullScreen/></div>}</div>
+    <p className='mt-4 text-[11px] leading-5 text-slate-500'>Nội dung vẫn thuộc chủ sở hữu nguồn. App chỉ liên kết hoặc nhúng theo cơ chế chính thức; không sao chép audio, transcript hay phụ đề nếu chưa có quyền. Miễn phí truy cập không đồng nghĩa được phép tái phân phối.</p>
+  </section>;
+};
+
 export const ListeningLabView: React.FC = () => {
   const { user, allListeningLessons, recordListeningPlay, recordComprehensionAttempt, addListeningSeconds } = useApp();
   const storageKey = `benenglish_ielts_listening_${STORAGE_VERSION}_${(user.email || 'guest').toLowerCase()}`;
   const [mode, setMode] = useState<Mode>('home');
+  const externalProgressKey = `benenglish_external_listening_v1_${(user.email || 'guest').toLowerCase()}`;
+  const [externalLesson, setExternalLesson] = useState<typeof LISTENING_PATHWAYS[number] | null>(null);
+  const [externalSteps, setExternalSteps] = useState<boolean[]>([false,false,false,false]);
+  const [externalCompletedIds, setExternalCompletedIds] = useState<string[]>(() => { try { return JSON.parse(localStorage.getItem(externalProgressKey) || '[]'); } catch { return []; } });
+  const selectExternalLesson = (item: typeof LISTENING_PATHWAYS[number]) => { setExternalLesson(item); setExternalSteps([false,false,false,false]); };
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [lessonAnswers, setLessonAnswers] = useState<Record<number,string>>({});
   const [lessonSubmitted, setLessonSubmitted] = useState(false);
@@ -70,20 +136,8 @@ export const ListeningLabView: React.FC = () => {
     setTests(nextTests); setShadows(nextShadows);
     localStorage.setItem(storageKey, JSON.stringify({ tests: nextTests, shadows: nextShadows }));
   };
-  const speak = (text: string, rate = 1) => {
-    if (!('speechSynthesis' in window)) { setShadowMessage('Trình duyệt này chưa hỗ trợ đọc văn bản.'); return; }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-GB'; utterance.rate = rate;
-    if (mode === 'shadow') {
-      setActiveTranscriptWord(-1);
-      utterance.onboundary = (event) => {
-        const wordIndex = transcriptWords.findIndex(word => event.charIndex >= word.start && event.charIndex < word.end);
-        if (wordIndex >= 0) setActiveTranscriptWord(wordIndex);
-      };
-      utterance.onend = () => setActiveTranscriptWord(-1);
-    }
-    window.speechSynthesis.speak(utterance);
+  const speak = (_text: string, _rate = 1) => {
+    setShadowMessage('BenEnglish không tạo giọng đọc tổng hợp. Hãy chọn một recording người thật trong thư viện Authentic Listening phía trên; transcript nội bộ chỉ dùng để ôn tập văn bản.');
   };
   const openTrackLesson = (lessonId: string) => {
     setSelectedLessonId(lessonId);
@@ -93,19 +147,8 @@ export const ListeningLabView: React.FC = () => {
     recordListeningPlay(lessonId, 0);
   };
   const playTrackLesson = () => {
-    if (!selectedLesson || !('speechSynthesis' in window)) return;
-    window.speechSynthesis.cancel();
-    const startedAt = Date.now();
-    const utterance = new SpeechSynthesisUtterance(selectedLesson.audioSampleText);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.92;
-    utterance.onend = () => {
-      addListeningSeconds(Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
-      setIsTrackAudioPlaying(false);
-    };
-    utterance.onerror = () => setIsTrackAudioPlaying(false);
-    setIsTrackAudioPlaying(true);
-    window.speechSynthesis.speak(utterance);
+    setIsTrackAudioPlaying(false);
+    setShadowMessage('Bài học mẫu này hiện chỉ có transcript, chưa có recording người thật được cấp phép. Hãy chọn nguồn audio/video thật ở thư viện phía trên.');
   };
   const submitTrackLesson = () => {
     if (!selectedLesson || lessonSubmitted) return;
@@ -118,10 +161,8 @@ export const ListeningLabView: React.FC = () => {
     setAnswers({}); setPlayed([]); setSubmitted(false); setSecondsLeft(30 * 60); setActivePart(1); setMode('test');
   };
   const playPart = (partId: number) => {
-    if (played.includes(partId)) return;
-    const selected = parts[partId - 1];
-    setPlayed(current => [...current, partId]);
-    speak(selected.transcript, 0.94);
+    setShadowMessage('Bản mock IELTS này chưa có file recording người thật; không phát giọng tổng hợp và không tính là đã nghe. Hãy dùng nguồn Authentic Listening phía trên để luyện nghe thật.');
+    setPlayed(current => current.filter(id => id !== partId));
   };
   const submitTest = () => {
     window.speechSynthesis?.cancel();
@@ -184,7 +225,17 @@ export const ListeningLabView: React.FC = () => {
   const transcriptSegments = shadow.transcript.split(/(\s+)/);
   let transcriptWordIndex = 0;
 
+  const completeExternalLesson = () => { if (!externalLesson || !externalSteps.every(Boolean)) return; const next = Array.from(new Set([...externalCompletedIds, externalLesson.id])); setExternalCompletedIds(next); localStorage.setItem(externalProgressKey, JSON.stringify(next)); };
+
   return <div className="space-y-6 pb-12">
+    <ListeningSourceHub track={user.track} onSelect={selectExternalLesson} completedIds={externalCompletedIds} />
+    {externalLesson && <section className={`rounded-3xl border p-5 md:p-7 ${user.track === 'high_school' ? 'border-sky-200 bg-sky-50/60' : 'border-violet-200 bg-violet-50/60'}`}>
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><div className={`text-xs font-extrabold tracking-widest ${user.track === 'high_school' ? 'text-sky-700' : 'text-violet-700'}`}>GUIDED AUTHENTIC LISTENING · {externalLesson.level}</div><h2 className="mt-1 text-xl font-extrabold text-slate-900">{externalLesson.title}</h2><p className="mt-1 text-sm text-slate-600">{externalLesson.focus}</p></div><button type="button" onClick={()=>setExternalLesson(null)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold">Đóng hướng dẫn</button></div>
+      <div className="mt-4 rounded-2xl bg-white p-4"><p className="text-sm font-bold text-slate-900">Mục tiêu buổi nghe</p><p className="mt-1 text-sm text-slate-600">{externalLesson.goal}</p><p className="mt-2 text-xs text-slate-500">Nguồn: {externalLesson.provider}. Audio, transcript và câu hỏi thuộc trang gốc; BenEnglish không tự tạo đáp án hay điểm số cho recording bên ngoài.</p><a href={externalLesson.url} target="_blank" rel="noreferrer" className={`mt-3 inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white ${user.track === 'high_school' ? 'bg-sky-700' : 'bg-violet-700'}`}>Mở recording và bài tập gốc <ExternalLink size={15}/></a></div>
+      <div className="mt-4 grid gap-2 sm:grid-cols-2">{['Lượt 1: Nghe toàn bài, chưa xem transcript; ghi lại chủ đề và ý chính.','Lượt 2: Nghe lại, ghi chú từ khóa, con số, tên riêng và thông tin quan trọng.','Làm bài tập comprehension trên website gốc; kiểm tra đáp án tại nguồn.','Xem transcript sau khi làm bài; ghi lại cách phát âm và cụm từ mới.'].map((step,index)=><label key={index} className="flex cursor-pointer items-start gap-3 rounded-xl border border-white bg-white p-3 text-sm text-slate-700"><input type="checkbox" checked={externalSteps[index]} onChange={event=>setExternalSteps(current=>current.map((value,i)=>i===index?event.target.checked:value))} className="mt-0.5 h-4 w-4 rounded"/><span>{step}</span></label>)}</div>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><span className="text-xs text-slate-600">Đã hoàn thành {externalSteps.filter(Boolean).length}/4 bước · {externalCompletedIds.includes(externalLesson.id)?'Đã lưu hoàn thành':'Chưa đánh dấu hoàn thành'}</span><button type="button" onClick={completeExternalLesson} disabled={!externalSteps.every(Boolean)} className={`rounded-xl px-4 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-40 ${user.track === 'high_school' ? 'bg-sky-700' : 'bg-violet-700'}`}>{externalCompletedIds.includes(externalLesson.id)?'Đã hoàn thành':'Đánh dấu hoàn thành'}</button></div>
+      <p className="mt-2 text-[11px] text-slate-500">Trạng thái hoàn thành của các bài nghe nguồn ngoài được lưu riêng theo tài khoản trên thiết bị này; không thay đổi điểm IELTS, lịch sử Listening cũ hoặc XP.</p>
+    </section>}
     <section className={`rounded-3xl bg-gradient-to-br ${user.track === 'high_school' ? 'from-sky-950 via-blue-900 to-cyan-950' : 'from-violet-950 via-purple-900 to-indigo-950'} p-7 md:p-9 text-white shadow-lg`}>
       <div className={`flex items-center gap-2 ${user.track === 'high_school' ? 'text-sky-300' : 'text-violet-300'} text-xs font-bold tracking-[.18em] uppercase`}><Headphones size={16}/> BenEnglish AI · {user.track === 'high_school' ? 'School Listening Studio' : 'Professional Listening Studio'}</div>
       <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-5">
