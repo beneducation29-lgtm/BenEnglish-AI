@@ -216,10 +216,21 @@ Conversation requirements:
       },
     });
   } catch (error: any) {
-    const transient = isTransientModelError(error);
-    console.error('BenEnglish conversation function failed:', error?.message || error);
+    const message = String(error?.message || error || '');
+    const billingBlocked = /PERMISSION_DENIED|free tier is not available|project-unavailable|enable billing|billing to upgrade/i.test(message);
+    const transient = !billingBlocked && isTransientModelError(error);
+    console.error('BenEnglish conversation function failed:', message);
+    if (billingBlocked) {
+      return res.status(403).json({
+        success: false,
+        code: 'GEMINI_BILLING_REQUIRED',
+        retryable: false,
+        error: 'Gemini is rejecting requests for this Google project (HTTP 403). The Gemini API free tier is unavailable for this project. Enable billing for the Google AI Studio project used by GEMINI_API_KEY, or configure another supported AI provider. Retrying will not work until provider access is restored. Your message has been preserved.',
+      });
+    }
     return res.status(transient ? 503 : 502).json({
       success: false,
+      code: transient ? 'AI_TEMPORARILY_UNAVAILABLE' : 'AI_PROVIDER_ERROR',
       error: transient
         ? 'The AI tutor is temporarily busy. Please try sending your message again in a moment.'
         : error?.message || 'The AI tutor could not respond right now. Please try again.',
