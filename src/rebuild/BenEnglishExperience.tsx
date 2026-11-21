@@ -59,6 +59,7 @@ export default function BenEnglishExperience() {
   const [section, setSection] = useState<Section>('today');
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [message, setMessage] = useState('');
+  const [suggestedReplies, setSuggestedReplies] = useState<string[]>([]);
   const [messages, setMessages] = useState<{ role: 'coach' | 'learner'; text: string; correction?: { original: string; improved: string; explanation: string; vietnameseTip: string } }[]>([]);
   const [isTutorLoading, setIsTutorLoading] = useState(false);
   const [tutorError, setTutorError] = useState('');
@@ -72,6 +73,7 @@ export default function BenEnglishExperience() {
   const [liveTranscript, setLiveTranscript] = useState('');
   const [voiceInputNotice, setVoiceInputNotice] = useState('');
   const recognitionRef = useRef<any>(null);
+  const voiceSessionRef = useRef(0);
   const finalTranscriptRef = useRef('');
   const submitVoiceOnEndRef = useRef(false);
   const [failedTutorMessage, setFailedTutorMessage] = useState('');
@@ -191,6 +193,14 @@ export default function BenEnglishExperience() {
   const completedSkillCount = Object.values(skillProgress).reduce((total, skills) => total + skills.length, 0);
   const practisedUnitCount = Object.values(skillProgress).filter(skills => skills.length > 0).length;
   const nextLessonPlan = recommendNextLesson(curriculumUnits, assessmentHistory, learner.level, activeCurriculum?.id);
+  // Session intelligence is based only on visible learner turns and explicit tutor corrections;
+  // it is a practice snapshot, not a CEFR score or an automated judgement of ability.
+  const learnerTurns = messages.filter(turn => turn.role === 'learner');
+  const coachTurns = messages.filter(turn => turn.role === 'coach');
+  const learnerWordCount = learnerTurns.reduce((total, turn) => total + turn.text.trim().split(/\\s+/).filter(Boolean).length, 0);
+  const learnerQuestionCount = learnerTurns.filter(turn => turn.text.includes('?')).length;
+  const correctionCount = coachTurns.filter(turn => Boolean(turn.correction)).length;
+  const latestCorrection = [...coachTurns].reverse().find(turn => turn.correction)?.correction;
 
   useEffect(() => { localStorage.setItem('benenglish-v2-profile', JSON.stringify(learner)); }, [learner]);
   useEffect(() => { saveLearnerMemory(learnerMemory); }, [learnerMemory]);
@@ -250,9 +260,22 @@ export default function BenEnglishExperience() {
     setSpeechNotice(''); window.speechSynthesis.speak(utterance);
   };
   const stopLearnerRecording = (submit: boolean) => {
-    if (!recognitionRef.current) return;
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
     submitVoiceOnEndRef.current = submit;
-    try { recognitionRef.current.stop(); } catch { setIsListeningLearner(false); }
+    try {
+      recognition.stop();
+    } catch {
+      // Preserve anything recognised if the browser cannot complete its stop event.
+      const transcript = finalTranscriptRef.current.trim();
+      if (transcript) setMessage(transcript);
+      setIsListeningLearner(false);
+      recognitionRef.current = null;
+      submitVoiceOnEndRef.current = false;
+      setVoiceInputNotice(transcript
+        ? 'Recording stopped unexpectedly. Your recognised words are saved in the text box for review.'
+        : 'The microphone could not stop cleanly. Please try again or type your answer.');
+    }
   };
   const startLearnerRecording = () => {
     const speechWindow = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
@@ -268,21 +291,28 @@ export default function BenEnglishExperience() {
     finalTranscriptRef.current = '';
     submitVoiceOnEndRef.current = false;
     const recognition = new Recognition();
+    const sessionId = ++voiceSessionRef.current;
     recognition.lang = 'en-US';
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event: any) => {
+      if (sessionId !== voiceSessionRef.current) return;
       let interim = '';
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         const result = event.results[index];
-        const transcript = result[0]?.transcript || '';
-        if (result.isFinal) finalTranscriptRef.current += (finalTranscriptRef.current ? ' ' : '') + transcript.trim();
-        else interim += transcript;
+        const transcript = String(result[0]?.transcript || '').trim();
+        if (!transcript) continue;
+        if (result.isFinal) {
+          finalTranscriptRef.current = [finalTranscriptRef.current, transcript].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
+        } else {
+          interim = [interim, transcript].filter(Boolean).join(' ');
+        }
       }
       setLiveTranscript([finalTranscriptRef.current, interim].filter(Boolean).join(' ').trim());
     };
     recognition.onerror = (event: any) => {
+      if (sessionId !== voiceSessionRef.current) return;
       submitVoiceOnEndRef.current = false;
       setVoiceInputNotice(event.error === 'not-allowed' || event.error === 'service-not-allowed'
         ? 'Microphone permission is blocked. Allow microphone access in your browser settings and try again.'
@@ -291,6 +321,7 @@ export default function BenEnglishExperience() {
           : 'Voice recognition stopped unexpectedly. Your recognised words are kept in the text box.');
     };
     recognition.onend = () => {
+      if (sessionId !== voiceSessionRef.current) return;
       setIsListeningLearner(false);
       recognitionRef.current = null;
       const transcript = finalTranscriptRef.current.trim();
@@ -314,6 +345,7 @@ export default function BenEnglishExperience() {
       recognition.start();
       setIsListeningLearner(true);
     } catch {
+      if (sessionId === voiceSessionRef.current) voiceSessionRef.current += 1;
       recognitionRef.current = null;
       setIsListeningLearner(false);
       setVoiceInputNotice('The microphone could not start. Please check browser permission and try again.');
@@ -334,6 +366,7 @@ export default function BenEnglishExperience() {
       setMessage('');
     }
     setTutorError('');
+    setSuggestedReplies([]);
     setIsTutorLoading(true);
     try {
       const response = await sendConversationMessage({
@@ -345,13 +378,25 @@ export default function BenEnglishExperience() {
         userLevel: ['A1','A2','B1','B2','C1','C2'].includes(learner.level) ? learner.level : 'A2',
         occupation: isSchool ? learner.grade : learner.role,
         grade: learner.grade,
-        learnerMemory: { priorities: [learner.goal], recentSessionNotes: learnerMemory.lastFocus ? ['Recent learning focus: ' + learnerMemory.lastFocus] : [], recurringErrors: learnerMemory.recurringErrors },
+        learnerMemory: {
+          priorities: [learner.goal],
+          recentSessionNotes: [
+            ...(learnerMemory.lastFocus ? ['Recent learning focus: ' + learnerMemory.lastFocus] : []),
+            ...(activeCurriculum ? [`Current lesson: ${activeCurriculum.title} (${activeCurriculum.theme}), level ${activeCurriculum.level}.`, `Speaking objective: ${activeCurriculum.speaking.prompt}`, `Useful lesson vocabulary: ${activeCurriculum.vocabulary.slice(0, 5).map(item => `${item.word} = ${item.meaningVi}`).join('; ')}`] : []),
+          ],
+          recurringErrors: learnerMemory.recurringErrors,
+          masteredItems: learnerMemory.masteredItems,
+          recentPerformance: assessmentHistory.slice(-12).map(item =>
+            `${item.skill}: ${item.correct ? 'completed successfully' : 'needs more practice'}${item.topic ? ' · ' + item.topic : ''}`
+          ),
+        },
       });
       setMessages(prev => [...prev, {
         role: 'coach',
         text: response.replyText + (response.phoneticTip ? '\n\nPronunciation tip: ' + response.phoneticTip : ''),
         correction: response.correction?.hasMistake ? response.correction : undefined,
       }]);
+      setSuggestedReplies(Array.isArray(response.suggestedUserReplies) ? response.suggestedUserReplies.filter(item => typeof item === 'string' && item.trim()).slice(0, 2) : []);
       if (autoSpeakReplies) speakCoachText(response.replyText);
       setFailedTutorMessage('');
     } catch (error) {
@@ -459,19 +504,40 @@ export default function BenEnglishExperience() {
           <section className="mt-9"><div className="flex items-end justify-between"><div><p className={`text-xs font-extrabold tracking-[.18em] ${track.ink}`}>YOUR DAILY PLAN</p><h2 className="mt-2 text-2xl font-extrabold">A little practice goes a long way.</h2></div><span className="text-xs font-semibold text-slate-400">{learner.minutes} minutes</span></div><div className="mt-5 grid gap-3">{tasks.map((task,i)=><button key={task.label} onClick={() => setSection(task.section)} className="group flex items-center gap-4 rounded-3xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200/70 transition hover:-translate-y-0.5 hover:shadow-md sm:p-5"><div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ${track.soft} ${track.ink}`}><task.icon size={21}/></div><div className="min-w-0 flex-1"><div className="font-extrabold">{task.label}</div><div className="mt-1 text-xs text-slate-400">{task.detail}</div></div><span className="hidden text-xs font-bold text-slate-400 sm:block">{task.time}</span><ChevronRight className="text-slate-300 transition group-hover:translate-x-1" size={19}/></button>)}</div></section>
           <section className="mt-9 rounded-3xl border border-slate-200 bg-white p-6"><div className="flex items-center gap-2"><BookOpen className={track.ink} size={19}/><p className="text-xs font-extrabold tracking-[.16em] text-slate-400">YOUR PROGRAMME</p></div><h3 className="mt-3 text-xl font-extrabold">{track.name}</h3><p className="mt-2 text-sm text-slate-500">{track.today} — {track.goal}</p><div className="mt-5 flex flex-wrap gap-2">{track.subjects.map(s=><Pill key={s}>{s}</Pill>)}</div></section>
         </>}
-        {section === 'tutor' && <section className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200/70"><div className={`bg-gradient-to-r ${track.gradient} p-7 text-white sm:p-9`}><Pill active>AI SPEAKING STUDIO</Pill><h1 className="mt-5 text-3xl font-extrabold">Your conversation starts here.</h1><p className="mt-2 text-sm text-white/70">{track.coach} · {track.coachRole}</p></div>
-          <div className="border-b border-slate-100 bg-slate-50/70 p-5 sm:px-8">
-            <div className="text-xs font-extrabold tracking-[.16em] text-slate-400">CHOOSE A REAL-LIFE SITUATION</div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {section === 'tutor' && <section className="overflow-hidden rounded-[2rem] bg-white shadow-sm ring-1 ring-slate-200/70"><div className={`relative isolate overflow-hidden bg-gradient-to-br ${track.gradient} px-6 py-8 text-white sm:px-9 sm:py-10`}>
+            <div className="pointer-events-none absolute -right-20 -top-28 h-80 w-80 rounded-full border border-white/10"/>
+            <div className="pointer-events-none absolute -bottom-36 right-1/3 h-72 w-72 rounded-full bg-white/10 blur-3xl"/>
+            <div className="relative flex flex-col gap-7 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-xl">
+                <div className="flex flex-wrap items-center gap-2"><Pill active><AudioLines size={12} className="mr-1 inline"/> SPEAKING STUDIO</Pill><span className="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold text-white/80">CEFR {learner.level}</span><span className="rounded-full border border-emerald-300/30 bg-emerald-300/10 px-3 py-1 text-[11px] font-bold text-emerald-100">● Ready to practise</span></div>
+                <p className="mt-7 text-xs font-extrabold tracking-[.2em] text-white/55">YOUR PERSONAL ENGLISH SPACE</p>
+                <h1 className="mt-3 text-3xl font-extrabold leading-tight sm:text-4xl">Speak more.<br/><span className="text-cyan-200">Worry less.</span></h1>
+                <p className="mt-3 max-w-lg text-sm leading-6 text-white/70">A relaxed place to practise real conversations, build confidence and learn from every response.</p>
+                <div className="mt-6 flex flex-wrap items-center gap-3"><button type="button" onClick={()=>setMessage(isSchool ? "Hi Emma, I would like to practise speaking about school life." : "Hi Alex, I would like to practise a professional conversation.")} className="inline-flex items-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-extrabold text-slate-900 shadow-lg transition hover:-translate-y-0.5"><Mic2 size={16}/> Start talking</button><span className="text-xs text-white/55">with {track.coach} · {track.coachRole}</span></div>
+              </div>
+              <div className="relative mx-auto flex w-full max-w-xs items-center gap-4 rounded-[1.75rem] border border-white/15 bg-white/10 p-4 shadow-2xl backdrop-blur-md lg:mx-0">
+                <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-white/15 text-3xl shadow-inner">{isSchool ? '👩‍🏫' : '🧑‍💼'}</div>
+                <div className="min-w-0"><p className="text-[10px] font-extrabold tracking-[.16em] text-white/55">YOUR AI COACH</p><p className="mt-1 text-lg font-extrabold">{track.coach}</p><p className="mt-1 text-xs text-white/65">{track.coachRole}</p><div className="mt-2 flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-300"/><span className="text-[10px] font-semibold text-emerald-100">Personalised to your level</span></div></div>
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-3 bg-slate-950 p-5 sm:grid-cols-3 sm:px-8">
+            <button type="button" onClick={()=>document.getElementById('speaking-conversation')?.scrollIntoView({behavior:'smooth',block:'center'})} className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[.07] p-4 text-left text-white transition hover:border-cyan-300/40 hover:bg-white/[.12]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-cyan-300/15 text-cyan-200"><MessageCircle size={20}/></span><span className="min-w-0"><span className="block text-sm font-extrabold">AI conversation</span><span className="mt-1 block text-[11px] text-white/55">Chat naturally with your tutor</span></span><ArrowRight size={15} className="ml-auto text-white/35 transition group-hover:translate-x-1"/></button>
+            <button type="button" onClick={()=>{setMessage(isSchool ? 'Let us role-play a conversation at school. Please start by asking me a question.' : 'Let us role-play a professional workplace situation. Please start the conversation.');document.getElementById('speaking-conversation')?.scrollIntoView({behavior:'smooth',block:'center'});}} className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[.07] p-4 text-left text-white transition hover:border-violet-300/40 hover:bg-white/[.12]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-300/15 text-violet-200"><Target size={20}/></span><span className="min-w-0"><span className="block text-sm font-extrabold">Role-play scenarios</span><span className="mt-1 block text-[11px] text-white/55">Practise real-life situations</span></span><ArrowRight size={15} className="ml-auto text-white/35 transition group-hover:translate-x-1"/></button>
+            <button type="button" onClick={()=>document.getElementById('pronunciation-coach')?.scrollIntoView({behavior:'smooth',block:'start'})} className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[.07] p-4 text-left text-white transition hover:border-emerald-300/40 hover:bg-white/[.12]"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-emerald-300/15 text-emerald-200"><AudioLines size={20}/></span><span className="min-w-0"><span className="block text-sm font-extrabold">Pronunciation coach</span><span className="mt-1 block text-[11px] text-white/55">Record and refine your speech</span></span><ArrowRight size={15} className="ml-auto text-white/35 transition group-hover:translate-x-1"/></button>
+          </div>
+          <div className="border-b border-slate-100 bg-[#f8faff] p-5 sm:p-7 sm:px-8">
+            <div className="flex flex-wrap items-end justify-between gap-3"><div><p className={`text-[10px] font-extrabold tracking-[.2em] ${track.ink}`}>PICK UP WHERE YOU WANT</p><h2 className="mt-2 text-xl font-extrabold text-slate-900">What would you like to practise today?</h2></div><span className="text-xs font-medium text-slate-400">Choose a prompt to get started</span></div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               {(isSchool ? [
-                {title:'At school',desc:'Talk about a subject you enjoy.',prompt:'I enjoy studying science because…'},
-                {title:'Future plans',desc:'Explain what you want to do next.',prompt:'After I finish high school, I hope to…'},
-                {title:'Everyday opinion',desc:'Give a reason and one example.',prompt:'I think protecting the environment is important because…'}
+                {title:'School life',desc:'Talk about a subject you enjoy.',prompt:'I enjoy studying science because…',icon:BookOpen,tone:'sky'},
+                {title:'Future plans',desc:'Share your goals and ambitions.',prompt:'After I finish high school, I hope to…',icon:Target,tone:'violet'},
+                {title:'Give an opinion',desc:'Explain your view with an example.',prompt:'I think protecting the environment is important because…',icon:MessageCircle,tone:'amber'}
               ] : [
-                {title:'Project update',desc:'Progress, blocker and next step.',prompt:'The project is on track. We have completed…'},
-                {title:'Meeting request',desc:'Make a polite request.',prompt:'Could we move our meeting to…?'},
-                {title:'Interview answer',desc:'Describe a skill with an example.',prompt:'One strength I bring to this role is…'}
-              ]).map(s=><button key={s.title} onClick={()=>setMessage(s.prompt)} className="rounded-2xl border border-slate-200 bg-white p-3 text-left transition hover:border-slate-300"><div className="text-sm font-extrabold">{s.title}</div><p className="mt-1 text-xs leading-5 text-slate-500">{s.desc}</p><span className={`mt-2 inline-flex text-[11px] font-bold ${track.ink}`}>Use this starter →</span></button>)}
+                {title:'Project update',desc:'Progress, blockers and next steps.',prompt:'The project is on track. We have completed…',icon:TrendingUp,tone:'sky'},
+                {title:'Team meeting',desc:'Make a clear and polite request.',prompt:'Could we move our meeting to…?',icon:MessageCircle,tone:'violet'},
+                {title:'Job interview',desc:'Describe a strength with evidence.',prompt:'One strength I bring to this role is…',icon:BriefcaseBusiness,tone:'amber'}
+              ]).map((s,i)=>{const Icon=s.icon;return <button key={s.title} onClick={()=>setMessage(s.prompt)} className="group relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-indigo-200 hover:shadow-lg"><div className="flex items-start justify-between gap-3"><div className={`grid h-11 w-11 place-items-center rounded-2xl ${s.tone==='sky'?'bg-sky-50 text-sky-700':s.tone==='violet'?'bg-violet-50 text-violet-700':'bg-amber-50 text-amber-700'}`}><Icon size={20}/></div><span className="rounded-full bg-slate-50 px-2.5 py-1 text-[10px] font-bold text-slate-400">0{i+1}</span></div><div className="mt-4 text-sm font-extrabold text-slate-900">{s.title}</div><p className="mt-1 min-h-10 text-xs leading-5 text-slate-500">{s.desc}</p><span className={`mt-3 inline-flex items-center gap-1 text-[11px] font-extrabold ${track.ink}`}>Use this prompt <ArrowRight size={13} className="transition group-hover:translate-x-1"/></span></button>})}
             </div>
           </div>
           <div className="grid gap-6 p-5 sm:p-8 lg:grid-cols-[.8fr_1.2fr]"><div className="rounded-3xl bg-slate-50 p-6"><div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-white text-4xl shadow-sm">👩‍🏫</div><h2 className="mt-4 text-center text-xl font-extrabold">{track.coach}</h2><p className="mt-1 text-center text-xs text-slate-400">Personal AI English tutor</p><div className="mt-6 space-y-3 text-sm text-slate-600"><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Natural conversation practice</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Corrections after you speak</div><div className="flex items-center gap-2"><Check size={16} className="text-emerald-500"/> Practice matched to your level</div></div><div className="mt-6 rounded-2xl bg-white p-4">
@@ -486,7 +552,18 @@ export default function BenEnglishExperience() {
                 <input id="coach-speech-rate" aria-label="Speaking speed" type="range" min="0.7" max="1.15" step="0.05" value={speechRate} onChange={event => setSpeechRate(Number(event.target.value))} className="mt-2 w-full accent-indigo-600"/>
                 <p className="mt-3 text-[11px] leading-5 text-slate-400">Audio uses the English voices available on this device and browser. Voice quality and accents vary by device.</p>
                 {speechNotice && <p role="status" className="mt-2 text-xs text-amber-700">{speechNotice}</p>}
-              </div></div><div className="flex min-h-[390px] flex-col rounded-3xl border border-slate-200 p-4 sm:p-5"><div className="flex items-center justify-between border-b border-slate-100 pb-3"><div className="font-extrabold">Practice conversation</div><div className="flex items-center gap-2"><Pill>CEFR {learner.level}</Pill>{isSpeakingCoach && <button type="button" onClick={stopCoachSpeech} className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700"><VolumeX size={14}/> Stop</button>}</div></div><div className="flex-1 space-y-4 overflow-y-auto py-5">{messages.length === 0 && <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Hi{learner.name ? ` ${learner.name}` : ''}! I'm {track.coach}. Let's practise: <strong>{track.today.toLowerCase()}</strong>. What would you like to tell me about it?</div>}{messages.map((m,i)=><div key={i} className={`max-w-[90%] rounded-2xl p-4 text-sm leading-6 ${m.role === 'learner' ? 'ml-auto bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700'}`}><div className="whitespace-pre-wrap">{m.text}</div>{m.role === "coach" && <div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => isSpeakingCoach ? stopCoachSpeech() : speakCoachText(m.text)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-extrabold text-indigo-700 transition hover:bg-indigo-100"><Volume2 size={15}/>{isSpeakingCoach ? "Stop speaking" : "Listen to reply"}</button><span className="text-[10px] text-slate-400">English audio</span></div>}{m.correction && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><div className="font-extrabold">A useful correction</div><p className="mt-1 line-through opacity-70">{m.correction.original}</p><p className="font-bold">{m.correction.improved}</p><p className="mt-1">{m.correction.explanation}</p><p className="mt-1 text-amber-800">{m.correction.vietnameseTip}</p></div>}</div>)}</div>{isTutorLoading && <div className="mb-3 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-700">Teacher is reading your answer and preparing a response…</div>}{tutorError && <div role="alert" className="mb-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{tutorError}<button type="button" disabled={isTutorLoading} onClick={()=>sendMessage(failedTutorMessage)} className="ml-2 font-extrabold underline disabled:opacity-50">Retry</button></div>}<div className="mb-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+              </div></div><div id="speaking-conversation" className="flex min-h-[390px] flex-col rounded-3xl border border-slate-200 p-4 sm:p-5"><div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3"><div className={`grid h-11 w-11 place-items-center rounded-2xl ${isSchool?'bg-sky-100 text-sky-700':'bg-violet-100 text-violet-700'}`}>{isSchool?'👩‍🏫':'🧑‍💼'}</div><div><div className="font-extrabold text-slate-900">Live conversation</div><div className="mt-0.5 text-[11px] text-slate-500">{track.coach} · {track.coachRole}</div></div></div>
+              <div className="flex items-center gap-2"><Pill>CEFR {learner.level}</Pill><span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold ${isTutorLoading?'bg-amber-50 text-amber-700':isListeningLearner?'bg-rose-50 text-rose-700':'bg-emerald-50 text-emerald-700'}`}><span className={`h-1.5 w-1.5 rounded-full ${isTutorLoading?'bg-amber-500':isListeningLearner?'animate-pulse bg-rose-500':'bg-emerald-500'}`}/>{isTutorLoading?'Thinking':isListeningLearner?'Listening':'Ready'}</span>{isSpeakingCoach && <button type="button" onClick={stopCoachSpeech} className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700"><VolumeX size={14}/> Stop audio</button>}</div>
+            </div>{messages.length > 0 && <div className="grid grid-cols-2 gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:grid-cols-4 sm:px-5" aria-label="Live speaking session snapshot">
+              <div><div className="text-[9px] font-extrabold tracking-wider text-slate-400">YOUR TURNS</div><div className="mt-1 text-lg font-black text-slate-900">{learnerTurns.length}</div></div>
+              <div><div className="text-[9px] font-extrabold tracking-wider text-slate-400">WORDS SPOKEN / TYPED</div><div className="mt-1 text-lg font-black text-slate-900">{learnerWordCount}</div></div>
+              <div><div className="text-[9px] font-extrabold tracking-wider text-slate-400">QUESTIONS ASKED</div><div className="mt-1 text-lg font-black text-slate-900">{learnerQuestionCount}</div></div>
+              <div><div className="text-[9px] font-extrabold tracking-wider text-slate-400">COACH CORRECTIONS</div><div className="mt-1 text-lg font-black text-slate-900">{correctionCount}</div></div>
+              <div className="col-span-2 sm:col-span-4"><p className="text-[11px] leading-5 text-slate-600">{learnerTurns.length < 2 ? 'Keep the conversation going. Your snapshot updates from each message you send.' : latestCorrection ? 'Next step: reuse the corrected expression in a new sentence to help make it stick.' : 'Good momentum. Add a reason, example or comparison to develop your next answer.'}</p>
+                {latestCorrection && <button type="button" onClick={()=>setMessage('I will practise this improved expression: "' + latestCorrection.improved + '". Here is a new example: ')} className="mt-1 text-[11px] font-bold text-indigo-700 underline underline-offset-2">Practise your latest correction</button>}
+              </div>
+            </div>}<div className="flex-1 space-y-4 overflow-y-auto py-5">{messages.length === 0 && <div className="rounded-2xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">Hi{learner.name ? ` ${learner.name}` : ''}! I'm {track.coach}. Let's practise: <strong>{track.today.toLowerCase()}</strong>. What would you like to tell me about it?</div>}{messages.map((m,i)=><div key={i} className={`max-w-[90%] rounded-2xl p-4 text-sm leading-6 ${m.role === 'learner' ? 'ml-auto bg-indigo-600 text-white' : 'bg-slate-50 text-slate-700'}`}><div className="whitespace-pre-wrap">{m.text}</div>{m.role === "coach" && <div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => isSpeakingCoach ? stopCoachSpeech() : speakCoachText(m.text)} className="inline-flex items-center gap-2 rounded-xl bg-indigo-50 px-3 py-2 text-xs font-extrabold text-indigo-700 transition hover:bg-indigo-100"><Volume2 size={15}/>{isSpeakingCoach ? "Stop speaking" : "Listen to reply"}</button><span className="text-[10px] text-slate-400">English audio</span></div>}{m.correction && <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-950"><div className="font-extrabold">A useful correction</div><p className="mt-1 line-through opacity-70">{m.correction.original}</p><p className="font-bold">{m.correction.improved}</p><p className="mt-1">{m.correction.explanation}</p><p className="mt-1 text-amber-800">{m.correction.vietnameseTip}</p></div>}</div>)}</div>{isTutorLoading && <div role="status" aria-live="polite" className="mb-3 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/80 p-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-indigo-600"><AudioLines size={17}/></div><div className="min-w-0 flex-1"><p className="text-xs font-extrabold text-indigo-900">{track.coach} is thinking</p><p className="mt-0.5 text-[11px] text-indigo-700/75">Reading your message and preparing a helpful reply…</p></div><div className="flex items-center gap-1">{[0,1,2].map(n=><span key={n} className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-500" style={{animationDelay:`${n*140}ms`}}/>)}</div></div>}{tutorError && <div role="alert" className="mb-3 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">{tutorError}<button type="button" disabled={isTutorLoading} onClick={()=>sendMessage(failedTutorMessage)} className="ml-2 font-extrabold underline disabled:opacity-50">Retry</button></div>}<div className={`mb-3 rounded-2xl border p-3 transition-colors ${isListeningLearner?"border-rose-200 bg-rose-50/60":"border-slate-200 bg-slate-50"}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="text-xs font-extrabold text-slate-700">Speak to {track.coach}</div>
               {isListeningLearner
@@ -494,10 +571,11 @@ export default function BenEnglishExperience() {
                 : <button type="button" disabled={isTutorLoading} onClick={startLearnerRecording} className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-3 py-2 text-xs font-extrabold text-white disabled:opacity-40"><Mic2 size={14}/> Start speaking</button>}
               {isListeningLearner && <button type="button" onClick={() => stopLearnerRecording(false)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600">Stop & review</button>}
             </div>
-            {isListeningLearner && <p className="mt-2 text-xs font-semibold text-rose-700">Listening… Speak naturally. Your words will not be sent until you choose Finish & send.</p>}
-            {liveTranscript && <p aria-live="polite" className="mt-2 whitespace-pre-wrap text-xs leading-5 text-slate-600">{liveTranscript}</p>}
+            {isListeningLearner && <div className="mt-3 rounded-xl border border-rose-100 bg-white p-3"><div className="flex items-center justify-between gap-2"><span className="inline-flex items-center gap-2 text-xs font-extrabold text-rose-700"><span className="h-2 w-2 animate-pulse rounded-full bg-rose-500"/> LIVE VOICE INPUT</span><span className="text-[10px] font-medium text-slate-400">Not sent yet</span></div><div className="mt-3 flex h-9 items-center justify-center gap-1" aria-hidden="true">{Array.from({length:24},(_,i)=><span key={i} className="w-1 rounded-full bg-gradient-to-t from-rose-400 to-pink-300 animate-pulse" style={{height:`${8+(i*13%23)}px`,animationDelay:`${(i%8)*90}ms`}}/>)}</div><p className="mt-2 text-center text-[11px] text-slate-500">Speak at your natural pace. Finish when your sentence is complete.</p></div>}
+            {liveTranscript && <div aria-live="polite" className="mt-3 rounded-xl border border-slate-200 bg-white p-3"><div className="text-[10px] font-extrabold tracking-wider text-slate-400">RECOGNISED WORDS · REVIEW BEFORE SENDING</div><p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{liveTranscript}</p></div>}
             {voiceInputNotice && <p role="status" className="mt-2 text-xs leading-5 text-amber-700">{voiceInputNotice}</p>}
           </div>
+          {suggestedReplies.length > 0 && <div className="mb-3 rounded-2xl border border-indigo-100 bg-indigo-50/70 p-3"><div className="mb-2 flex items-center gap-2 text-[10px] font-extrabold tracking-wider text-indigo-700"><Sparkles size={13}/> TRY SAYING THIS NEXT</div><div className="flex flex-wrap gap-2">{suggestedReplies.map((reply,index)=><button key={`${index}-${reply}`} type="button" disabled={isTutorLoading} onClick={()=>setMessage(reply)} className="rounded-xl border border-indigo-100 bg-white px-3 py-2 text-left text-xs font-semibold leading-5 text-indigo-900 transition hover:border-indigo-300 hover:bg-indigo-100 disabled:opacity-50">{reply}</button>)}</div><p className="mt-2 text-[10px] text-indigo-700/70">Choose a prompt to edit or send in your own words.</p></div>}
           <div className="flex gap-2"><input value={message} onChange={e=>setMessage(e.target.value)} onKeyDown={e=>e.key==='Enter'&&!isTutorLoading&&sendMessage()} placeholder="Type or review your recognised words..." className="min-w-0 flex-1 rounded-2xl bg-slate-100 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-indigo-300"/><button disabled={isTutorLoading||!message.trim()} onClick={()=>sendMessage()} className="rounded-2xl bg-slate-950 px-4 text-sm font-bold text-white disabled:opacity-40">{isTutorLoading?'…':'Send'}</button></div></div></div><div className="px-5 pb-6 sm:px-8"><PronunciationCoach track={learner.track} level={learner.level} contextLabel={isSchool ? learner.grade : learner.role} />
           <PronunciationReviewDrills track={learner.track} level={learner.level} contextLabel={isSchool ? learner.grade : learner.role} /></div></section>}
         {section === 'learn' && <div>

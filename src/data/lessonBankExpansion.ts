@@ -431,6 +431,194 @@ const seeds: LessonSeed[] = [
     speakingPrompt: 'Present a recommendation to a senior decision-maker in 90 seconds, then respond to a question about risk or evidence.',
     followUps: ['Which uncertainty would most affect your recommendation?', 'How would you communicate a recommendation when the evidence is incomplete?'],
   },
+
+  {
+    id: 'pro-b1-it-sprint', track: 'professional', level: 'B1',
+    title: 'Explaining a Software Sprint Update', theme: 'Technology teams, project delivery and clear status reporting',
+    vocabulary: [
+      { word: 'sprint', meaningVi: 'chu kỳ phát triển ngắn', example: 'The team plans the next sprint on Monday.' },
+      { word: 'blocker', meaningVi: 'trở ngại làm đình trệ công việc', example: 'A missing approval is the main blocker.' },
+      { word: 'deploy', meaningVi: 'triển khai phần mềm', example: 'We plan to deploy the update on Thursday.' },
+    ],
+    grammarFocus: ['present perfect for completed work', 'past simple for specific incidents', 'will / going to for next actions'],
+    listeningScript: 'Good morning, everyone. During this sprint, we have completed the new account settings page and fixed the two highest-priority login bugs. We found one blocker: the test environment is not receiving updated customer records. The platform team is investigating it. If the issue is resolved by Wednesday, we are going to deploy the release on Thursday. Otherwise, we will move the deployment to next week. I will share another update tomorrow afternoon.',
+    listeningQuestions: [
+      { prompt: 'Which work has the team completed?', options: ['The account settings page and two login fixes', 'A new payment platform', 'The customer support handbook'], answer: 'The account settings page and two login fixes', explanation: 'The speaker identifies the settings page and two login bugs as completed work.' },
+      { prompt: 'What will happen if the blocker is not resolved by Wednesday?', options: ['The release will be cancelled permanently', 'Deployment will move to next week', 'The team will skip testing'], answer: 'Deployment will move to next week', explanation: 'The speaker gives this as the alternative deployment plan.' },
+    ],
+    readingPassage: 'A useful sprint update helps colleagues understand progress without requiring them to read every task record. It should separate completed work from work still in progress, identify blockers and name the person responsible for the next action. Dates should be realistic rather than optimistic guesses. When a delivery date depends on an unresolved issue, explain the condition clearly and provide a time for the next update. This makes the report reliable and gives other teams a chance to adjust their plans.',
+    readingQuestions: [
+      { prompt: 'What should a sprint update separate?', options: ['Completed work and work still in progress', 'Developers and customers', 'Budgets and office locations'], answer: 'Completed work and work still in progress', explanation: 'The second sentence explicitly asks for this distinction.' },
+      { prompt: 'What should a writer do when a date depends on an unresolved issue?', options: ['Present the date as guaranteed', 'Explain the condition and next update time', 'Avoid mentioning the issue'], answer: 'Explain the condition and next update time', explanation: 'The passage recommends making the dependency and next update explicit.' },
+    ],
+    writingPrompt: 'Write a 130–160-word sprint update for a cross-functional team. Include completed work, one blocker, its owner, a conditional delivery date and the next update time.',
+    speakingPrompt: 'Give a one-minute stand-up update. Explain what you completed, what you are working on and whether anything is blocking progress.',
+    followUps: ['How would you explain a delay to a non-technical stakeholder?', 'What information should never be hidden in a project status report?'],
+  },
+  {
+    id: 'pro-b1-finance-budget', track: 'professional', level: 'B1',
+    title: 'Discussing a Department Budget', theme: 'Finance, budgets and evidence-based workplace decisions',
+    vocabulary: [
+      { word: 'allocate', meaningVi: 'phân bổ', example: 'We need to allocate more money to staff training.' },
+      { word: 'forecast', meaningVi: 'dự báo', example: 'The forecast shows higher travel costs next quarter.' },
+      { word: 'overrun', meaningVi: 'chi phí vượt ngân sách', example: 'The project had a small budget overrun.' },
+    ],
+    grammarFocus: ['comparatives for financial options', 'quantifiers and numbers', 'polite requests and suggestions'],
+    listeningScript: 'I have reviewed the department budget for the next quarter. Training costs are expected to rise by ten percent because two new systems are being introduced. However, travel spending was lower than forecast last quarter, so we may be able to move part of that budget. I suggest keeping the total budget unchanged and reallocating the available funds to staff training. Could each team send its revised estimate by Friday?',
+    listeningQuestions: [
+      { prompt: 'Why are training costs expected to rise?', options: ['Two new systems are being introduced', 'The office is moving abroad', 'Travel prices have doubled'], answer: 'Two new systems are being introduced', explanation: 'The speaker links the increase to the introduction of two systems.' },
+      { prompt: 'What does the speaker suggest?', options: ['Increase the total budget immediately', 'Reallocate some travel funds to training', 'Cancel staff training'], answer: 'Reallocate some travel funds to training', explanation: 'The speaker proposes moving available funds while keeping the total unchanged.' },
+    ],
+    readingPassage: 'A department budget is a plan, not a guarantee that every estimate will be correct. Managers should compare actual spending with the forecast regularly and explain significant differences. If one activity costs more than expected, the team can consider changing the timing, reducing the scope or reallocating funds from a lower-priority activity. Any change should be recorded so that colleagues understand the reason and the effect on other plans.',
+    readingQuestions: [
+      { prompt: 'What should managers compare regularly?', options: ['Actual spending and the forecast', 'Staff birthdays and holidays', 'Office size and team names'], answer: 'Actual spending and the forecast', explanation: 'The passage recommends regular comparison of actual spending with forecasts.' },
+      { prompt: 'Why should budget changes be recorded?', options: ['To explain the reason and effect on other plans', 'To prevent all future changes', 'To replace the annual report'], answer: 'To explain the reason and effect on other plans', explanation: 'The final sentence gives this purpose directly.' },
+    ],
+    writingPrompt: 'Write a 130–160-word email to your manager explaining a budget variance. State the original estimate, actual change, likely reason and one practical recommendation.',
+    speakingPrompt: 'Explain a small budget overrun to your manager and recommend how the team should respond.',
+    followUps: ['When is reallocating funds better than requesting more money?', 'How can a team make financial forecasts more reliable?'],
+  },
+
+  {
+    id: 'pro-b1-customer-success', track: 'professional', level: 'B1',
+    title: 'Handling a Customer Complaint', theme: 'Customer service, active listening and practical problem-solving',
+    vocabulary: [
+      { word: 'acknowledge', meaningVi: 'ghi nhận, thừa nhận', example: 'First, acknowledge the customer’s concern.' },
+      { word: 'resolve', meaningVi: 'giải quyết', example: 'We aim to resolve the issue within one working day.' },
+      { word: 'follow up', meaningVi: 'liên hệ lại để cập nhật', example: 'I will follow up after the replacement is sent.' },
+    ],
+    grammarFocus: ['polite requests and indirect questions', 'past simple for describing incidents', 'will and present continuous for next steps'],
+    listeningScript: 'Thank you for explaining what happened. I understand that the delivery arrived two days late and that one item was missing. I am sorry for the inconvenience. I will check the warehouse record now and arrange for the missing item to be sent by express delivery. You will receive a confirmation email this afternoon. May I contact you tomorrow to make sure everything has arrived?',
+    listeningQuestions: [
+      { prompt: 'What problems did the customer report?', options: ['A late delivery and a missing item', 'A damaged payment card', 'An incorrect account password'], answer: 'A late delivery and a missing item', explanation: 'The agent repeats both problems before offering a solution.' },
+      { prompt: 'When will the agent send a confirmation email?', options: ['Tomorrow morning', 'This afternoon', 'Next week'], answer: 'This afternoon', explanation: 'The agent says the confirmation email will arrive this afternoon.' },
+    ],
+    readingPassage: 'A good complaint-handling process begins with listening rather than defending the organisation. The employee should confirm the facts, explain what can be done and give a realistic time for the next update. If the issue cannot be solved immediately, the customer should still know who is responsible for it. A short follow-up message can prevent repeated contact and show that the organisation has taken the concern seriously.',
+    readingQuestions: [
+      { prompt: 'What should an employee do first?', options: ['Defend the organisation', 'Listen and confirm the facts', 'Promise an immediate refund in every case'], answer: 'Listen and confirm the facts', explanation: 'The passage says the process begins with listening and confirming facts.' },
+      { prompt: 'Why is a follow-up message useful?', options: ['It can prevent repeated contact and show ownership', 'It replaces the need to solve the issue', 'It guarantees that no complaint will happen again'], answer: 'It can prevent repeated contact and show ownership', explanation: 'The final sentence explains both benefits.' },
+    ],
+    writingPrompt: 'Write a 130–160-word reply to a customer whose order arrived late and incomplete. Acknowledge the problem, explain the action you will take and give a clear follow-up time.',
+    speakingPrompt: 'Role-play a customer-service call. Listen to a complaint, clarify the facts, apologise appropriately and explain the next action.',
+    followUps: ['What should you say when you cannot promise an immediate solution?', 'How can a team learn from repeated customer complaints?'],
+  },
+  {
+    id: 'pro-b2-marketing-campaign', track: 'professional', level: 'B2',
+    title: 'Presenting a Marketing Campaign Review', theme: 'Marketing strategy, campaign metrics and evidence-led recommendations',
+    vocabulary: [
+      { word: 'conversion rate', meaningVi: 'tỷ lệ chuyển đổi', example: 'The conversion rate increased after the landing page changed.' },
+      { word: 'target audience', meaningVi: 'đối tượng khách hàng mục tiêu', example: 'The campaign was designed for a younger target audience.' },
+      { word: 'return on investment', meaningVi: 'tỷ suất hoàn vốn', example: 'The team is reviewing return on investment before extending the campaign.' },
+    ],
+    grammarFocus: ['comparatives and trend language for data', 'present perfect for campaign results', 'hedging when evidence is limited'],
+    listeningScript: 'The campaign reached  forty thousand people over four weeks, and website visits increased by eighteen percent. However, the conversion rate rose by only two percent, which suggests that awareness did not translate into sales as strongly as we expected. The strongest results came from returning visitors rather than new audiences. I recommend testing a clearer product message and comparing the cost per acquisition before increasing the budget.',
+    listeningQuestions: [
+      { prompt: 'Which metric increased by eighteen percent?', options: ['Website visits', 'Conversion rate', 'The campaign budget'], answer: 'Website visits', explanation: 'The speaker reports an eighteen-percent increase in website visits.' },
+      { prompt: 'What does the speaker recommend before increasing the budget?', options: ['Stop measuring campaign results', 'Test the message and compare acquisition costs', 'Target only existing customers'], answer: 'Test the message and compare acquisition costs', explanation: 'The final sentence gives both proposed actions.' },
+    ],
+    readingPassage: 'A campaign review should connect activity to business outcomes. Reach and impressions indicate how many people may have seen a message, but they do not show whether the campaign generated qualified interest or revenue. Teams should compare conversion rates, acquisition costs and customer quality across channels. Results also need context: seasonality, pricing changes and audience differences can affect performance. Recommendations should therefore distinguish observed results from possible explanations and propose a test that can reduce uncertainty.',
+    readingQuestions: [
+      { prompt: 'Why are reach and impressions insufficient on their own?', options: ['They do not show whether qualified interest or revenue was generated', 'They measure customer satisfaction perfectly', 'They automatically calculate profit'], answer: 'They do not show whether qualified interest or revenue was generated', explanation: 'The passage distinguishes exposure metrics from business outcomes.' },
+      { prompt: 'What should recommendations distinguish?', options: ['Observed results and possible explanations', 'Old campaigns and office locations', 'Design preferences and job titles'], answer: 'Observed results and possible explanations', explanation: 'The final sentence explicitly makes this distinction.' },
+    ],
+    writingPrompt: 'Write a 180–220-word campaign review for a marketing manager. Summarise two results, explain one limitation and recommend a measurable next experiment.',
+    speakingPrompt: 'Present a two-minute campaign review. Explain what worked, what did not meet expectations and which experiment you would run next.',
+    followUps: ['Which metric would you prioritise if the objective were customer retention?', 'How would you explain a positive result when the sample size is small?'],
+  },
+  {
+    id: 'pro-b2-hr-performance', track: 'professional', level: 'B2',
+    title: 'Giving Constructive Performance Feedback', theme: 'Human resources, coaching conversations and professional development',
+    vocabulary: [
+      { word: 'specific example', meaningVi: 'ví dụ cụ thể', example: 'Use a specific example to explain the feedback.' },
+      { word: 'development goal', meaningVi: 'mục tiêu phát triển', example: 'Agree on one realistic development goal.' },
+      { word: 'action plan', meaningVi: 'kế hoạch hành động', example: 'The action plan includes a review date.' },
+    ],
+    grammarFocus: ['diplomatic language and softening', 'present perfect for progress over time', 'modal verbs for achievable recommendations'],
+    listeningScript: 'You have built strong relationships with clients this quarter, and your handover notes are much clearer than they were in January. One area to develop is prioritisation when several urgent requests arrive together. In the last project, two internal updates were delayed because the client request took all your attention. Let us agree on a simple priority checklist and review how it works in four weeks. How does that sound to you?',
+    listeningQuestions: [
+      { prompt: 'Which strength does the manager mention?', options: ['Clearer handover notes', 'Faster budget approval', 'Leading a new department'], answer: 'Clearer handover notes', explanation: 'The manager explicitly praises the improvement in handover notes.' },
+      { prompt: 'What development action do they agree to try?', options: ['A priority checklist', 'A new reporting system for every team', 'An immediate role change'], answer: 'A priority checklist', explanation: 'The manager proposes a checklist and a review in four weeks.' },
+    ],
+    readingPassage: 'Constructive performance feedback is most useful when it is timely, specific and connected to an agreed goal. General comments such as “be more organised” give an employee little guidance. A manager can describe an observable situation, explain its impact and invite the employee to discuss possible causes. The conversation should end with an action that both people consider realistic, together with a date to review progress. Feedback is a development process, not a label attached to a person.',
+    readingQuestions: [
+      { prompt: 'Why are general comments such as “be more organised” unhelpful?', options: ['They give little practical guidance', 'They are always too positive', 'They include too many measurable details'], answer: 'They give little practical guidance', explanation: 'The passage contrasts general comments with specific, actionable feedback.' },
+      { prompt: 'What should the conversation end with?', options: ['A realistic action and a review date', 'A permanent judgement about the employee', 'An unrelated list of company rules'], answer: 'A realistic action and a review date', explanation: 'The passage recommends agreeing on an action and a date to review progress.' },
+    ],
+    writingPrompt: 'Write a 160–200-word follow-up email after a performance conversation. Recognise one strength, summarise one development area, confirm an agreed action and state the review date.',
+    speakingPrompt: 'Role-play a performance conversation. Give evidence-based feedback, invite the employee’s perspective and agree on a practical next step.',
+    followUps: ['How can a manager discuss a repeated problem without discouraging an employee?', 'What evidence would show that the development action is working?'],
+  },
+
+  {
+    id: 'pro-b1-sales-discovery', track: 'professional', level: 'B1',
+    title: 'Understanding a Customer’s Needs', theme: 'Sales discovery, needs analysis and recommending suitable solutions',
+    vocabulary: [
+      { word: 'requirement', meaningVi: 'yêu cầu, nhu cầu cần đáp ứng', example: 'Could you tell me your main requirements?' },
+      { word: 'budget range', meaningVi: 'khoảng ngân sách', example: 'What budget range have you planned for?' },
+      { word: 'recommend', meaningVi: 'đề xuất, khuyến nghị', example: 'I would recommend the smaller package for your team.' },
+    ],
+    grammarFocus: ['open questions with what, how and which', 'would like / would prefer for customer preferences', 'comparatives for explaining options'],
+    listeningScript: 'Before I recommend a product, I would like to understand how your team works. How many people will use the system, and which tasks take the most time at the moment? We have two packages that may suit you. The standard package is less expensive, while the professional package includes reporting tools and priority support. If you tell me your budget range, I can explain which option offers the best value for your needs.',
+    listeningQuestions: [
+      { prompt: 'What does the salesperson want to understand first?', options: ['How the customer’s team works', 'The customer’s office address', 'The customer’s advertising plan'], answer: 'How the customer’s team works', explanation: 'The salesperson asks about team size and time-consuming tasks before recommending a package.' },
+      { prompt: 'What does the professional package include?', options: ['Reporting tools and priority support', 'Free office furniture', 'Unlimited training days'], answer: 'Reporting tools and priority support', explanation: 'The speaker names these two features of the professional package.' },
+    ],
+    readingPassage: 'A useful sales conversation is not simply a presentation of product features. A salesperson should first ask questions about the customer’s goals, current process, budget and decision timeline. The answers help the salesperson connect relevant features to real needs. If a product is not suitable, it is better to explain the limitation clearly than to make a promise the company cannot keep. Trust built through accurate advice can be more valuable than a quick sale.',
+    readingQuestions: [
+      { prompt: 'What should a salesperson do before presenting features?', options: ['Ask about the customer’s goals and situation', 'Offer the most expensive product', 'Avoid discussing the budget'], answer: 'Ask about the customer’s goals and situation', explanation: 'The passage says discovery questions should come before matching features to needs.' },
+      { prompt: 'Why should limitations be explained clearly?', options: ['To build trust through accurate advice', 'To make every sale take longer', 'To avoid answering customer questions'], answer: 'To build trust through accurate advice', explanation: 'The final sentence links honest advice with long-term trust.' },
+    ],
+    writingPrompt: 'Write a 130–160-word follow-up email after a discovery call. Summarise the customer’s needs, recommend one suitable option and suggest a clear next step.',
+    speakingPrompt: 'Conduct a short discovery call. Ask at least three open questions, summarise the customer’s needs and recommend a suitable solution.',
+    followUps: ['How would you respond if a customer’s budget is below the available options?', 'Why is it important to confirm your understanding before making a recommendation?'],
+  },
+  {
+    id: 'pro-b2-global-supplier', track: 'professional', level: 'B2',
+    title: 'Negotiating with an International Supplier', theme: 'International business, negotiation and cross-cultural communication',
+    vocabulary: [
+      { word: 'lead time', meaningVi: 'thời gian từ đặt hàng đến giao hàng', example: 'The current lead time is six weeks.' },
+      { word: 'payment terms', meaningVi: 'điều khoản thanh toán', example: 'We would like to discuss the payment terms.' },
+      { word: 'mutually beneficial', meaningVi: 'có lợi cho cả hai bên', example: 'We are looking for a mutually beneficial agreement.' },
+    ],
+    grammarFocus: ['conditional structures for proposals', 'diplomatic disagreement and qualifying language', 'concession clauses with although and while'],
+    listeningScript: 'Thank you for sending the revised quotation. The unit price is competitive, although the six-week lead time may create difficulties for our launch schedule. If you could deliver the first thirty percent of the order within three weeks, we would be prepared to discuss a longer-term agreement. We would also like to review the payment terms. Our aim is to find a reliable arrangement that works for both companies, rather than focus on price alone.',
+    listeningQuestions: [
+      { prompt: 'What is the main concern about the quotation?', options: ['The six-week delivery lead time', 'The product colour', 'The supplier’s office location'], answer: 'The six-week delivery lead time', explanation: 'The buyer says the six-week lead time may affect the launch schedule.' },
+      { prompt: 'What does the buyer offer in exchange for an earlier partial delivery?', options: ['A discussion about a longer-term agreement', 'Immediate cancellation', 'A reduction in product quality'], answer: 'A discussion about a longer-term agreement', explanation: 'The conditional proposal links early delivery with a possible longer-term agreement.' },
+    ],
+    readingPassage: 'International supplier negotiations involve more than agreeing on a unit price. Buyers and suppliers need a shared understanding of specifications, delivery milestones, quality checks, payment conditions and the process for handling delays. Cultural expectations may also influence how directly people express disagreement or make decisions. Clear written summaries reduce the risk of different interpretations. A strong agreement protects both parties by defining responsibilities while leaving a practical route for resolving unexpected problems.',
+    readingQuestions: [
+      { prompt: 'Which factors should an agreement clarify besides price?', options: ['Specifications, delivery, quality and payment', 'Only the preferred meeting time', 'The personal hobbies of both teams'], answer: 'Specifications, delivery, quality and payment', explanation: 'The passage lists these operational terms as essential parts of an agreement.' },
+      { prompt: 'How can written summaries help?', options: ['They reduce the risk of different interpretations', 'They remove the need for quality checks', 'They guarantee that delays never occur'], answer: 'They reduce the risk of different interpretations', explanation: 'The passage directly states that written summaries reduce misunderstanding.' },
+    ],
+    writingPrompt: 'Write a 180–220-word negotiation email proposing an earlier partial delivery in exchange for a longer-term business discussion. Address delivery, payment and shared interests diplomatically.',
+    speakingPrompt: 'Role-play a supplier negotiation. Explain your priorities, make a conditional proposal, respond to a counteroffer and summarise the points agreed.',
+    followUps: ['How can you disagree firmly without damaging a business relationship?', 'Which contract details should always be confirmed in writing?'],
+  },
+  {
+    id: 'pro-c1-healthcare-handover', track: 'professional', level: 'C1',
+    title: 'Communicating a Clear Clinical Handover', theme: 'Healthcare communication, structured handovers and patient safety',
+    vocabulary: [
+      { word: 'handover', meaningVi: 'bàn giao thông tin chăm sóc', example: 'The handover should highlight any immediate concerns.' },
+      { word: 'deterioration', meaningVi: 'sự diễn biến xấu đi', example: 'Report any signs of deterioration promptly.' },
+      { word: 'pending result', meaningVi: 'kết quả đang chờ', example: 'The pending result must be followed up by the next shift.' },
+    ],
+    grammarFocus: ['precise sequencing and time references', 'reported information versus direct observation', 'modal verbs for obligation and clinical escalation'],
+    listeningScript: 'I am handing over the evening shift for patient in bed twelve. The patient was admitted this morning with shortness of breath. At the latest review, oxygen saturation had improved, but the patient still reported chest discomfort. The blood test result is pending, and the medical team has been informed. Please repeat the observations at the scheduled time and escalate immediately if the symptoms worsen. I have documented the discussion and the outstanding actions in the record.',
+    listeningQuestions: [
+      { prompt: 'Which information is still pending?', options: ['A blood test result', 'The patient’s admission date', 'The handover document'], answer: 'A blood test result', explanation: 'The speaker explicitly says the blood test result is pending.' },
+      { prompt: 'When should the next team escalate the situation?', options: ['If the symptoms worsen', 'Only at the end of the week', 'After deleting the previous notes'], answer: 'If the symptoms worsen', explanation: 'The speaker gives a clear escalation instruction if symptoms worsen.' },
+    ],
+    readingPassage: 'A safe clinical handover transfers responsibility as well as information. It should distinguish what has been directly observed from what has been reported, identify changes over time and make outstanding actions explicit. Vague statements can leave the receiving professional uncertain about urgency or ownership. A structured format can improve consistency, but it does not replace professional judgement or the opportunity to clarify important details. Any uncertainty about a patient’s condition should be escalated through the organisation’s established clinical procedures.',
+    readingQuestions: [
+      { prompt: 'What distinction should a handover make?', options: ['Direct observations and reported information', 'Personal opinions and unrelated details', 'Administrative tasks and social plans'], answer: 'Direct observations and reported information', explanation: 'The passage explicitly says a handover should distinguish observed from reported information.' },
+      { prompt: 'What does a structured format not replace?', options: ['Professional judgement and clarification', 'The need to record outstanding actions', 'Communication between shifts'], answer: 'Professional judgement and clarification', explanation: 'The passage says structure supports consistency but cannot replace judgement or clarification.' },
+    ],
+    writingPrompt: 'Write a concise 180–220-word handover note based on a fictional, non-identifiable case. Separate observations from reported information, list pending actions and state when escalation is required. Do not include real patient details.',
+    speakingPrompt: 'Practise a structured shift handover using a fictional case. Communicate the current situation, relevant background, your assessment and the actions required by the receiving team.',
+    followUps: ['How would you confirm that the receiving colleague has understood a time-critical action?', 'Why should uncertainty be stated explicitly rather than hidden behind vague language?'],
+  },
+
 ];
 
 export const EXPANDED_LESSON_BANK: GradeCefrLessonUnit[] = seeds.map(build);

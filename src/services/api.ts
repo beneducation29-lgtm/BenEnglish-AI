@@ -135,7 +135,7 @@ export async function sendConversationMessage(payload: {
   userLevel: string;
   occupation?: string;
   grade?: string;
-  learnerMemory?: { placementLevel?: string; skillLevels?: Record<string,string>; priorities?: string[]; recentSessionNotes?: string[]; recurringErrors?: string[] };
+  learnerMemory?: { placementLevel?: string; skillLevels?: Record<string,string>; priorities?: string[]; recentSessionNotes?: string[]; recurringErrors?: string[]; masteredItems?: string[]; recentPerformance?: string[] };
 }): Promise<ConversationResponseData> {
   const res = await fetch('/api/gemini/conversation', {
     method: 'POST',
