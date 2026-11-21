@@ -155,3 +155,126 @@ export function recommendNextLesson<T extends { id: string; title: string; level
   ].filter(Boolean).join(' ');
   return { lesson, weakestSkill, accuracy, reason };
 }
+
+
+export interface PersonalizedPracticeTask {
+  skill: LearningSkill;
+  title: string;
+  reason: string;
+  prompt: string;
+  guidance: string;
+  evidenceCount: number;
+  accuracy: number | null;
+  source: 'correction' | 'assessment';
+}
+
+export function buildPersonalizedPractice(input: {
+  evidence: LearningEvidence[];
+  memory: LearnerMemory;
+  track: 'high_school' | 'professional';
+  level: string;
+  grade?: string;
+  role?: string;
+}): PersonalizedPracticeTask | null {
+  const recent = input.evidence.filter(item =>
+    Number.isFinite(item.at) && Date.now() - item.at >= 0 && Date.now() - item.at <= 45 * 24 * 60 * 60 * 1000
+  );
+  const school = input.track === 'high_school';
+  const context = school ? (input.grade || 'your school life') : (input.role || 'your workplace');
+  const latestError = input.memory.recurringErrors.find(item => typeof item === 'string' && item.includes('→'));
+  if (latestError) {
+    const [original, ...rest] = latestError.split('→');
+    const improved = rest.join('→').replace(/\s*\(seen \d+ times\)\s*$/i, '').trim();
+    const frequencyKey = latestError.replace(/\s*\(seen \d+ times\)\s*$/i, '').trim();
+    const count = input.memory.errorFrequency?.[frequencyKey] || 1;
+    const pronunciation = original.trim().toLowerCase().startsWith('pronunciation:');
+    if (original?.trim() && improved) {
+      return {
+        skill: pronunciation ? 'speaking' : 'grammar',
+        title: pronunciation ? 'Practise a clearer pronunciation target' : 'Turn a correction into a habit',
+        reason: 'Built from a real correction in your learning history' + (count > 1 ? ` (noticed ${count} times)` : ''),
+        prompt: pronunciation
+          ? `Earlier pronunciation target: “${original.trim()}”\nSuggested target: “${improved}”\n\nYour task: say the suggested target aloud three times, then use it in one new sentence about ${context}.`
+          : `Earlier version: “${original.trim()}”\nImproved version: “${improved}”\n\nYour task: write one new, natural sentence that uses the same corrected pattern. Then explain the change in one short phrase.`,
+        guidance: pronunciation
+          ? 'Focus on making the target sound clear and natural; the tutor will review the sentence you produce.'
+          : 'Do not copy the improved sentence. Make a fresh example related to ' + context + '. The tutor will check whether you reused the pattern accurately.',
+        evidenceCount: count,
+        accuracy: null,
+        source: 'correction',
+      };
+    }
+  }
+
+  const bySkill = new Map<string, { attempts: number; correct: number; failedTopics: string[] }>();
+  for (const item of recent) {
+    const row = bySkill.get(item.skill) || { attempts: 0, correct: 0, failedTopics: [] };
+    row.attempts += 1;
+    if (item.correct) row.correct += 1;
+    else if (item.topic) row.failedTopics.push(item.topic);
+    bySkill.set(item.skill, row);
+  }
+  const weakest = [...bySkill.entries()]
+    .filter(([, row]) => row.attempts >= 2)
+    .sort((a, b) => (a[1].correct / a[1].attempts) - (b[1].correct / b[1].attempts))[0];
+  if (!weakest) return null;
+
+  const [skillName, row] = weakest;
+  const skill = skillName as LearningSkill;
+  const accuracy = Math.round(row.correct / row.attempts * 100);
+  const topic = row.failedTopics[row.failedTopics.length - 1] || (school ? 'school and everyday life' : 'workplace communication');
+  const taskBySkill: Record<string, { title: string; prompt: string; guidance: string }> = {
+    grammar: {
+      title: 'Build accurate sentences',
+      prompt: `Focus: ${topic}. Write two original sentences about ${context}. In each sentence, use a clear subject and verb, and make the time relationship easy to understand.`,
+      guidance: 'The tutor will check sentence structure, verb forms and whether both sentences communicate your intended meaning.',
+    },
+    vocabulary: {
+      title: 'Retrieve words in context',
+      prompt: `Focus: ${topic}. Write three useful English words or expressions you would use in this situation. For each one, write a short sentence that shows its meaning.`,
+      guidance: 'Choose expressions you can genuinely use; the tutor will check meaning, collocation and natural use.',
+    },
+    pragmatics: {
+      title: 'Choose the right tone',
+      prompt: school
+        ? `A classmate disagrees with your idea about “${topic}”. Write a respectful reply that acknowledges their view and explains your own.`
+        : `A colleague has a different view about “${topic}”. Write a concise, professional reply that acknowledges their concern and proposes a constructive next step.`,
+      guidance: 'The tutor will check politeness, clarity, audience awareness and whether your response moves the conversation forward.',
+    },
+    listening: {
+      title: 'Listen, capture and retell',
+      prompt: 'Play the latest English reply from your tutor. Write down three key points you heard, then summarise the message in two sentences.',
+      guidance: 'Replay the audio if needed. The tutor will compare your summary with the ideas in the conversation.',
+    },
+    reading: {
+      title: 'Read for meaning',
+      prompt: `Use the current lesson passage about “${topic}”. Write its main idea in one sentence, then add two details that support it.`,
+      guidance: 'Use information from the passage rather than adding unsupported details. The tutor will check accuracy and evidence.',
+    },
+    speaking: {
+      title: 'Speak with a clear structure',
+      prompt: school
+        ? `Speak for about 45 seconds about “${topic}”. State your main idea, give one reason, and add a real or imagined example from student life.`
+        : `Speak for about 45 seconds about “${topic}”. State the situation, explain your action, and describe the outcome or next step.`,
+      guidance: 'You can dictate your answer into the tutor chat. Aim for a connected response rather than isolated phrases.',
+    },
+    writing: {
+      title: 'Write for a clear purpose',
+      prompt: school
+        ? `Write a short 4-sentence paragraph about “${topic}”. Include a topic sentence, one reason, one example and a closing sentence.`
+        : `Write a concise 4-sentence workplace message about “${topic}”. State the purpose, key detail, requested action and next step.`,
+      guidance: 'The tutor will check task completion, organisation, grammar and whether the tone fits the audience.',
+    },
+  };
+  const task = taskBySkill[skill] || taskBySkill.speaking;
+  return {
+    skill,
+    title: task.title,
+    reason: `Based on ${row.attempts} recent ${skill} checks; observed accuracy is ${accuracy}% (practice evidence, not a CEFR score).`,
+    prompt: task.prompt,
+    guidance: task.guidance,
+    evidenceCount: row.attempts,
+    accuracy,
+    source: 'assessment',
+  };
+}
