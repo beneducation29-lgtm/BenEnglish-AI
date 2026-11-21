@@ -1,5 +1,9 @@
 import { GoogleGenAI, Type } from '@google/genai';
 
+// Gemini may need a second bounded attempt when the primary model is busy.
+// Give this interactive route enough time to finish both attempts on Vercel.
+export const config = { maxDuration: 60 };
+
 const PRIMARY_MODEL = 'gemini-3.5-flash-lite';
 const FALLBACK_MODEL = 'gemini-3.8-flash';
 
@@ -189,8 +193,9 @@ Conversation requirements:
         break;
       } catch (error) {
         lastError = error;
+        const errorMessage = String((error as any)?.message || error);
         const retryable = isTransientModelError(error) ||
-          /json|unexpected token|empty reply|unexpected end/i.test(String((error as any)?.message || error));
+          /json|unexpected token|empty reply|unexpected end|model.{0,30}(not found|unsupported)|not found.{0,30}model|unsupported model/i.test(errorMessage);
         if (index === 0 && retryable) {
           console.warn('Conversation primary model failed or returned an invalid response; trying fallback.');
           continue;
