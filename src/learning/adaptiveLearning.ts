@@ -185,14 +185,20 @@ export function buildPersonalizedPractice(input: {
   if (latestError) {
     const [original, ...rest] = latestError.split('→');
     const improved = rest.join('→').replace(/\s*\(seen \d+ times\)\s*$/i, '').trim();
+    const frequencyKey = latestError.replace(/\s*\(seen \d+ times\)\s*$/i, '').trim();
+    const count = input.memory.errorFrequency?.[frequencyKey] || 1;
+    const pronunciation = original.trim().toLowerCase().startsWith('pronunciation:');
     if (original?.trim() && improved) {
-      const count = input.memory.errorFrequency?.[latestError] || 1;
       return {
-        skill: 'grammar',
-        title: 'Turn a correction into a habit',
+        skill: pronunciation ? 'speaking' : 'grammar',
+        title: pronunciation ? 'Practise a clearer pronunciation target' : 'Turn a correction into a habit',
         reason: 'Built from a real correction in your learning history' + (count > 1 ? ` (noticed ${count} times)` : ''),
-        prompt: `Earlier version: “${original.trim()}”\nImproved version: “${improved}”\n\nYour task: write one new, natural sentence that uses the same corrected pattern. Then explain the change in one short phrase.`,
-        guidance: 'Do not copy the improved sentence. Make a fresh example related to ' + context + '. The tutor will check whether you reused the pattern accurately.',
+        prompt: pronunciation
+          ? `Earlier pronunciation target: “${original.trim()}”\\nSuggested target: “${improved}”\\n\\nYour task: say the suggested target aloud three times, then use it in one new sentence about ${context}.`
+          : `Earlier version: “${original.trim()}”\\nImproved version: “${improved}”\\n\\nYour task: write one new, natural sentence that uses the same corrected pattern. Then explain the change in one short phrase.`,
+        guidance: pronunciation
+          ? 'Focus on making the target sound clear and natural; the tutor will review the sentence you produce.'
+          : 'Do not copy the improved sentence. Make a fresh example related to ' + context + '. The tutor will check whether you reused the pattern accurately.',
         evidenceCount: count,
         accuracy: null,
         source: 'correction',
