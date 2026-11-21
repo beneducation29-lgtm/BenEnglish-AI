@@ -72,6 +72,7 @@ export default function BenEnglishExperience() {
   const [liveTranscript, setLiveTranscript] = useState('');
   const [voiceInputNotice, setVoiceInputNotice] = useState('');
   const recognitionRef = useRef<any>(null);
+  const voiceSessionRef = useRef(0);
   const finalTranscriptRef = useRef('');
   const submitVoiceOnEndRef = useRef(false);
   const [failedTutorMessage, setFailedTutorMessage] = useState('');
@@ -250,9 +251,22 @@ export default function BenEnglishExperience() {
     setSpeechNotice(''); window.speechSynthesis.speak(utterance);
   };
   const stopLearnerRecording = (submit: boolean) => {
-    if (!recognitionRef.current) return;
+    const recognition = recognitionRef.current;
+    if (!recognition) return;
     submitVoiceOnEndRef.current = submit;
-    try { recognitionRef.current.stop(); } catch { setIsListeningLearner(false); }
+    try {
+      recognition.stop();
+    } catch {
+      // Preserve anything recognised if the browser cannot complete its stop event.
+      const transcript = finalTranscriptRef.current.trim();
+      if (transcript) setMessage(transcript);
+      setIsListeningLearner(false);
+      recognitionRef.current = null;
+      submitVoiceOnEndRef.current = false;
+      setVoiceInputNotice(transcript
+        ? 'Recording stopped unexpectedly. Your recognised words are saved in the text box for review.'
+        : 'The microphone could not stop cleanly. Please try again or type your answer.');
+    }
   };
   const startLearnerRecording = () => {
     const speechWindow = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
@@ -268,21 +282,28 @@ export default function BenEnglishExperience() {
     finalTranscriptRef.current = '';
     submitVoiceOnEndRef.current = false;
     const recognition = new Recognition();
+    const sessionId = ++voiceSessionRef.current;
     recognition.lang = 'en-US';
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event: any) => {
+      if (sessionId !== voiceSessionRef.current) return;
       let interim = '';
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         const result = event.results[index];
-        const transcript = result[0]?.transcript || '';
-        if (result.isFinal) finalTranscriptRef.current += (finalTranscriptRef.current ? ' ' : '') + transcript.trim();
-        else interim += transcript;
+        const transcript = String(result[0]?.transcript || '').trim();
+        if (!transcript) continue;
+        if (result.isFinal) {
+          finalTranscriptRef.current = [finalTranscriptRef.current, transcript].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
+        } else {
+          interim = [interim, transcript].filter(Boolean).join(' ');
+        }
       }
       setLiveTranscript([finalTranscriptRef.current, interim].filter(Boolean).join(' ').trim());
     };
     recognition.onerror = (event: any) => {
+      if (sessionId !== voiceSessionRef.current) return;
       submitVoiceOnEndRef.current = false;
       setVoiceInputNotice(event.error === 'not-allowed' || event.error === 'service-not-allowed'
         ? 'Microphone permission is blocked. Allow microphone access in your browser settings and try again.'
@@ -291,6 +312,7 @@ export default function BenEnglishExperience() {
           : 'Voice recognition stopped unexpectedly. Your recognised words are kept in the text box.');
     };
     recognition.onend = () => {
+      if (sessionId !== voiceSessionRef.current) return;
       setIsListeningLearner(false);
       recognitionRef.current = null;
       const transcript = finalTranscriptRef.current.trim();
@@ -314,6 +336,7 @@ export default function BenEnglishExperience() {
       recognition.start();
       setIsListeningLearner(true);
     } catch {
+      if (sessionId === voiceSessionRef.current) voiceSessionRef.current += 1;
       recognitionRef.current = null;
       setIsListeningLearner(false);
       setVoiceInputNotice('The microphone could not start. Please check browser permission and try again.');
