@@ -352,6 +352,10 @@ export default function BenEnglishExperience() {
             ...(activeCurriculum ? [`Current lesson: ${activeCurriculum.title} (${activeCurriculum.theme}), level ${activeCurriculum.level}.`, `Speaking objective: ${activeCurriculum.speaking.prompt}`, `Useful lesson vocabulary: ${activeCurriculum.vocabulary.slice(0, 5).map(item => `${item.word} = ${item.meaningVi}`).join('; ')}`] : []),
           ],
           recurringErrors: learnerMemory.recurringErrors,
+          masteredItems: learnerMemory.masteredItems,
+          recentPerformance: assessmentHistory.slice(-12).map(item =>
+            `${item.skill}: ${item.correct ? 'completed successfully' : 'needs more practice'}${item.topic ? ' · ' + item.topic : ''}`
+          ),
         },
       });
       setMessages(prev => [...prev, {
