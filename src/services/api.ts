@@ -157,7 +157,10 @@ export async function sendConversationMessage(payload: {
     if (res.status === 404) {
       throw new Error('Conversation API route was not found (HTTP 404). Please redeploy the latest Preview and check the Vercel function route.');
     }
-    if (res.status === 502 || res.status === 503 || res.status === 504 || data?.code === 'AI_DEADLINE_EXCEEDED') {
+    if (data?.code === 'GEMINI_BILLING_REQUIRED') {
+      throw new Error(detail);
+    }
+    if (data?.retryable === true || data?.code === 'AI_DEADLINE_EXCEEDED' || [502, 503, 504].includes(res.status)) {
       throw new Error('Teacher Emma is taking longer than usual to reply. Your message is still in the conversation — please tap Retry in a moment.');
     }
     throw new Error(`Conversation API returned HTTP ${res.status}: ${detail}`);
