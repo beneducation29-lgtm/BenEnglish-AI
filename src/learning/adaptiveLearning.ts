@@ -184,14 +184,14 @@ export function buildPersonalizedPractice(input: {
   const latestError = input.memory.recurringErrors.find(item => typeof item === 'string' && item.includes('→'));
   if (latestError) {
     const [original, ...rest] = latestError.split('→');
-    const improved = rest.join('→').replace(/\\s*\\(seen \\d+ times\\)\\s*$/i, '').trim();
+    const improved = rest.join('→').replace(/\s*\(seen \d+ times\)\s*$/i, '').trim();
     if (original?.trim() && improved) {
       const count = input.memory.errorFrequency?.[latestError] || 1;
       return {
         skill: 'grammar',
         title: 'Turn a correction into a habit',
         reason: 'Built from a real correction in your learning history' + (count > 1 ? ` (noticed ${count} times)` : ''),
-        prompt: `Earlier version: “${original.trim()}”\\nImproved version: “${improved}”\\n\\nYour task: write one new, natural sentence that uses the same corrected pattern. Then explain the change in one short phrase.`,
+        prompt: `Earlier version: “${original.trim()}”\nImproved version: “${improved}”\n\nYour task: write one new, natural sentence that uses the same corrected pattern. Then explain the change in one short phrase.`,
         guidance: 'Do not copy the improved sentence. Make a fresh example related to ' + context + '. The tutor will check whether you reused the pattern accurately.',
         evidenceCount: count,
         accuracy: null,
